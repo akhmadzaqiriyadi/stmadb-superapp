@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  # Service untuk Database PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: stmadb_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # Port 5432 di dalam container dipetakan ke port 5432 di VPS
+      - "5432:5432"
+    volumes:
+      # Volume ini akan menyimpan data PostgreSQL Anda secara permanen di VPS
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - stmadb-net
+
+  # Service untuk Backend Express.js
+  backend:
+    # Ganti 'zaqitz' dengan username GitHub Anda
+    image: ghcr.io/zaqitz/stmadb-portal-be:latest
+    container_name: stmadb_be
+    restart: unless-stopped
+    depends_on:
+      - postgres # Memberitahu Docker untuk menyalakan database terlebih dahulu
+    env_file:
+      - ./stmadb-portal-be/.env
+    ports:
+      - "8080:8080"
+    networks:
+      - stmadb-net
+
+  # Service untuk Frontend Next.js
+  frontend:
+    # Ganti 'zaqitz' dengan username GitHub Anda
+    image: ghcr.io/zaqitz/stmadb-portal-fe:latest
+    container_name: stmadb_fe
+    restart: unless-stopped
+    depends_on:
+      - backend # Frontend baru menyala setelah backend siap
+    env_file:
+      - ./stmadb-portal-fe/.env
+    ports:
+      - "3000:3000"
+    networks:
+      - stmadb-net
+
+# Mendefinisikan network agar semua service bisa berkomunikasi
+networks:
+  stmadb-net:
+    driver: bridge
+
+# Mendefinisikan volume untuk persistensi data database
+volumes:
+  pgdata:

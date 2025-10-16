@@ -1,0 +1,22 @@
+# Dependency directory
+node_modules
+
+# Next.js build output
+.next
+
+# Turbo pack cache
+.turbo
+
+# Environment variables
+.env
+.env*.local
+
+# Logs
+logs
+*.log
+
+# OS-specific files
+.DS_Store
+
+# Git files
+.git

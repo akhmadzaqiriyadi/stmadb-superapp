@@ -1,0 +1,301 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============== MODUL 1: PENGGUNA & AKSES ==============
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  role_name String   @unique @db.VarChar(50)
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  password   String
+  is_active  Boolean   @default(true)
+  last_login DateTime?
+
+  roles Role[]
+
+  // SATU profil universal (WAJIB ADA UNTUK SETIAP USER)
+  profile Profile?
+
+  // BEBERAPA ekstensi peran (OPSIONAL, HANYA ADA JIKA USER PUNYA ROLE TERTENTU)
+  teacher_extension  TeacherExtension?
+  student_extension  StudentExtension?
+  guardian_extension GuardianExtension?
+  duties             DutySchedule[]
+
+  homeroom_class      Classes?          @relation("HomeroomTeacher")
+  teacher_assignments TeacherAssignment[]
+  teaching_journals   TeachingJournal[]
+  class_memberships   ClassMember[]
+  student_attendances Attendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Profil Universal untuk data inti yang dimiliki semua orang
+model Profile {
+  id              Int       @id @default(autoincrement())
+  full_name       String
+  identity_number String?   @unique // NIP/NIK, dibuat opsional agar fleksibel
+  gender          Gender
+  address         String?   @db.Text
+  phone_number    String?
+  photo_url       String?
+  birth_date      DateTime?
+
+  user_id Int  @unique
+  user    User @relation(fields: [user_id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Gender {
+  Laki_laki
+  Perempuan
+}
+
+// ============== MODUL 1.5: EKSTENSI PERAN ==============
+// Model-model ini hanya berisi data yang SANGAT SPESIFIK untuk peran tertentu
+
+model TeacherExtension {
+  id      Int     @id @default(autoincrement())
+  user_id Int     @unique
+  user    User    @relation(fields: [user_id], references: [id])
+
+  nip     String? @unique
+  nuptk   String? @unique
+}
+
+model StudentExtension {
+  id          Int     @id @default(autoincrement())
+  user_id     Int     @unique
+  user        User    @relation(fields: [user_id], references: [id])
+  
+  nisn        String  @unique
+  guardian_id Int?
+  guardian    GuardianExtension? @relation(fields: [guardian_id], references: [id])
+}
+
+model GuardianExtension {
+  id         Int                @id @default(autoincrement())
+  user_id    Int                @unique
+  user       User               @relation(fields: [user_id], references: [id])
+  occupation String?
+  students   StudentExtension[] // Seorang wali bisa punya banyak anak
+}
+
+// ============== MODUL 2: STRUKTUR AKADEMIK & JADWAL ==============
+
+model AcademicYear {
+  id                 Int               @id @default(autoincrement())
+  year               String            @unique // "2025/2026"
+  start_date         DateTime
+  end_date           DateTime
+  is_active          Boolean           @default(false)
+
+  class_memberships    ClassMember[]
+  teacher_assignments  TeacherAssignment[]
+  schedules            Schedule[]
+  academic_weeks       AcademicWeek[]
+  special_events       SpecialEvent[]
+  routine_activities   RoutineActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Major {
+  id         Int       @id @default(autoincrement())
+  major_name String    @unique
+  major_code String    @unique
+  classes    Classes[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Classes {
+  id                  Int                 @id @default(autoincrement())
+  class_name          String              // "XI TKJ 1"
+  grade_level         Int                 // 10, 11, 12
+  major_id            Int
+  major               Major               @relation(fields: [major_id], references: [id])
+  homeroom_teacher_id Int?                @unique
+  homeroom_teacher    User?               @relation("HomeroomTeacher", fields: [homeroom_teacher_id], references: [id])
+  class_members       ClassMember[]
+  teacher_assignments TeacherAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Subject {
+  id                  Int                 @id @default(autoincrement())
+  subject_name        String
+  subject_code        String              @unique
+  teacher_assignments TeacherAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AcademicWeek {
+  id               Int          @id @default(autoincrement())
+  start_date       DateTime     @db.Date
+  end_date         DateTime     @db.Date
+  week_type        WeekType
+  notes            String?
+  academic_year_id Int
+  academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+}
+
+enum WeekType {
+  A
+  B
+  Libur
+  Ujian
+  Acara
+}
+
+model Schedule {
+  id               Int               @id @default(autoincrement())
+  day_of_week      DayOfWeek
+  start_time       DateTime          @db.Time
+  end_time         DateTime          @db.Time
+  schedule_type    ScheduleType      @default(Umum)
+  assignment_id    Int
+  assignment       TeacherAssignment @relation(fields: [assignment_id], references: [id])
+  academic_year_id Int
+  academic_year    AcademicYear      @relation(fields: [academic_year_id], references: [id])
+  journals         TeachingJournal[]
+
+  room_id          Int?
+  room             Room?             @relation(fields: [room_id], references: [id])
+}
+
+enum DayOfWeek {
+  Senin
+  Selasa
+  Rabu
+  Kamis
+  Jumat
+}
+
+enum ScheduleType {
+  A
+  B
+  Umum
+}
+
+model SpecialEvent {
+  id               Int          @id @default(autoincrement())
+  event_name       String
+  description      String?
+  start_date       DateTime     @db.Date
+  end_date         DateTime     @db.Date
+  academic_year_id Int
+  academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+}
+
+model RoutineActivity {
+  id                Int          @id @default(autoincrement())
+  activity_name     String
+  day_of_week       DayOfWeek
+  start_time        DateTime     @db.Time
+  end_time          DateTime     @db.Time
+  description       String?
+  academic_year_id  Int
+  academic_year     AcademicYear @relation(fields: [academic_year_id], references: [id])
+}
+
+model DutySchedule {
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  user      User     @relation(fields: [user_id], references: [id])
+  duty_date DateTime @db.Date
+  duty_type String
+  notes     String?
+  @@unique([user_id, duty_date, duty_type])
+}
+
+model ClassMember {
+  id               Int          @id @default(autoincrement())
+  student_user_id  Int
+  student          User         @relation(fields: [student_user_id], references: [id])
+  class_id         Int
+  class            Classes      @relation(fields: [class_id], references: [id])
+  academic_year_id Int
+  academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+  @@unique([student_user_id, academic_year_id])
+}
+
+model TeacherAssignment {
+  id               Int          @id @default(autoincrement())
+  teacher_user_id  Int
+  teacher          User         @relation(fields: [teacher_user_id], references: [id])
+  subject_id       Int
+  subject          Subject      @relation(fields: [subject_id], references: [id])
+  class_id         Int
+  class            Classes      @relation(fields: [class_id], references: [id])
+  academic_year_id Int
+  academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+  schedules        Schedule[]
+}
+
+model TeachingJournal {
+  id               Int        @id @default(autoincrement())
+  journal_date     DateTime   @db.Date
+  material_summary String     @db.Text
+  teacher_notes    String?    @db.Text
+  schedule_id      Int
+  schedule         Schedule   @relation(fields: [schedule_id], references: [id])
+  teacher_user_id  Int
+  teacher          User       @relation(fields: [teacher_user_id], references: [id])
+  attendances      Attendance[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+}
+
+model Attendance {
+  id              Int              @id @default(autoincrement())
+  status          AttendanceStatus @default(Hadir)
+  notes           String?
+  journal_id      Int
+  journal         TeachingJournal  @relation(fields: [journal_id], references: [id])
+  student_user_id Int
+  student         User             @relation(fields: [student_user_id], references: [id])
+}
+
+enum AttendanceStatus {
+  Hadir
+  Izin
+  Sakit
+  Alfa
+}
+
+// Tambahkan model ini
+model Room {
+  id        Int      @id @default(autoincrement())
+  room_name String   // "Ruang Teori 36"
+  room_code String   @unique // "R.36"
+  schedules Schedule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
