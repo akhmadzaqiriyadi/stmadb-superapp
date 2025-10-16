@@ -16,9 +16,8 @@ const app: Express = express();
 // Daftar domain yang diizinkan untuk mengakses API
 const allowedOrigins = [
   'http://localhost:3000',      
-  'https://stmadb-portal-fe.vercel.app',           // Untuk development frontend lokal
-  'http://simantap.smkn1adw.sch.id:3000', // Domain produksi Anda dengan port
-  'http://simantap.smkn1adw.sch.id'       // Domain produksi Anda tanpa port (jika nanti pakai Nginx)
+  'http://apps.smkn1adw.sch.id',           // Untuk development frontend lokal
+
 ];
 
 app.use(cors({
