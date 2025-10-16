@@ -1,59 +1,79 @@
-version: '3.9'
+# Nama workflow yang akan muncul di tab "Actions" GitHub
+name: Deploy to VPS
 
-services:
-  # Service untuk Database PostgreSQL
-  postgres:
-    image: postgres:16-alpine
-    container_name: stmadb_db
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      # Port 5432 di dalam container dipetakan ke port 5432 di VPS
-      - "5432:5432"
-    volumes:
-      # Volume ini akan menyimpan data PostgreSQL Anda secara permanen di VPS
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - stmadb-net
+# Pemicu: Workflow ini akan berjalan setiap kali ada 'push' ke branch 'main'
+on:
+  push:
+    branches:
+      - main
 
-  # Service untuk Backend Express.js
-  backend:
-    # Ganti 'zaqitz' dengan username GitHub Anda
-    image: ghcr.io/zaqitz/stmadb-portal-be:latest
-    container_name: stmadb_be
-    restart: unless-stopped
-    depends_on:
-      - postgres # Memberitahu Docker untuk menyalakan database terlebih dahulu
-    env_file:
-      - ./stmadb-portal-be/.env
-    ports:
-      - "8080:8080"
-    networks:
-      - stmadb-net
+jobs:
+  build-and-deploy:
+    # Menggunakan environment terbaru yang disediakan GitHub
+    runs-on: ubuntu-latest
 
-  # Service untuk Frontend Next.js
-  frontend:
-    # Ganti 'zaqitz' dengan username GitHub Anda
-    image: ghcr.io/zaqitz/stmadb-portal-fe:latest
-    container_name: stmadb_fe
-    restart: unless-stopped
-    depends_on:
-      - backend # Frontend baru menyala setelah backend siap
-    env_file:
-      - ./stmadb-portal-fe/.env
-    ports:
-      - "3000:3000"
-    networks:
-      - stmadb-net
+    steps:
+      # Langkah 1: Mengunduh kode dari repository Anda ke runner GitHub
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-# Mendefinisikan network agar semua service bisa berkomunikasi
-networks:
-  stmadb-net:
-    driver: bridge
+      # Langkah 2: Login ke GitHub Container Registry (GHCR)
+      # Ini dibutuhkan agar kita bisa mengunggah (push) image Docker
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }} # Username GitHub Anda
+          password: ${{ secrets.DOCKERHUB_TOKEN }} # PAT yang sudah disimpan di Secrets
 
-# Mendefinisikan volume untuk persistensi data database
-volumes:
-  pgdata:
+      # Langkah 3: Menyiapkan Docker Buildx, sebuah builder canggih
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Langkah 4: Build dan Push image Docker untuk Backend
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stmadb-portal-be # Konteks build adalah folder backend
+          file: ./stmadb-portal-be/Dockerfile
+          push: true # Push image setelah build selesai
+          # Tag image dengan format: ghcr.io/NAMA_USER/NAMA_REPO-be:latest
+          tags: ghcr.io/${{ github.repository_owner }}/stmadb-portal-be:latest
+
+      # Langkah 5: Build dan Push image Docker untuk Frontend
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stmadb-portal-fe # Konteks build adalah folder frontend
+          file: ./stmadb-portal-fe/Dockerfile
+          push: true # Push image setelah build selesai
+          # Menyuntikkan URL API publik ke dalam proses build Next.js
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://apps.smkn1adw.sch.id/api/v1
+          # Tag image dengan format: ghcr.io/NAMA_USER/NAMA_REPO-fe:latest
+          tags: ghcr.io/${{ github.repository_owner }}/stmadb-portal-fe:latest
+
+      # Langkah 6: Deploy ke VPS melalui SSH
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }} # Diambil dari GitHub Secrets
+          username: ${{ secrets.VPS_USERNAME }} # Diambil dari GitHub Secrets
+          key: ${{ secrets.VPS_SSH_KEY }} # Diambil dari GitHub Secrets
+          script: |
+            # Pindah ke direktori project Anda di VPS
+            # Pastikan direktori ini sudah Anda buat sebelumnya
+            cd /home/apps/stmadb-portal
+
+            # Login ke GitHub Container Registry dari dalam VPS
+            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Tarik (pull) versi terbaru dari kedua image Docker
+            docker compose pull
+
+            # Matikan dan nyalakan kembali semua service dengan image baru
+            # Opsi -d (detached) membuatnya berjalan di background
+            docker compose up -d
+
+            # Perintah opsional: Hapus image lama yang tidak terpakai untuk menghemat ruang disk
+            docker image prune -f
