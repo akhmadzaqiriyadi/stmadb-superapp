@@ -6,8 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'node --loader ts-node/esm' src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --loader ts-node/esm src/index.ts",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed"
   },
@@ -30,10 +29,12 @@
     "prisma": "^6.17.1",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
   "prisma": {
-    "seed": "node dist/prisma/seed.js"
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.17.1",
@@ -44,8 +45,6 @@
     "jsonwebtoken": "^9.0.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^4.1.12",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.2.6"
+    "zod": "^4.1.12"
   }
 }
