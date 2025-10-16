@@ -1,12 +1,14 @@
 #!/bin/sh
 
-# Menjalankan perintah ini akan mengaplikasikan migrasi yang tertunda
 echo "Running database migrations..."
 npx prisma migrate deploy
 
-# Menjalankan seeder (opsional, hapus jika tidak perlu)
-echo "Running database seeder..."
-npx prisma db seed
+# Only try to seed if tsx is available
+if command -v tsx &> /dev/null; then
+  echo "Running database seeder..."
+  npx prisma db seed
+else
+  echo "Skipping database seeder (tsx not available)"
+fi
 
-# Perintah ini akan menjalankan perintah utama yang didefinisikan di Dockerfile (yaitu "npm start")
 exec "$@"
