@@ -1,53 +1,43 @@
-# Tahap 1: Build Stage (Mempersiapkan aplikasi)
-# Kita menggunakan Node.js versi 20 dengan basis Alpine Linux yang ringan
+# TAHAP 1: BUILD STAGE
+# Menginstall semua dependensi (termasuk dev) dan menyiapkan aplikasi
 FROM node:20-alpine AS builder
-
-# Tentukan direktori kerja di dalam container
 WORKDIR /app
-
-# Salin file package.json dan package-lock.json terlebih dahulu
-# Ini memanfaatkan cache Docker, build akan lebih cepat jika dependensi tidak berubah
 COPY package*.json ./
-
-# Install semua dependensi, termasuk devDependencies yang dibutuhkan untuk Prisma
 RUN npm install
-
-# Salin semua file sisa dari proyek Anda ke dalam container
 COPY . .
-
-# Generate Prisma Client berdasarkan schema Anda
 RUN npx prisma generate
 
-# ----
+# ---
 
-# Tahap 2: Production Stage (Image final yang akan dijalankan)
-# Kita mulai lagi dari image yang bersih untuk hasil yang lebih kecil
+# TAHAP 2: PRODUCTION STAGE
+# Membuat image final yang bersih dan siap jalan
 FROM node:20-alpine
-
 WORKDIR /app
 
-# Salin package.json dan package-lock.json lagi
+ENV NODE_ENV=production
+
+# Salin package.json
 COPY package*.json ./
 
-# Install HANYA dependensi produksi
-RUN npm install --omit=dev
+# === PERBAIKAN KUNCI DI SINI ===
+# Salin SELURUH folder node_modules yang sudah jadi dari tahap builder.
+# Kita tidak menjalankan "npm install" lagi.
+COPY --from=builder /app/node_modules ./node_modules
 
-# Salin file-file yang sudah disiapkan dari 'builder' stage
+# Salin sisa file aplikasi dari tahap builder
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 
-# Beri izin eksekusi pada skrip entrypoint
+# Pastikan entrypoint bisa dieksekusi
 RUN chmod +x ./entrypoint.sh
 
-# Tentukan port yang akan diekspos oleh container
-# Berdasarkan frontend Anda, backend sepertinya berjalan di port 8080
+# Expose port aplikasi
 EXPOSE 8080
 
-# Tentukan skrip entrypoint yang akan dijalankan saat container start
+# Tentukan skrip yang akan dijalankan saat container start
 ENTRYPOINT ["./entrypoint.sh"]
 
-# Perintah default untuk menjalankan aplikasi
+# Perintah default untuk menjalankan aplikasi Anda
 CMD ["npm", "start"]
