@@ -36,6 +36,7 @@ jobs:
           context: ./stmadb-portal-be
           file: ./stmadb-portal-be/Dockerfile
           push: true
+          no-cache: true
           # Tag image dengan format Docker Hub: username/nama-image:latest
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/stmadb-portal-be:latest
 
