@@ -22,7 +22,7 @@ services:
   # Service untuk Backend Express.js
   backend:
     # Ganti 'zaqitz' dengan username GitHub Anda
-    image: ghcr.io/akhmadzaqiriyadi/stmadb-portal-be:latest
+    image: akhmadzaqir/stmadb-portal-be:latest
     container_name: stmadb_be
     restart: unless-stopped
     depends_on:
@@ -37,7 +37,7 @@ services:
   # Service untuk Frontend Next.js
   frontend:
     # Ganti 'zaqitz' dengan username GitHub Anda
-    image: ghcr.io/akhmadzaqiriyadi/stmadb-portal-fe:latest
+    image: akhmadzaqir/stmadb-portal-fe:latest
     container_name: stmadb_fe
     restart: unless-stopped
     depends_on:

@@ -1,5 +1,5 @@
 # Nama workflow yang akan muncul di tab "Actions" GitHub
-name: Deploy to VPS
+name: Deploy to VPS via Docker Hub
 
 # Pemicu: Workflow ini akan berjalan setiap kali ada 'push' ke branch 'main'
 on:
@@ -13,20 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Langkah 1: Mengunduh kode dari repository Anda ke runner GitHub
+      # Langkah 1: Mengunduh kode dari repository Anda
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Langkah 2: Login ke GitHub Container Registry (GHCR)
-      # Ini dibutuhkan agar kita bisa mengunggah (push) image Docker
-      - name: Log in to GitHub Container Registry
+      # Langkah 2: Login ke Docker Hub
+      # Menggunakan kredensial yang sudah Anda simpan di GitHub Secrets
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }} # Username GitHub Anda
-          password: ${{ secrets.DOCKERHUB_TOKEN }} # PAT yang sudah disimpan di Secrets
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Langkah 3: Menyiapkan Docker Buildx, sebuah builder canggih
+      # Langkah 3: Menyiapkan Docker Buildx untuk proses build yang efisien
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -34,46 +33,41 @@ jobs:
       - name: Build and push Backend image
         uses: docker/build-push-action@v6
         with:
-          context: ./stmadb-portal-be # Konteks build adalah folder backend
+          context: ./stmadb-portal-be
           file: ./stmadb-portal-be/Dockerfile
-          push: true # Push image setelah build selesai
-          # Tag image dengan format: ghcr.io/NAMA_USER/NAMA_REPO-be:latest
-          tags: ghcr.io/${{ github.repository_owner }}/stmadb-portal-be:latest
+          push: true
+          # Tag image dengan format Docker Hub: username/nama-image:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/stmadb-portal-be:latest
 
       # Langkah 5: Build dan Push image Docker untuk Frontend
       - name: Build and push Frontend image
         uses: docker/build-push-action@v6
         with:
-          context: ./stmadb-portal-fe # Konteks build adalah folder frontend
+          context: ./stmadb-portal-fe
           file: ./stmadb-portal-fe/Dockerfile
-          push: true # Push image setelah build selesai
+          push: true
           # Menyuntikkan URL API publik ke dalam proses build Next.js
           build-args: |
             NEXT_PUBLIC_API_URL=http://apps.smkn1adw.sch.id/api/v1
-          # Tag image dengan format: ghcr.io/NAMA_USER/NAMA_REPO-fe:latest
-          tags: ghcr.io/${{ github.repository_owner }}/stmadb-portal-fe:latest
+          # Tag image dengan format Docker Hub
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/stmadb-portal-fe:latest
 
       # Langkah 6: Deploy ke VPS melalui SSH
       - name: Deploy to VPS
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.VPS_HOST }} # Diambil dari GitHub Secrets
-          username: ${{ secrets.VPS_USERNAME }} # Diambil dari GitHub Secrets
-          key: ${{ secrets.VPS_SSH_KEY }} # Diambil dari GitHub Secrets
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # Pindah ke direktori project Anda di VPS
-            # Pastikan direktori ini sudah Anda buat sebelumnya
+            # Pindah ke direktori project di VPS
             cd /home/apps/stmadb-portal
 
-            # Login ke GitHub Container Registry dari dalam VPS
-            echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Tarik (pull) versi terbaru dari kedua image Docker
+            # Tarik (pull) versi terbaru dari kedua image Docker dari Docker Hub
             docker compose pull
 
             # Matikan dan nyalakan kembali semua service dengan image baru
-            # Opsi -d (detached) membuatnya berjalan di background
             docker compose up -d
 
-            # Perintah opsional: Hapus image lama yang tidak terpakai untuk menghemat ruang disk
+            # Hapus image lama yang tidak terpakai untuk menghemat ruang disk
             docker image prune -f
