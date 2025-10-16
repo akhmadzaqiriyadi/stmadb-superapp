@@ -1,43 +1,39 @@
 # TAHAP 1: BUILD STAGE
-# Menginstall semua dependensi (termasuk dev) dan menyiapkan aplikasi
+# Di sini kita install semua dependensi dan compile TypeScript menjadi JavaScript
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-RUN npx prisma generate
+# Jalankan perintah build yang sudah Anda buat di package.json
+RUN npm run build
 
 # ---
 
 # TAHAP 2: PRODUCTION STAGE
-# Membuat image final yang bersih dan siap jalan
+# Image final ini hanya akan berisi JavaScript yang sudah di-compile
 FROM node:20-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Salin package.json
 COPY package*.json ./
+# Install HANYA dependensi produksi
+RUN npm install --omit=dev
 
-# === PERBAIKAN KUNCI DI SINI ===
-# Salin SELURUH folder node_modules yang sudah jadi dari tahap builder.
-# Kita tidak menjalankan "npm install" lagi.
-COPY --from=builder /app/node_modules ./node_modules
+# Salin folder 'dist' yang berisi JavaScript dari tahap builder
+COPY --from=builder /app/dist ./dist
 
-# Salin sisa file aplikasi dari tahap builder
-COPY --from=builder /app/src ./src
+# Salin schema Prisma untuk Prisma Client
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
+# Generate Prisma Client di image produksi
+RUN npx prisma generate
 
-# Pastikan entrypoint bisa dieksekusi
+# Salin entrypoint script
+COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
-# Expose port aplikasi
 EXPOSE 8080
-
-# Tentukan skrip yang akan dijalankan saat container start
 ENTRYPOINT ["./entrypoint.sh"]
-
-# Perintah default untuk menjalankan aplikasi Anda
+# CMD sekarang akan menjalankan "node dist/index.js" melalui skrip "start"
 CMD ["npm", "start"]
