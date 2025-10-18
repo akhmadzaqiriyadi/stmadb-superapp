@@ -1,4 +1,5 @@
 // src/app/dashboard/layout.tsx
+import Image from 'next/image';
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "@/components/ui/sonner";
@@ -13,7 +14,10 @@ export default function DashboardLayout({
       <div className="hidden border-r bg-gray-50/40 md:block">
         <div className="flex h-full max-h-screen flex-col gap-2">
           <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-            <h1 className="font-bold text-lg">STMADB Portal</h1>
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="STMADB Logo" width={36} height={36} />
+              <h1 className="font-bold text-lg">STMADB Portal</h1>
+            </div>
           </div>
           <div className="flex-1">
             <Sidebar />

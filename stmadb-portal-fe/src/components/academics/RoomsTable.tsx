@@ -19,7 +19,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { cn } from "@/lib/utils";
 
 const fetchRooms = async (page: number, q: string): Promise<RoomsApiResponse> => {
-  const { data } = await api.get(`/academics/rooms`, { params: { page, q, limit: 5 } });
+  const { data } = await api.get(`/academics/rooms`, { params: { page, q, limit: 10 } });
   return data;
 };
 
@@ -79,12 +79,20 @@ export function RoomsTable({ onAdd, onEdit }: RoomsTableProps) {
         {isError && <p className="text-center text-red-500">Error: {error.message}</p>}
         {roomsData && (
           <>
-            <div className="border rounded-lg">
+              <div className="border rounded-lg">
               <Table>
-                <TableHeader><TableRow><TableHead>Nama Ruangan</TableHead><TableHead>Kode</TableHead><TableHead className="text-right">Aksi</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">No</TableHead>
+                    <TableHead>Nama Ruangan</TableHead>
+                    <TableHead>Kode</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {roomsData.data.map((room) => (
+                  {roomsData.data.map((room, idx) => (
                     <TableRow key={room.id}>
+                      <TableCell className="font-medium">{(page - 1) * 10 + idx + 1}</TableCell>
                       <TableCell className="font-medium">{room.room_name}</TableCell>
                       <TableCell>{room.room_code}</TableCell>
                       <TableCell className="text-right">

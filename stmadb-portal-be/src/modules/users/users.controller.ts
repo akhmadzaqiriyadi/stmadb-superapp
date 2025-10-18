@@ -27,6 +27,27 @@ export const createUser = async (req: Request, res: Response) => {
   }
 };
 
+// --- BULK CREATE ---
+export const bulkCreateUsers = async (req: Request, res: Response) => {
+  try {
+    // Pastikan file sudah ter-upload oleh multer
+    if (!req.file) {
+      return res.status(400).json({ message: 'File Excel dibutuhkan.' });
+    }
+
+    const result = await userService.bulkCreateUsers(req.file.buffer);
+    
+    res.status(201).json({
+      message: 'Proses pembuatan user massal selesai.',
+      data: result,
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Terjadi kesalahan internal server';
+    res.status(500).json({ message: errorMessage });
+  }
+};
+
 // --- READ (Get All with Pagination & Filter) ---
 export const getUsers = async (req: Request, res: Response) => {
     try {

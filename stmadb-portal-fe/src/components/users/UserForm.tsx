@@ -8,7 +8,8 @@ import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { Gender } from "@/types";
+// --- 1. Impor Enum ---
+import { Gender, EmploymentStatus } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -42,10 +43,8 @@ interface Role {
   role_name: string;
 }
 
-// Fungsi untuk membuat skema Zod dinamis berdasarkan mode (tambah/edit)
 const createUserFormSchema = (isEditMode: boolean) => z.object({
   email: z.string().email("Format email tidak valid."),
-  // Jadikan password wajib hanya jika BUKAN mode edit
   password: isEditMode
     ? z.string().optional()
     : z.string().min(6, "Password minimal 6 karakter."),
@@ -60,19 +59,22 @@ const createUserFormSchema = (isEditMode: boolean) => z.object({
   role_ids: z.array(z.number()).refine((value) => value.length > 0, {
     message: "Anda harus memilih minimal satu role.",
   }),
+  // --- 2. Perbarui Skema Zod ---
   teacherData: z.object({
     nip: z.string().optional(),
     nuptk: z.string().optional(),
+    status: z.nativeEnum(EmploymentStatus).optional(), // Tambahkan ini
   }).optional(),
   studentData: z.object({
     nisn: z.string().optional(),
+    slim_id: z.string().optional(), // Tambahkan slim_id
   }).optional(),
   guardianData: z.object({
     occupation: z.string().optional(),
   }).optional(),
 }).refine(data => {
-    // ID '3' diasumsikan untuk 'Student'. Sesuaikan jika berbeda di database Anda.
-    if (data.role_ids.includes(3) && (!data.studentData?.nisn || data.studentData.nisn.length === 0)) {
+    const studentRoleId = 3; // Asumsi ID 'Student' adalah 3
+    if (data.role_ids.includes(studentRoleId) && (!data.studentData?.nisn || data.studentData.nisn.length === 0)) {
         return false;
     }
     return true;
@@ -96,7 +98,6 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
-    // Inisialisasi dengan struktur kosong yang lengkap
     defaultValues: {
       email: "",
       password: "",
@@ -109,45 +110,39 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
         birth_date: undefined,
       },
       role_ids: [],
-      teacherData: { nip: "", nuptk: "" },
-      studentData: { nisn: "" },
+      // --- 3. Perbarui Nilai Default ---
+      teacherData: { nip: "", nuptk: "", status: undefined },
+      studentData: { nisn: "", slim_id: "" },
       guardianData: { occupation: "" },
     },
   });
 
-  // **PERBAIKAN KUNCI 1**: Gunakan useEffect untuk me-reset form saat initialData siap
   useEffect(() => {
     if (initialData) {
       form.reset(initialData);
     }
-  }, [initialData, form]); // form ditambahkan sebagai dependensi
+  }, [initialData, form]);
 
   const selectedRoleIds = form.watch("role_ids");
   const selectedRoleNames = availableRoles
-    .filter(role => selectedRoleIds && selectedRoleIds.includes(role.id)) // Tambahkan pengecekan `selectedRoleIds`
+    .filter(role => selectedRoleIds && selectedRoleIds.includes(role.id))
     .map(role => role.role_name);
 
-  // **PERBAIKAN KUNCI 2**: Fungsi internal untuk membersihkan data sebelum dikirim
   const handleFormSubmit = (values: UserFormValues) => {
     const payload = { ...values };
-
-    // Hapus password jika kosong (khusus mode edit)
     if (isEditMode && (!payload.password || payload.password.length === 0)) {
       delete (payload as { password?: string }).password;
     }
-
-    // Hapus data ekstensi jika role-nya tidak dipilih
     if (!selectedRoleNames.includes('Teacher')) delete payload.teacherData;
     if (!selectedRoleNames.includes('Student')) delete payload.studentData;
     if (!selectedRoleNames.includes('Guardian')) delete payload.guardianData;
-
     onSubmit(payload);
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
-        
+        {/* ... (Field Email, Password, Nama, dll tidak berubah) ... */}
         <FormField
           control={form.control}
           name="email"
@@ -328,7 +323,8 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
             </FormItem>
           )}
         />
-        
+
+        {/* --- 4. Perbarui Tampilan Form --- */}
         {selectedRoleNames.includes('Teacher') && (
             <div className="p-3 border rounded-md space-y-4 bg-gray-50/70">
                 <p className="text-sm font-medium">Data Tambahan Guru</p>
@@ -346,6 +342,25 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
                         <FormMessage />
                     </FormItem>
                 )}/>
+                {/* TAMBAHKAN FORM FIELD UNTUK STATUS DI SINI */}
+                <FormField control={form.control} name="teacherData.status" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Status Kepegawaian</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih status..." />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value={EmploymentStatus.PNS}>PNS</SelectItem>
+                                <SelectItem value={EmploymentStatus.PTK}>PTK</SelectItem>
+                                <SelectItem value={EmploymentStatus.GTT}>GTT</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
             </div>
         )}
 
@@ -359,9 +374,18 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
                         <FormMessage />
                     </FormItem>
                 )}/>
+                {/* Tambahkan field untuk slim_id */}
+                <FormField control={form.control} name="studentData.slim_id" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>ID SLiMS (Opsional)</FormLabel>
+                        <FormControl><Input placeholder="Masukkan ID SLiMS" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
             </div>
         )}
 
+        {/* ... (Guardian Form tidak berubah) ... */}
         {selectedRoleNames.includes('Guardian') && (
             <div className="p-3 border rounded-md space-y-4 bg-gray-50/70">
                 <p className="text-sm font-medium">Data Tambahan Wali Murid</p>

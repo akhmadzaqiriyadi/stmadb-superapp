@@ -96,42 +96,53 @@ function UserDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium w-1/3">Jenis Kelamin</TableCell>
-                <TableCell>{user.profile.gender}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">No. Identitas</TableCell>
-                <TableCell>{user.profile.identity_number || '-'}</TableCell>
-              </TableRow>
-              {user.profile.birth_date && (
-                <TableRow>
-                  <TableCell className="font-medium">Tanggal Lahir</TableCell>
-                  <TableCell>
-                    {format(new Date(user.profile.birth_date), "dd MMMM yyyy", { locale: idLocale })}
-                  </TableCell>
-                </TableRow>
-              )}
-              <TableRow>
-                <TableCell className="font-medium">No. Telepon</TableCell>
-                <TableCell>{user.profile.phone_number || '-'}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Alamat</TableCell>
-                <TableCell className="whitespace-pre-wrap">{user.profile.address || '-'}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Table>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium w-1/3">Jenis Kelamin</TableCell>
+                    <TableCell>{user.profile.gender}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">No. Identitas</TableCell>
+                    <TableCell>{user.profile.identity_number || "-"}</TableCell>
+                  </TableRow>
+                  {user.profile.birth_date && (
+                    <TableRow>
+                      <TableCell className="font-medium">Tanggal Lahir</TableCell>
+                      <TableCell>
+                        {format(new Date(user.profile.birth_date), "dd MMMM yyyy", { locale: idLocale })}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div>
+              <Table>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">No. Telepon</TableCell>
+                    <TableCell>{user.profile.phone_number || "-"}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Alamat</TableCell>
+                    <TableCell className="whitespace-pre-wrap">{user.profile.address || "-"}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* Teacher Extension */}
       {user.teacher_extension && (
         <Card className="border-green-200">
-          <CardHeader className="bg-green-50">
-            <CardTitle className="text-lg text-green-700">Data Tambahan Guru</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg">Data Tambahan Guru</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -144,6 +155,10 @@ function UserDetailPage() {
                   <TableCell className="font-medium">NUPTK</TableCell>
                   <TableCell>{user.teacher_extension.nuptk || '-'}</TableCell>
                 </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Status Kepegawaian</TableCell>
+                  <TableCell>{user.teacher_extension.status || '-'}</TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </CardContent>
@@ -153,8 +168,8 @@ function UserDetailPage() {
       {/* Student Extension */}
       {user.student_extension && (
         <Card className="border-purple-200">
-          <CardHeader className="bg-purple-50">
-            <CardTitle className="text-lg text-purple-700">Data Tambahan Siswa</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg">Data Tambahan Siswa</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -162,6 +177,10 @@ function UserDetailPage() {
                 <TableRow>
                   <TableCell className="font-medium w-1/3">NISN</TableCell>
                   <TableCell>{user.student_extension.nisn || '-'}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">SLIM ID</TableCell>
+                  <TableCell>{user.student_extension.slim_id || '-'}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -172,8 +191,8 @@ function UserDetailPage() {
       {/* Guardian Extension */}
       {user.guardian_extension && (
         <Card className="border-orange-200">
-          <CardHeader className="bg-orange-50">
-            <CardTitle className="text-lg text-orange-700">Data Tambahan Wali Murid</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-lg">Data Tambahan Wali Murid</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>

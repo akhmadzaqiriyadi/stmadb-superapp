@@ -5,6 +5,7 @@ import { validate } from '../../core/middlewares/validate.middleware.js';
 import { createUserSchema, updateUserSchema, getUsersSchema,  } from './users.validation.js';
 import { protect } from '../../core/middlewares/auth.middleware.js';
 import { authorize } from '../../core/middlewares/authorize.middleware.js';
+import { upload } from '../../core/config/multer.js';
 
 const router = Router();
 
@@ -272,6 +273,10 @@ router.get('/:id', protect, authorize(['Admin']), userController.getUserById);
  *                   nuptk:
  *                     type: string
  *                     example: "1234567890123456"
+ *                   status:
+ *                     type: string
+ *                     enum: [PNS, PTK, GTT]
+ *                     example: "PNS"
  *               studentData:
  *                 type: object
  *                 description: "Wajib diisi jika role 'Student' dipilih"
@@ -279,6 +284,9 @@ router.get('/:id', protect, authorize(['Admin']), userController.getUserById);
  *                   nisn:
  *                     type: string
  *                     example: "0051234567"
+ *                   slim_id:
+ *                     type: string
+ *                     example: "12345"
  *     responses:
  *       '201':
  *         description: User berhasil dibuat.
@@ -302,6 +310,80 @@ router.get('/:id', protect, authorize(['Admin']), userController.getUserById);
  *         description: Conflict - Email sudah terdaftar.
  */
 router.post('/', protect, authorize(['Admin']), validate(createUserSchema), userController.createUser);
+
+// ===================================================================================
+// == Endpoint Baru untuk Bulk Create Users
+// ===================================================================================
+
+/**
+ * @openapi
+ * /users/bulk-upload:
+ *   post:
+ *     tags:
+ *       - Users
+ *     summary: Membuat banyak user dari file Excel (Admin only)
+ *     description: |
+ *       Mengunggah file Excel (.xlsx atau .xls) untuk membuat user (Siswa, Guru, dll) secara massal.
+ *       Pastikan file Excel memiliki header kolom yang sesuai dengan template.
+ *       Kolom yang wajib diisi adalah **Nama Lengkap**, **Email**, **Role**, dan **Jenis Kelamin**.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File Excel (.xlsx) yang berisi data user.
+ *     responses:
+ *       '201':
+ *         description: Proses selesai, mengembalikan ringkasan hasil impor.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Proses pembuatan user massal selesai.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: integer
+ *                       example: 48
+ *                     failed:
+ *                       type: integer
+ *                       example: 2
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 15
+ *                           error:
+ *                             type: string
+ *                             example: "Email 'budi.duplicate@sekolah.id' sudah terdaftar."
+ *       '400':
+ *         description: Bad Request - File tidak ada, format salah, atau header tidak sesuai.
+ *       '401':
+ *         description: Unauthorized - Token tidak valid atau tidak ada.
+ *       '403':
+ *         description: Forbidden - Pengguna tidak memiliki izin Admin.
+ */
+router.post(
+	'/bulk-upload',
+	protect,
+	authorize(['Admin']),
+	upload.single('file'), // 'file' adalah nama field di form-data
+	userController.bulkCreateUsers
+);
 
 /**
  * @openapi
@@ -344,12 +426,19 @@ router.post('/', protect, authorize(['Admin']), validate(createUserSchema), user
  *                   nip:
  *                     type: string
  *                     example: "199001012025031002"
+ *                   status:
+ *                    type: string
+ *                    enum: [PNS, PTK, GTT]
+ *                    example: "PNS"
  *               studentData:
  *                 type: object
  *                 properties:
  *                   nisn:
  *                     type: string
  *                     example: "0051234568"
+ *                   slim_id:
+ *                     type: string
+ *                     example: "12345"
  *     responses:
  *       '200':
  *         description: User berhasil diperbarui.

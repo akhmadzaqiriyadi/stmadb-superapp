@@ -15,6 +15,17 @@ import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { User, UsersApiResponse, UserRole } from "@/types";
+import { Upload } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { BulkUploadDialog } from "@/components/users/BulkUploadDialog";
 
 import withAuth from "@/components/auth/withAuth";
 import { Button } from "@/components/ui/button";
@@ -32,31 +43,47 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+// 1. Impor komponen paginasi baru
+import { DataTablePagination } from "@/components/ui/DataTablePagination";
 
-const fetchUsers = async (page = 1, limit = 10): Promise<UsersApiResponse> => {
-  const { data } = await api.get(`/users?page=${page}&limit=${limit}`);
+const fetchUsers = async (
+  page = 1,
+  limit = 10,
+  q?: string,
+  role?: string
+): Promise<UsersApiResponse> => {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("limit", String(limit));
+  if (q) params.append("q", q);
+  if (role) params.append("role", role);
+
+  const { data } = await api.get(`/users?${params.toString()}`);
   return data;
 };
 
 function UsersPage() {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const debouncedSearch = useDebounce(search, 300);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const queryClient = useQueryClient();
+  const limit = 10; // Definisikan limit untuk diteruskan ke paginasi
 
   const {
     data: usersData,
     isLoading: isLoadingUsers,
     error: usersError,
   } = useQuery<UsersApiResponse, Error>({
-    queryKey: ["users", page],
-    queryFn: () => fetchUsers(page),
+    queryKey: ["users", page, debouncedSearch, roleFilter],
+    queryFn: () =>
+      fetchUsers(
+        page,
+        limit,
+        debouncedSearch,
+        roleFilter === "all" ? undefined : roleFilter
+      ),
     placeholderData: keepPreviousData,
   });
 
@@ -72,18 +99,58 @@ function UsersPage() {
   });
 
   return (
-    <div>
+    // 2. Ubah layout agar lebih fleksibel
+    <div className="flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manajemen User</h1>
-        <Button asChild>
-          <Link href="/dashboard/users/new">
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Tambah User
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Cari nama atau email..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="w-64"
+            />
+            <Select
+              value={roleFilter}
+              onValueChange={(val) => {
+                setRoleFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger size="sm" className="w-40">
+                <SelectValue placeholder="Semua Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua Role</SelectItem>
+                <SelectItem value="Admin">Admin</SelectItem>
+                <SelectItem value="Teacher">Teacher</SelectItem>
+                <SelectItem value="Student">Student</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        
+          <Button asChild>
+            <Link href="/dashboard/users/new">
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Tambah User
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsBulkUploadOpen(true)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Massal
+          </Button>
+        </div>
       </div>
 
-      <div className="border rounded-lg bg-white">
+      {/* Konten utama (tabel) */}
+      <div className="border rounded-lg bg-white flex-grow">
         {isLoadingUsers ? (
           <p className="p-4 text-center">Memuat data pengguna...</p>
         ) : usersError ? (
@@ -94,6 +161,7 @@ function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">No</TableHead>
                 <TableHead>Nama Lengkap</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
@@ -102,8 +170,9 @@ function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usersData?.data.map((user: User) => (
+              {usersData?.data.map((user: User, idx: number) => (
                 <TableRow key={user.id}>
+                  <TableCell className="font-medium">{(page - 1) * limit + idx + 1}</TableCell>
                   <TableCell className="font-medium">
                     {user.profile.full_name}
                   </TableCell>
@@ -158,44 +227,23 @@ function UsersPage() {
         )}
       </div>
 
-      <div className="flex items-center justify-center pt-6">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setPage((prev) => Math.max(prev - 1, 1));
-                }}
-                className={cn({
-                  "pointer-events-none text-gray-400": page === 1,
-                })}
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#" isActive size="icon">
-                {page}
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (usersData && page < usersData.totalPages) {
-                    setPage((prev) => prev + 1);
-                  }
-                }}
-                className={cn({
-                  "pointer-events-none text-gray-400":
-                    !usersData || page === usersData.totalPages,
-                })}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+      {/* --- 3. Ganti Paginasi Lama dengan yang Baru --- */}
+      <div className="pt-4">
+        {usersData && usersData.totalPages > 0 && (
+          <DataTablePagination
+            page={page}
+            totalPages={usersData.totalPages}
+            totalData={usersData.total}
+            setPage={setPage}
+            limit={limit}
+          />
+        )}
       </div>
+
+      <BulkUploadDialog
+        isOpen={isBulkUploadOpen}
+        setIsOpen={setIsBulkUploadOpen}
+      />
     </div>
   );
 }

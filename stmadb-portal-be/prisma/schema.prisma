@@ -70,6 +70,13 @@ enum Gender {
   Perempuan
 }
 
+// Tambahkan Enum baru di atas model-model Anda
+enum EmploymentStatus {
+  PNS
+  PTK
+  GTT
+}
+
 // ============== MODUL 1.5: EKSTENSI PERAN ==============
 // Model-model ini hanya berisi data yang SANGAT SPESIFIK untuk peran tertentu
 
@@ -80,6 +87,7 @@ model TeacherExtension {
 
   nip     String? @unique
   nuptk   String? @unique
+  status  EmploymentStatus?
 }
 
 model StudentExtension {
@@ -90,6 +98,7 @@ model StudentExtension {
   nisn        String  @unique
   guardian_id Int?
   guardian    GuardianExtension? @relation(fields: [guardian_id], references: [id])
+  slim_id     String? @unique
 }
 
 model GuardianExtension {

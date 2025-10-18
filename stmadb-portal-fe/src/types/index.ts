@@ -21,10 +21,12 @@ export interface UserRole {
 export interface TeacherExtension {
   nip?: string | null;
   nuptk?: string | null;
+  status?: EmploymentStatus | null;
 }
 
 export interface StudentExtension {
   nisn?: string | null;
+  slim_id?: string | null;
 }
 
 export interface GuardianExtension {
@@ -180,6 +182,13 @@ export enum ScheduleType {
   A = "A",
   B = "B",
   Umum = "Umum",
+}
+
+// Employment status enum mirrors Prisma enum
+export enum EmploymentStatus {
+  PNS = "PNS",
+  PTK = "PTK",
+  GTT = "GTT",
 }
 
 export interface Schedule {

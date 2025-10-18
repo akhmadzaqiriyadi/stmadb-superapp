@@ -1,6 +1,6 @@
 // src/modules/users/users.validation.ts
 import { z } from 'zod';
-import { Gender } from '@prisma/client';
+import { Gender, EmploymentStatus } from '@prisma/client';
 
 // Skema untuk MEMBUAT user baru
 export const createUserSchema = z.object({
@@ -22,11 +22,13 @@ export const createUserSchema = z.object({
     teacherData: z.object({
       nip: z.string().optional(),
       nuptk: z.string().optional(),
+      status: z.nativeEnum(EmploymentStatus).optional(),
     }).optional(),
 
     // Data opsional untuk Ekstensi Siswa
     studentData: z.object({
       nisn: z.string(),
+      slim_id: z.string().optional(),
     }).optional(),
 
     // Data opsional untuk Ekstensi Wali Murid
@@ -49,10 +51,12 @@ export const updateUserSchema = z.object({
     teacherData: z.object({
       nip: z.string().optional(),
       nuptk: z.string().optional(),
+      status: z.nativeEnum(EmploymentStatus).optional(),
     }).optional(),
 
     studentData: z.object({
       nisn: z.string().optional(),
+      slim_id: z.string().optional(),
     }).optional(),
   }),
 });
