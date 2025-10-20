@@ -1,3 +1,4 @@
+// src/app/dashboard/users/[id]/edit/page.tsx
 "use client";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -58,23 +59,25 @@ function EditUserPage() {
     return <div>Loading user data...</div>;
   }
   
-  // --- PERBAIKAN UTAMA DI SINI ---
-  // Pastikan semua field memiliki struktur yang diharapkan oleh form.
-  const initialData = {
-      // Data dasar tetap sama
-      email: userData?.email,
-
-      // Transformasi data agar cocok dengan form
-      role_ids: userData?.roles.map(role => role.id) || [],
+  // PENYESUAIAN DI SINI:
+  // Memastikan semua field, termasuk 'gender', memiliki struktur yang valid
+  // dan mengubah `null` menjadi `undefined` atau string kosong agar tidak error di form.
+  const initialData = userData ? {
+      email: userData.email,
+      role_ids: userData.roles.map(role => role.id),
       profileData: {
-          ...userData?.profile,
-          birth_date: userData?.profile?.birth_date ? new Date(userData.profile.birth_date) : undefined,
+          full_name: userData.profile.full_name,
+          gender: userData.profile.gender, // Pastikan gender di-pass dengan benar
+          identity_number: userData.profile.identity_number || '',
+          address: userData.profile.address || '',
+          phone_number: userData.profile.phone_number || '',
+          birth_date: userData.profile.birth_date ? new Date(userData.profile.birth_date) : undefined,
       },
-      // Atasi nilai `null` pada extension
-      teacherData: userData?.teacher_extension || { nip: "", nuptk: "" },
-      studentData: userData?.student_extension || { nisn: "" },
-      guardianData: userData?.guardian_extension || { occupation: "" },
-  };
+      // Berikan nilai default jika ekstensi bernilai null
+      teacherData: userData.teacher_extension || undefined,
+      studentData: userData.student_extension || undefined,
+      guardianData: userData.guardian_extension || undefined,
+  } : undefined;
 
   return (
     <div className="space-y-6">
@@ -88,13 +91,14 @@ function EditUserPage() {
       </div>
       <h1 className="text-3xl font-bold">Edit User: {userData?.profile.full_name}</h1>
       
-      {/* Kirim initialData yang sudah aman ke form */}
-      <UserForm
-        initialData={initialData}
-        onSubmit={updateUser}
-        isPending={isPending}
-        availableRoles={rolesData || []}
-      />
+      {userData && initialData && (
+        <UserForm
+          initialData={initialData}
+          onSubmit={updateUser}
+          isPending={isPending}
+          availableRoles={rolesData || []}
+        />
+      )}
     </div>
   );
 }

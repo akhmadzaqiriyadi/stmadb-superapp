@@ -17,9 +17,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { DataTablePagination } from "@/components/ui/DataTablePagination";
+
+const PAGE_LIMIT = 10;
 
 const fetchRooms = async (page: number, q: string): Promise<RoomsApiResponse> => {
-  const { data } = await api.get(`/academics/rooms`, { params: { page, q, limit: 10 } });
+  const { data } = await api.get(`/academics/rooms`, { params: { page, q, limit: PAGE_LIMIT } });
   return data;
 };
 
@@ -109,14 +112,14 @@ export function RoomsTable({ onAdd, onEdit }: RoomsTableProps) {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex items-center justify-center pt-6">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem><PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.max(p - 1, 1)); }} className={cn({ "pointer-events-none text-gray-400": page === 1 })} /></PaginationItem>
-                  {[...Array(roomsData?.totalPages || 0)].map((_, i) => <PaginationItem key={i}><PaginationLink href="#" isActive={page === i + 1} onClick={(e) => { e.preventDefault(); setPage(i + 1); }}>{i + 1}</PaginationLink></PaginationItem>)}
-                  <PaginationItem><PaginationNext href="#" onClick={(e) => { e.preventDefault(); if (roomsData && page < roomsData.totalPages) setPage(p => p + 1); }} className={cn({ "pointer-events-none text-gray-400": !roomsData || page === roomsData.totalPages })} /></PaginationItem>
-                </PaginationContent>
-              </Pagination>
+            <div className="pt-6">
+              <DataTablePagination
+                page={page}
+                totalPages={roomsData.totalPages}
+                totalData={roomsData.total}
+                setPage={setPage}
+                limit={PAGE_LIMIT}
+              />
             </div>
           </>
         )}

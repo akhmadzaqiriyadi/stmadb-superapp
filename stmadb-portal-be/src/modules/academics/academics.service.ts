@@ -416,11 +416,55 @@ export const deleteRoom = async (id: number) => {
 // --- CRUD UNTUK JADWAL (SCHEDULE) ---
 
 // Membuat satu entri jadwal baru
+// GANTI FUNGSI LAMA DENGAN YANG INI
 export const createSchedule = async (data: any) => {
-  // Konversi string "HH:mm" menjadi objek Date dengan tanggal dummy
+  // Konversi string "HH:mm" menjadi objek Date
   const startTime = new Date(`1970-01-01T${data.start_time}:00.000Z`);
   const endTime = new Date(`1970-01-01T${data.end_time}:00.000Z`);
 
+  // --- LOGIKA VALIDASI KONFLIK DIMULAI DI SINI ---
+
+  // 1. Dapatkan assignment untuk mengetahui siapa guru dan kelasnya
+  const assignment = await prisma.teacherAssignment.findUnique({
+    where: { id: data.assignment_id },
+  });
+  if (!assignment) {
+    throw new Error('Penugasan guru tidak ditemukan.');
+  }
+
+  // 2. Cek konflik jadwal untuk GURU yang sama
+  const teacherConflict = await prisma.schedule.findFirst({
+    where: {
+      assignment: { teacher_user_id: assignment.teacher_user_id },
+      day_of_week: data.day_of_week,
+      start_time: { lt: endTime }, // Waktu mulai jadwal lain < waktu selesai jadwal baru
+      end_time: { gt: startTime },   // Waktu selesai jadwal lain > waktu mulai jadwal baru
+    },
+  });
+
+  if (teacherConflict) {
+    throw new Error('Jadwal bentrok: Guru ini sudah memiliki jadwal lain pada waktu yang sama.');
+  }
+
+  // 3. Cek konflik jadwal untuk RUANGAN yang sama (jika room_id diberikan)
+  if (data.room_id) {
+    const roomConflict = await prisma.schedule.findFirst({
+      where: {
+        room_id: data.room_id,
+        day_of_week: data.day_of_week,
+        start_time: { lt: endTime },
+        end_time: { gt: startTime },
+      },
+    });
+
+    if (roomConflict) {
+      throw new Error('Jadwal bentrok: Ruangan ini sudah digunakan pada waktu yang sama.');
+    }
+  }
+  // --- AKHIR LOGIKA VALIDASI ---
+
+
+  // Jika tidak ada konflik, buat jadwal baru
   return prisma.schedule.create({
     data: {
       ...data,
@@ -454,12 +498,52 @@ export const getSchedulesByClass = async (classId: number, academicYearId: numbe
 // Memperbarui satu entri jadwal
 export const updateSchedule = async (scheduleId: number, data: any) => {
   const dataToUpdate: any = { ...data };
-  if (data.start_time) {
-    dataToUpdate.start_time = new Date(`1970-01-01T${data.start_time}:00.000Z`);
+  
+  // Ambil data jadwal yang ada saat ini
+  const existingSchedule = await prisma.schedule.findUnique({ 
+    where: { id: scheduleId },
+    include: { assignment: true } 
+  });
+  if (!existingSchedule) throw new Error("Jadwal tidak ditemukan");
+
+  // Siapkan waktu baru atau gunakan waktu lama jika tidak diubah
+  const startTime = data.start_time ? new Date(`1970-01-01T${data.start_time}:00.000Z`) : existingSchedule.start_time;
+  const endTime = data.end_time ? new Date(`1970-01-01T${data.end_time}:00.000Z`) : existingSchedule.end_time;
+  const dayOfWeek = data.day_of_week || existingSchedule.day_of_week;
+  
+  // --- LOGIKA VALIDASI KONFLIK UNTUK UPDATE ---
+
+  // 1. Cek konflik Guru
+  const teacherConflict = await prisma.schedule.findFirst({
+    where: {
+      id: { not: scheduleId }, // <-- PENTING: Kecualikan jadwal ini
+      assignment: { teacher_user_id: existingSchedule.assignment.teacher_user_id },
+      day_of_week: dayOfWeek,
+      start_time: { lt: endTime },
+      end_time: { gt: startTime },
+    },
+  });
+  if (teacherConflict) throw new Error('Jadwal bentrok: Guru ini sudah memiliki jadwal lain pada waktu yang sama.');
+
+  // 2. Cek konflik Ruangan
+  const roomId = data.room_id === null ? null : (data.room_id || existingSchedule.room_id);
+  if (roomId) {
+    const roomConflict = await prisma.schedule.findFirst({
+      where: {
+        id: { not: scheduleId }, // <-- PENTING: Kecualikan jadwal ini
+        room_id: roomId,
+        day_of_week: dayOfWeek,
+        start_time: { lt: endTime },
+        end_time: { gt: startTime },
+      },
+    });
+    if (roomConflict) throw new Error('Jadwal bentrok: Ruangan ini sudah digunakan pada waktu yang sama.');
   }
-  if (data.end_time) {
-    dataToUpdate.end_time = new Date(`1970-01-01T${data.end_time}:00.000Z`);
-  }
+  // --- AKHIR LOGIKA VALIDASI ---
+
+  // Konversi waktu jika ada di data baru
+  if (data.start_time) dataToUpdate.start_time = startTime;
+  if (data.end_time) dataToUpdate.end_time = endTime;
   
   return prisma.schedule.update({
     where: { id: scheduleId },
@@ -471,5 +555,56 @@ export const updateSchedule = async (scheduleId: number, data: any) => {
 export const deleteSchedule = async (scheduleId: number) => {
   return prisma.schedule.delete({
     where: { id: scheduleId },
+  });
+};
+
+
+// Mengambil jadwal berdasarkan ID Guru
+export const getSchedulesByTeacher = async (teacherId: number, academicYearId: number) => {
+  return prisma.schedule.findMany({
+    where: {
+      assignment: {
+        teacher_user_id: teacherId,
+      },
+      academic_year_id: academicYearId,
+    },
+    include: {
+      room: { select: { id: true, room_code: true } },
+      assignment: {
+        include: {
+          teacher: { select: { profile: { select: { full_name: true } } } },
+          subject: { select: { id: true, subject_code: true, subject_name: true } },
+          // Sertakan info kelas di sini
+          class: { select: { id: true, class_name: true } },
+        },
+      },
+    },
+  });
+};
+
+// Mengambil jadwal berdasarkan ID Ruangan
+export const getSchedulesByRoom = async (roomId: number, academicYearId: number) => {
+  return prisma.schedule.findMany({
+    where: {
+      room_id: roomId,
+      academic_year_id: academicYearId,
+    },
+    include: {
+      room: { select: { id: true, room_code: true } },
+      assignment: {
+        include: {
+          teacher: { select: { profile: { select: { full_name: true } } } },
+          subject: { select: { id: true, subject_code: true, subject_name: true } },
+          class: { select: { id: true, class_name: true } },
+        },
+      },
+    },
+  });
+};
+
+// Mengambil aktivitas rutin untuk tahun ajaran aktif
+export const getRoutineActivities = async (academicYearId: number) => {
+  return prisma.routineActivity.findMany({
+    where: { academic_year_id: academicYearId },
   });
 };

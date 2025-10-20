@@ -21,7 +21,6 @@ export const createUserSchema = z.object({
     // Data opsional untuk Ekstensi Guru
     teacherData: z.object({
       nip: z.string().optional(),
-      nuptk: z.string().optional(),
       status: z.nativeEnum(EmploymentStatus).optional(),
     }).optional(),
 
@@ -50,7 +49,6 @@ export const updateUserSchema = z.object({
     
     teacherData: z.object({
       nip: z.string().optional(),
-      nuptk: z.string().optional(),
       status: z.nativeEnum(EmploymentStatus).optional(),
     }).optional(),
 

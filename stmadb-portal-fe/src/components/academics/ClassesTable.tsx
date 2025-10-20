@@ -46,6 +46,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import {
   Select,
   SelectContent,
@@ -55,6 +56,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+
+const PAGE_LIMIT = 10;
 
 const fetchClasses = async (params: any): Promise<ClassesApiResponse> => {
   const { data } = await api.get(`/academics/classes`, { params });
@@ -85,7 +88,7 @@ export function ClassesTable({ onAdd, onEdit }: ClassesTableProps) {
     q: debouncedSearchTerm,
     majorId: filters.majorId === "all" ? "" : filters.majorId,
     gradeLevel: filters.gradeLevel === "all" ? "" : filters.gradeLevel,
-    limit: 10,
+    limit: PAGE_LIMIT,
   };
 
   const {
@@ -232,51 +235,14 @@ export function ClassesTable({ onAdd, onEdit }: ClassesTableProps) {
         )}
       </div>
 
-      <div className="flex items-center justify-center pt-2">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setPage((p) => Math.max(p - 1, 1));
-                }}
-                className={cn({
-                  "pointer-events-none text-gray-400": page === 1,
-                })}
-              />
-            </PaginationItem>
-            {[...Array(classesData?.totalPages || 0)].map((_, i) => (
-              <PaginationItem key={i}>
-                <PaginationLink
-                  href="#"
-                  isActive={page === i + 1}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setPage(i + 1);
-                  }}
-                >
-                  {i + 1}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (classesData && page < classesData.totalPages)
-                    setPage((p) => p + 1);
-                }}
-                className={cn({
-                  "pointer-events-none text-gray-400":
-                    !classesData || page === classesData.totalPages,
-                })}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+      <div className="pt-2">
+        <DataTablePagination
+          page={page}
+          totalPages={classesData?.totalPages || 0}
+          totalData={classesData?.total || 0}
+          setPage={setPage}
+          limit={PAGE_LIMIT}
+        />
       </div>
     </div>
   );

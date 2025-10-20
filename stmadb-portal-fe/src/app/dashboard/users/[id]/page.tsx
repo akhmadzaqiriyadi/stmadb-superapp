@@ -16,7 +16,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
-// Fungsi untuk mengambil data user tunggal dari API
 const fetchUserById = async (id: string): Promise<User> => {
   const { data } = await api.get(`/users/${id}`);
   return data;
@@ -62,7 +61,6 @@ function UserDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header Actions */}
       <div className="flex items-center justify-between">
         <Button variant="outline" asChild>
           <Link href="/dashboard/users">
@@ -78,7 +76,6 @@ function UserDetailPage() {
         </Button>
       </div>
 
-      {/* Main Profile Card */}
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between">
@@ -100,37 +97,17 @@ function UserDetailPage() {
             <div>
               <Table>
                 <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium w-1/3">Jenis Kelamin</TableCell>
-                    <TableCell>{user.profile.gender}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">No. Identitas</TableCell>
-                    <TableCell>{user.profile.identity_number || "-"}</TableCell>
-                  </TableRow>
-                  {user.profile.birth_date && (
-                    <TableRow>
-                      <TableCell className="font-medium">Tanggal Lahir</TableCell>
-                      <TableCell>
-                        {format(new Date(user.profile.birth_date), "dd MMMM yyyy", { locale: idLocale })}
-                      </TableCell>
-                    </TableRow>
-                  )}
+                  <TableRow><TableCell className="font-medium w-1/3">Jenis Kelamin</TableCell><TableCell>{user.profile.gender}</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium">No. Identitas</TableCell><TableCell>{user.profile.identity_number || "-"}</TableCell></TableRow>
+                  {user.profile.birth_date && ( <TableRow><TableCell className="font-medium">Tanggal Lahir</TableCell><TableCell>{format(new Date(user.profile.birth_date), "dd MMMM yyyy", { locale: idLocale })}</TableCell></TableRow> )}
                 </TableBody>
               </Table>
             </div>
-
             <div>
               <Table>
                 <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">No. Telepon</TableCell>
-                    <TableCell>{user.profile.phone_number || "-"}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Alamat</TableCell>
-                    <TableCell className="whitespace-pre-wrap">{user.profile.address || "-"}</TableCell>
-                  </TableRow>
+                  <TableRow><TableCell className="font-medium">No. Telepon</TableCell><TableCell>{user.profile.phone_number || "-"}</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium">Alamat</TableCell><TableCell className="whitespace-pre-wrap">{user.profile.address || "-"}</TableCell></TableRow>
                 </TableBody>
               </Table>
             </div>
@@ -138,7 +115,7 @@ function UserDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Teacher Extension */}
+      {/* --- PERUBAHAN TAMPILAN DETAIL GURU --- */}
       {user.teacher_extension && (
         <Card className="border-green-200">
           <CardHeader>
@@ -151,10 +128,7 @@ function UserDetailPage() {
                   <TableCell className="font-medium w-1/3">NIP</TableCell>
                   <TableCell>{user.teacher_extension.nip || '-'}</TableCell>
                 </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">NUPTK</TableCell>
-                  <TableCell>{user.teacher_extension.nuptk || '-'}</TableCell>
-                </TableRow>
+                {/* Baris NUPTK DIHAPUS dari sini */}
                 <TableRow>
                   <TableCell className="font-medium">Status Kepegawaian</TableCell>
                   <TableCell>{user.teacher_extension.status || '-'}</TableCell>
@@ -165,47 +139,9 @@ function UserDetailPage() {
         </Card>
       )}
 
-      {/* Student Extension */}
-      {user.student_extension && (
-        <Card className="border-purple-200">
-          <CardHeader>
-            <CardTitle className="text-lg">Data Tambahan Siswa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium w-1/3">NISN</TableCell>
-                  <TableCell>{user.student_extension.nisn || '-'}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">SLIM ID</TableCell>
-                  <TableCell>{user.student_extension.slim_id || '-'}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Guardian Extension */}
-      {user.guardian_extension && (
-        <Card className="border-orange-200">
-          <CardHeader>
-            <CardTitle className="text-lg">Data Tambahan Wali Murid</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium w-1/3">Pekerjaan</TableCell>
-                  <TableCell>{user.guardian_extension.occupation || '-'}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+      {/* Student and Guardian cards (No changes needed here) */}
+      {user.student_extension && ( <Card className="border-purple-200"> <CardHeader><CardTitle className="text-lg">Data Tambahan Siswa</CardTitle></CardHeader> <CardContent> <Table> <TableBody> <TableRow><TableCell className="font-medium w-1/3">NISN</TableCell><TableCell>{user.student_extension.nisn || '-'}</TableCell></TableRow> <TableRow><TableCell className="font-medium">SLIM ID</TableCell><TableCell>{user.student_extension.slim_id || '-'}</TableCell></TableRow> </TableBody> </Table> </CardContent> </Card> )}
+      {user.guardian_extension && ( <Card className="border-orange-200"> <CardHeader><CardTitle className="text-lg">Data Tambahan Wali Murid</CardTitle></CardHeader> <CardContent> <Table> <TableBody> <TableRow><TableCell className="font-medium w-1/3">Pekerjaan</TableCell><TableCell>{user.guardian_extension.occupation || '-'}</TableCell></TableRow> </TableBody> </Table> </CardContent> </Card> )}
     </div>
   );
 }

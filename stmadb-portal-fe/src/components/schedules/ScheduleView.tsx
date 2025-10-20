@@ -1,32 +1,52 @@
 // src/components/schedules/ScheduleView.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Trash2, Pencil } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import api from "@/lib/axios";
-import { Schedule, DayOfWeek, AcademicYear, ScheduleType } from "@/types";
+import { Schedule, DayOfWeek, AcademicYear, ScheduleType, RoutineActivity } from "@/types";
 import { ManageScheduleDialog } from "./ManageScheduleDialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ScheduleCard } from "./ScheduleCard";
 
-const timeSlots = Array.from({ length: 11 }, (_, i) => {
-    const baseMinutes = i * 45;
-    const break1 = i > 3 ? 15 : 0; // Istirahat setelah jam ke-4
-    const break2 = i > 7 ? 15 : 0; // Istirahat setelah jam ke-8 (disesuaikan dari 7 ke 8)
-    const totalMinutes = 7 * 60 + baseMinutes + break1 + break2;
-    const hour = Math.floor(totalMinutes / 60);
-    const minute = totalMinutes % 60;
-    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-});
+// Time slots untuk Senin - Kamis
+const timeSlotsWeekday = [
+  "07:00", "07:45", "08:30", "09:15", 
+  "10:00", "10:15", "10:55", "11:35", 
+  "12:15", "12:50", "13:30", "14:10", "14:50"
+];
+
+// Time slots untuk Jumat
+const timeSlotsFriday = [
+  "07:00", "07:45", "08:30", "09:15", 
+  "10:00", "10:15", "10:55", "11:35", 
+  "12:20", "12:45", "13:10", "13:35"
+];
+
 const days: DayOfWeek[] = [DayOfWeek.Senin, DayOfWeek.Selasa, DayOfWeek.Rabu, DayOfWeek.Kamis, DayOfWeek.Jumat];
 
 const timeToMinutes = (time: string) => {
-  // Perbaikan: Tangani format ISO String dari server
-  const date = new Date(time);
-  return date.getUTCHours() * 60 + date.getUTCMinutes();
+  if (!time) return 0;
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper function to convert ISO timestamp or HH:mm to HH:mm format
+const normalizeTime = (time: string | Date): string => {
+  if (!time) return "00:00";
+  
+  if (typeof time === 'string' && time.includes('T')) {
+    const date = new Date(time);
+    return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  
+  if (time instanceof Date) {
+    return `${String(time.getUTCHours()).padStart(2, '0')}:${String(time.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  
+  return time;
 };
 
 const fetchActiveAcademicYear = async (): Promise<AcademicYear> => {
@@ -34,12 +54,25 @@ const fetchActiveAcademicYear = async (): Promise<AcademicYear> => {
     return data;
 };
 
+const fetchScheduleData = async (viewMode: string, viewId: string, academicYearId: number) => {
+  const endpoint = viewMode === 'class' ? `/academics/schedules/class/${viewId}` : 
+                   viewMode === 'teacher' ? `/academics/schedules/teacher/${viewId}` : 
+                   `/academics/schedules/room/${viewId}`;
+  
+  const [scheduleRes, routineRes] = await Promise.all([
+      api.get(endpoint, { params: { academicYearId } }),
+      api.get('/academics/routine-activities', { params: { academicYearId } })
+  ]);
+  return { schedules: scheduleRes.data, routineActivities: routineRes.data };
+};
+
 interface ScheduleViewProps {
-  classId: string;
+  viewMode: 'class' | 'teacher' | 'room';
+  viewId: string;
   scheduleTypeFilter: "ALL" | ScheduleType;
 }
 
-export function ScheduleView({ classId, scheduleTypeFilter }: ScheduleViewProps) {
+export function ScheduleView({ viewMode, viewId, scheduleTypeFilter }: ScheduleViewProps) {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ day: DayOfWeek; startTime: string; } | null>(null);
@@ -50,40 +83,57 @@ export function ScheduleView({ classId, scheduleTypeFilter }: ScheduleViewProps)
     queryFn: fetchActiveAcademicYear
   });
 
-  const { data: schedules, isLoading } = useQuery<Schedule[], Error>({
-    queryKey: ['schedules', classId, activeAcademicYear?.id],
-    queryFn: async () => {
-      const { data } = await api.get(`/academics/schedules/class/${classId}`, {
-        params: { academicYearId: activeAcademicYear!.id },
-      });
-      return data;
-    },
-    enabled: !!classId && !!activeAcademicYear,
+  const { data, isLoading } = useQuery({
+    queryKey: ['scheduleViewData', viewMode, viewId, activeAcademicYear?.id],
+    queryFn: () => fetchScheduleData(viewMode, viewId, activeAcademicYear!.id),
+    enabled: !!viewId && !!activeAcademicYear,
   });
   
   const { mutate: deleteSchedule } = useMutation({
       mutationFn: (scheduleId: number) => api.delete(`/academics/schedules/${scheduleId}`),
       onSuccess: () => {
           toast.success("Jadwal berhasil dihapus.");
-          queryClient.invalidateQueries({queryKey: ['schedules', classId]});
+          queryClient.invalidateQueries({queryKey: ['scheduleViewData', viewMode, viewId, activeAcademicYear?.id]});
       },
       onError: (e: any) => toast.error(e.response?.data?.message || "Gagal menghapus jadwal.")
   });
 
-  // --- PERBAIKAN UTAMA DIMULAI DARI SINI ---
-  const scheduleMatrix = useMemo(() => {
-    const matrix: { [key in DayOfWeek]?: Schedule[] } = {};
-    if (!schedules) return matrix;
+  const getGridRow = (time: string, day: DayOfWeek) => {
+    const normalizedTime = normalizeTime(time);
+    const timeSlots = day === DayOfWeek.Jumat ? timeSlotsFriday : timeSlotsWeekday;
+    
+    // Find closest time slot
+    let closestIndex = 0;
+    let minDiff = Math.abs(timeToMinutes(normalizedTime) - timeToMinutes(timeSlots[0]));
+    
+    for (let i = 1; i < timeSlots.length; i++) {
+      const diff = Math.abs(timeToMinutes(normalizedTime) - timeToMinutes(timeSlots[i]));
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = i;
+      }
+    }
+    
+    return closestIndex + 2;
+  };
 
-    days.forEach(day => {
-      matrix[day] = schedules
-        .filter(s => s.day_of_week === day)
-        .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
-    });
-    return matrix;
-  }, [schedules]);
-  
+  const calculateRowSpan = (startTime: string, endTime: string, day: DayOfWeek) => {
+    const normalizedStart = normalizeTime(startTime);
+    const normalizedEnd = normalizeTime(endTime);
+    const startMinutes = timeToMinutes(normalizedStart);
+    const endMinutes = timeToMinutes(normalizedEnd);
+    const durationMinutes = endMinutes - startMinutes;
+    
+    // Durasi per slot bervariasi (45 menit untuk KBM, bisa berbeda untuk aktivitas)
+    const avgSlotDuration = 45;
+    return Math.max(1, Math.round(durationMinutes / avgSlotDuration));
+  };
+
   const handleCellClick = (day: DayOfWeek, startTime: string) => {
+    if (viewMode !== 'class') {
+        toast.info("Penambahan jadwal hanya bisa dilakukan pada mode 'Per Kelas'.");
+        return;
+    }
     setEditingSchedule(null);
     setSelectedSlot({ day, startTime });
     setIsDialogOpen(true);
@@ -96,88 +146,140 @@ export function ScheduleView({ classId, scheduleTypeFilter }: ScheduleViewProps)
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!activeAcademicYear) return <p className="text-center text-gray-500">Tahun ajaran aktif tidak ditemukan.</p>;
+
+  // Determine max rows needed
+  const maxRows = Math.max(timeSlotsWeekday.length, timeSlotsFriday.length);
 
   return (
     <>
-      <div className="border rounded-lg overflow-x-auto bg-white">
-        <table className="w-full text-sm text-center border-collapse">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-2 border w-[8%] min-w-[80px]">Jam</th>
-              {days.map(day => <th key={day} className="p-2 border min-w-[150px]">{day}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {timeSlots.map((time) => (
-              <tr key={time} className="h-20">
-                <td className="p-2 border font-mono text-xs bg-gray-50">{time}</td>
-                {days.map(day => {
-                  const daySchedules = scheduleMatrix[day] || [];
-                  // Perbaikan: Bandingkan format "HH:mm"
-                  const scheduleForThisSlot = daySchedules.find(s => s.start_time.substring(11, 16) === time);
+      <div className="overflow-x-auto">
+        <div className="inline-grid grid-cols- gap-1 w-full">
+          {/* Headers */}
+          <div className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md">
+            JAM KE
+          </div>
+          {days.map(day => (
+            <div key={day} className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md">
+              {day.toUpperCase()}
+            </div>
+          ))}
+          
+          {/* Time Slots & Empty Cells */}
+          {Array.from({ length: maxRows }).map((_, index) => {
+            const timeWeekday = timeSlotsWeekday[index];
+            const timeFriday = timeSlotsFriday[index];
+            
+            return (
+              <React.Fragment key={`row-${index}`}>
+                <div 
+                  style={{ gridRow: index + 2 }} 
+                  className="p-2 border-2 border-gray-300 text-sm font-bold text-gray-700 flex items-center justify-center bg-gray-100"
+                >
+                  {index + 1}
+                </div>
+                {days.map((day, dayIndex) => {
+                  const isJumat = day === DayOfWeek.Jumat;
+                  const time = isJumat ? timeFriday : timeWeekday;
                   
-                  const isOccupiedByAnotherSchedule = daySchedules.some(s => {
-                      const startMin = timeToMinutes(s.start_time);
-                      const endMin = timeToMinutes(s.end_time);
-                      const currentMin = timeToMinutes(`1970-01-01T${time}:00.000Z`); // Konversi 'time' ke menit juga
-                      return currentMin > startMin && currentMin < endMin;
-                  });
-
-                  if (isOccupiedByAnotherSchedule) {
-                      return null;
+                  if (!time) {
+                    return (
+                      <div 
+                        key={`${day}-empty-${index}`}
+                        style={{ gridRow: index + 2, gridColumn: dayIndex + 2 }}
+                        className="border border-gray-200 bg-gray-50"
+                      />
+                    );
                   }
-
-                  if (scheduleForThisSlot) {
-                    const startMin = timeToMinutes(scheduleForThisSlot.start_time);
-                    const endMin = timeToMinutes(scheduleForThisSlot.end_time);
-                    const duration = endMin - startMin;
-                    const rowSpan = Math.max(1, Math.round(duration / 45));
-                    
-                    const shouldDisplay = scheduleTypeFilter === "ALL" || scheduleForThisSlot.schedule_type === ScheduleType.Umum || scheduleForThisSlot.schedule_type === scheduleTypeFilter;
-
-                    if (shouldDisplay) {
-                        return (
-                            <td key={day} className="p-1 border align-top relative group" rowSpan={rowSpan}>
-                                <div className={`h-full rounded-md p-2 text-left text-xs flex flex-col justify-between ${scheduleForThisSlot.schedule_type === 'A' ? 'bg-yellow-100' : scheduleForThisSlot.schedule_type === 'B' ? 'bg-blue-100' : 'bg-green-100'}`}>
-                                    <div>
-                                        <p className="font-bold">{scheduleForThisSlot.assignment.subject.subject_code}</p>
-                                        <p className="truncate">{scheduleForThisSlot.assignment.teacher.profile.full_name}</p>
-                                    </div>
-                                    <div className="flex justify-between items-center mt-1">
-                                        <Badge variant="secondary" className="text-xs">{scheduleForThisSlot.room?.room_code || 'N/A'}</Badge>
-                                        {scheduleForThisSlot.schedule_type !== 'Umum' && <Badge className={`text-xs ${scheduleForThisSlot.schedule_type === 'A' ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'}`}>{scheduleForThisSlot.schedule_type}</Badge>}
-                                    </div>
-                                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button variant="outline" size="icon-sm" className="h-6 w-6 bg-white" onClick={() => handleEditClick(scheduleForThisSlot)}><Pencil className="h-3 w-3"/></Button>
-                                        <Button variant="destructive" size="icon-sm" className="h-6 w-6" onClick={() => deleteSchedule(scheduleForThisSlot.id)}><Trash2 className="h-3 w-3"/></Button>
-                                    </div>
-                                </div>
-                            </td>
-                        )
-                    } else {
-                        const isA = scheduleForThisSlot.schedule_type === ScheduleType.A;
-                        const isB = scheduleForThisSlot.schedule_type === ScheduleType.B;
-                        return <td key={day} className={`p-2 border align-top ${isA ? 'bg-yellow-50' : isB ? 'bg-blue-50' : 'bg-gray-50'}`} rowSpan={rowSpan}></td>;
-                    }
-                  }
-
+                  
                   return (
-                    <td key={day} className="p-2 border hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => handleCellClick(day, time)}>
-                      <span className="text-gray-300">+</span>
-                    </td>
+                    <div 
+                      key={`${day}-${time}`} 
+                      style={{ gridRow: index + 2, gridColumn: dayIndex + 2, minHeight: '4.5rem' }}
+                      className="border border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors relative bg-white"
+                      onClick={() => handleCellClick(day, time)}
+                    >
+                      <div className="absolute top-1 left-1 text-[10px] text-gray-400 font-mono">
+                        {time}
+                      </div>
+                    </div>
                   );
                 })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </React.Fragment>
+            );
+          })}
+
+          {/* Routine Activities */}
+          {data?.routineActivities?.map((activity: RoutineActivity) => {
+            const startRow = getGridRow(activity.start_time, activity.day_of_week);
+            const rowSpan = calculateRowSpan(activity.start_time, activity.end_time, activity.day_of_week);
+            const dayIndex = days.indexOf(activity.day_of_week) + 2;
+            
+            // Color coding for different activities
+            let activityColors = '';
+            const activityName = activity.activity_name.toLowerCase();
+            
+            if (activityName.includes('istirahat')) {
+              activityColors = 'bg-amber-200 border-amber-400 text-amber-900';
+            } else if (activityName.includes('sholat') || activityName.includes('jumat')) {
+              activityColors = 'bg-emerald-200 border-emerald-400 text-emerald-900';
+            } else if (activityName.includes('pembiasaan')) {
+              activityColors = 'bg-violet-200 border-violet-400 text-violet-900';
+            } else {
+              activityColors = 'bg-sky-200 border-sky-400 text-sky-900';
+            }
+            
+            return (
+              <div
+                key={activity.id}
+                className={`${activityColors} border-2 rounded-lg p-2 text-xs font-bold flex flex-col items-center justify-center z-10 shadow-md pointer-events-none`}
+                style={{ 
+                  gridColumn: dayIndex, 
+                  gridRow: `${startRow} / span ${rowSpan}`,
+                }}
+              >
+                <div className="text-center leading-tight">
+                  {activity.activity_name}
+                </div>
+                <div className="text-[10px] opacity-75 mt-1 font-mono">
+                  {normalizeTime(activity.start_time)} - {normalizeTime(activity.end_time)}
+                </div>
+              </div>
+            );
+          })}
+          
+          {/* Schedule Cards */}
+          {data?.schedules
+              ?.filter((s: Schedule) => scheduleTypeFilter === "ALL" || s.schedule_type === ScheduleType.Umum || s.schedule_type === scheduleTypeFilter)
+              .map((schedule: Schedule) => {
+                  const startRow = getGridRow(schedule.start_time, schedule.day_of_week);
+                  const rowSpan = calculateRowSpan(schedule.start_time, schedule.end_time, schedule.day_of_week);
+                  const dayIndex = days.indexOf(schedule.day_of_week) + 2;
+                  return (
+                      <div 
+                          key={schedule.id}
+                          style={{ 
+                            gridColumn: dayIndex, 
+                            gridRow: `${startRow} / span ${rowSpan}`,
+                          }}
+                          className="p-1 z-20"
+                      >
+                          <ScheduleCard 
+                            schedule={schedule} 
+                            viewMode={viewMode} 
+                            onEdit={handleEditClick} 
+                            onDelete={deleteSchedule} 
+                          />
+                      </div>
+                  );
+          })}
+        </div>
       </div>
+      
       <ManageScheduleDialog 
         isOpen={isDialogOpen}
         setIsOpen={setIsDialogOpen}
-        classId={classId}
-        activeAcademicYear={activeAcademicYear}
+        classId={viewMode === 'class' ? viewId : ''}
+        activeAcademicYear={activeAcademicYear || null}
         selectedSlot={selectedSlot}
         scheduleData={editingSchedule}
       />

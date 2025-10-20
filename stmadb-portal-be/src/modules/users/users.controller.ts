@@ -111,15 +111,30 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 };
 
-// --- DELETE ---
-export const deleteUser = async (req: Request, res: Response) => {
+// --- CONTROLLER BARU UNTUK TOGGLE STATUS ---
+export const toggleUserStatus = async (req: Request, res: Response) => {
     try {
         if (!req.params.id) {
             return res.status(400).json({ message: 'User ID dibutuhkan' });
         }
         const id = parseInt(req.params.id, 10);
-        await userService.deleteUser(id);
-        res.status(200).json({ message: 'User berhasil dinonaktifkan' });
+        const updatedUser = await userService.toggleUserStatus(id);
+        res.status(200).json({ message: `Status user berhasil diubah menjadi ${updatedUser.is_active ? 'Aktif' : 'Non-Aktif'}`, data: updatedUser });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan internal server';
+        res.status(500).json({ message: errorMessage });
+    }
+};
+
+// --- DELETE ---
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+          if (!req.params.id) {
+              return res.status(400).json({ message: 'User ID dibutuhkan' });
+          }
+          const id = parseInt(req.params.id, 10);
+          await userService.deleteUser(id);
+          // Ubah pesan sukses
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan internal server';
         res.status(500).json({ message: errorMessage });

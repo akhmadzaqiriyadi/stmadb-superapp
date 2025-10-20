@@ -1293,4 +1293,74 @@ router.route('/schedules/:scheduleId')
  *           description: ID ruangan (opsional)
  */
 
+
+/**
+ * @openapi
+ * /academics/schedules/teacher/{teacherId}:
+ *   get:
+ *     tags: [Academics - Schedules]
+ *     summary: Mendapatkan semua jadwal untuk satu guru
+ *     description: Mengambil daftar jadwal mengajar untuk guru tertentu berdasarkan ID
+ *     parameters:
+ *       - in: path
+ *         name: teacherId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID guru
+ *     responses:
+ *       200:
+ *         description: Berhasil mendapatkan jadwal guru
+ *       404:
+ *         description: Guru tidak ditemukan
+ *       500:
+ *         description: Kesalahan server
+ */
+router.get('/schedules/teacher/:teacherId', academicController.getSchedulesByTeacher);
+
+/**
+ * @openapi
+ * /academics/schedules/room/{roomId}:
+ *   get:
+ *     tags: [Academics - Schedules]
+ *     summary: Mendapatkan semua jadwal untuk satu ruangan
+ *     description: Mengambil daftar jadwal penggunaan ruangan berdasarkan ID ruangan
+ *     parameters:
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID ruangan
+ *     responses:
+ *       200:
+ *         description: Berhasil mendapatkan jadwal ruangan
+ *       404:
+ *         description: Ruangan tidak ditemukan
+ *       500:
+ *         description: Kesalahan server
+ */
+router.get('/schedules/room/:roomId', academicController.getSchedulesByRoom);
+
+/**
+ * @openapi
+ * /academics/routine-activities:
+ *   get:
+ *     tags: [Academics - Schedules]
+ *     summary: Mendapatkan semua aktivitas rutin
+ *     description: Mengambil daftar aktivitas rutin seperti istirahat, upacara, dll
+ *     responses:
+ *       200:
+ *         description: Berhasil mendapatkan daftar aktivitas rutin
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       500:
+ *         description: Kesalahan server
+ */
+router.get('/routine-activities', academicController.getRoutineActivities);
+
 export default router;

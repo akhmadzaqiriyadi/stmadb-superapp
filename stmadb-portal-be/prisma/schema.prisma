@@ -73,7 +73,7 @@ enum Gender {
 // Tambahkan Enum baru di atas model-model Anda
 enum EmploymentStatus {
   PNS
-  PTK
+  PPPK
   GTT
 }
 
@@ -86,7 +86,6 @@ model TeacherExtension {
   user    User    @relation(fields: [user_id], references: [id])
 
   nip     String? @unique
-  nuptk   String? @unique
   status  EmploymentStatus?
 }
 
@@ -152,6 +151,8 @@ model Classes {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([class_name])
 }
 
 model Subject {
@@ -231,6 +232,8 @@ model RoutineActivity {
   description       String?
   academic_year_id  Int
   academic_year     AcademicYear @relation(fields: [academic_year_id], references: [id])
+
+  @@unique([activity_name, day_of_week, academic_year_id])
 }
 
 model DutySchedule {

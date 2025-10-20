@@ -270,12 +270,9 @@ router.get('/:id', protect, authorize(['Admin']), userController.getUserById);
  *                   nip:
  *                     type: string
  *                     example: "199001012025031001"
- *                   nuptk:
- *                     type: string
- *                     example: "1234567890123456"
  *                   status:
  *                     type: string
- *                     enum: [PNS, PTK, GTT]
+ *                     enum: [PNS, PPPK, GTT]
  *                     example: "PNS"
  *               studentData:
  *                 type: object
@@ -428,7 +425,7 @@ router.post(
  *                     example: "199001012025031002"
  *                   status:
  *                    type: string
- *                    enum: [PNS, PTK, GTT]
+ *                    enum: [PNS, PPPK, GTT]
  *                    example: "PNS"
  *               studentData:
  *                 type: object
@@ -464,12 +461,33 @@ router.put('/:id', protect, authorize(['Admin']), validate(updateUserSchema), us
 
 /**
  * @openapi
+ * /users/{id}/toggle-status:
+ *   patch:
+ *     tags:
+ *       - Users
+ *     summary: Mengaktifkan atau menonaktifkan user (Admin only)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Status user berhasil diubah.
+ */
+router.patch('/:id/toggle-status', protect, authorize(['Admin']), userController.toggleUserStatus);
+
+/**
+ * @openapi
  * /users/{id}:
  *   delete:
  *     tags:
  *       - Users
- *     summary: Menonaktifkan user (Admin only)
- *     description: Melakukan soft delete dengan mengubah status `is_active` user menjadi `false`.
+ *     summary: Menghapus user secara permanen (Admin only)
+ *     description: Melakukan hard delete untuk menghapus user dari database. Aksi ini tidak dapat dibatalkan.
  *     security:
  *       - bearerAuth: []
  *     parameters:

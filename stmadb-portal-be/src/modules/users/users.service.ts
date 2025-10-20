@@ -52,7 +52,7 @@ export const createUser = async (userData: any) => {
   return newUser;
 };
 
-// --- FUNGSI BULK CREATE YANG DIPERBARUI ---
+// --- FUNGSI BULK CREATE YANG DIPERBARUI DENGAN LOGIKA CERDAS ---
 export const bulkCreateUsers = async (fileBuffer: Buffer) => {
   const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
   const sheetName = workbook.SheetNames[0];
@@ -67,7 +67,6 @@ export const bulkCreateUsers = async (fileBuffer: Buffer) => {
     errors: [] as { row: number; error: string }[],
   };
 
-  // --- PERBAIKAN 1: Ambil data penting di awal ---
   const allRoles = await prisma.role.findMany();
   const rolesMap = new Map(allRoles.map(role => [role.role_name.toLowerCase(), role.id]));
   const activeAcademicYear = await prisma.academicYear.findFirst({ where: { is_active: true } });
@@ -75,12 +74,14 @@ export const bulkCreateUsers = async (fileBuffer: Buffer) => {
     throw new Error("Tidak ada tahun ajaran yang aktif. Silakan aktifkan satu terlebih dahulu.");
   }
 
-  // --- Proses setiap baris dari Excel ---
   for (const [index, userRow] of usersData.entries()) {
     const row = userRow as any;
-    const rowIndex = index + 2;
+    const rowIndex = index + 2; // Baris di Excel dimulai dari 1, dan baris 1 adalah header
 
     try {
+      // --- TAHAP 1: VALIDASI DATA TERLEBIH DAHULU (TANPA MENULIS KE DB) ---
+      
+      // Validasi kolom wajib dasar
       if (!row.Email || !row['Nama Lengkap'] || !row.Role || !row['Jenis Kelamin']) {
         throw new Error('Kolom Email, Nama Lengkap, Role, dan Jenis Kelamin wajib diisi.');
       }
@@ -91,6 +92,33 @@ export const bulkCreateUsers = async (fileBuffer: Buffer) => {
         if (!roleId) throw new Error(`Role '${name}' tidak ditemukan.`);
         return roleId;
       });
+
+      let targetClassForMember = null;
+      let targetClassForHomeroom = null;
+
+      // Validasi jika ada data kelas untuk siswa
+      if (roleNames.includes('student') && row['Nama Kelas']) {
+        targetClassForMember = await prisma.classes.findFirst({
+          where: { class_name: { equals: row['Nama Kelas'], mode: 'insensitive' } }
+        });
+        if (!targetClassForMember) {
+          // Jika kelas tidak ditemukan, langsung gagalkan baris ini
+          throw new Error(`Kelas '${row['Nama Kelas']}' tidak ditemukan. User di baris ini tidak dibuat.`);
+        }
+      }
+
+      // Validasi jika ada data wali kelas untuk guru
+      if (roleNames.includes('teacher') && row['Wali Kelas Untuk']) {
+        targetClassForHomeroom = await prisma.classes.findFirst({
+          where: { class_name: { equals: row['Wali Kelas Untuk'], mode: 'insensitive' } }
+        });
+        if (!targetClassForHomeroom) {
+          // Jika kelas tidak ditemukan, langsung gagalkan baris ini
+          throw new Error(`Kelas '${row['Wali Kelas Untuk']}' tidak ditemukan. User di baris ini tidak dibuat.`);
+        }
+      }
+      
+      // --- TAHAP 2: EKSEKUSI SETELAH SEMUA DATA DI BARIS INI TERBUKTI VALID ---
 
       const userData: any = {
         email: row.Email,
@@ -117,48 +145,24 @@ export const bulkCreateUsers = async (fileBuffer: Buffer) => {
         };
       }
       
-      // Buat user baru
       const newUser = await createUser(userData);
 
-      // --- PERBAIKAN 2: Logika untuk memproses kolom baru ---
-      
-      // Jika user adalah siswa dan ada kolom 'Nama Kelas'
-      if (roleNames.includes('student') && row['Nama Kelas']) {
-        const targetClass = await prisma.classes.findFirst({
-          where: { class_name: { equals: row['Nama Kelas'], mode: 'insensitive' } }
+      // Lakukan penautan karena kita sudah yakin kelasnya ada
+      if (targetClassForMember) {
+        await prisma.classMember.create({
+          data: {
+            student_user_id: newUser.id,
+            class_id: targetClassForMember.id,
+            academic_year_id: activeAcademicYear.id,
+          }
         });
-
-        if (targetClass) {
-          // Tambahkan siswa ke kelas
-          await prisma.classMember.create({
-            data: {
-              student_user_id: newUser.id,
-              class_id: targetClass.id,
-              academic_year_id: activeAcademicYear.id,
-            }
-          });
-        } else {
-          // Catat sebagai error jika kelas tidak ditemukan, tapi jangan gagalkan user creation
-          results.errors.push({ row: rowIndex, error: `Kelas '${row['Nama Kelas']}' tidak ditemukan. Siswa dibuat tanpa masuk kelas.` });
-        }
       }
 
-      // Jika user adalah guru dan ada kolom 'Wali Kelas Untuk'
-      if (roleNames.includes('teacher') && row['Wali Kelas Untuk']) {
-        const targetClassForHomeroom = await prisma.classes.findFirst({
-          where: { class_name: { equals: row['Wali Kelas Untuk'], mode: 'insensitive' } }
+      if (targetClassForHomeroom) {
+        await prisma.classes.update({
+          where: { id: targetClassForHomeroom.id },
+          data: { homeroom_teacher_id: newUser.id }
         });
-
-        if (targetClassForHomeroom) {
-          // Jadikan guru sebagai wali kelas
-          await prisma.classes.update({
-            where: { id: targetClassForHomeroom.id },
-            data: { homeroom_teacher_id: newUser.id }
-          });
-        } else {
-          // Catat sebagai error jika kelas tidak ditemukan
-          results.errors.push({ row: rowIndex, error: `Kelas '${row['Wali Kelas Untuk']}' tidak ditemukan. Guru dibuat tanpa menjadi wali kelas.` });
-        }
       }
 
       results.success++;
@@ -304,14 +308,25 @@ export const updateUser = async (id: number, updateData: any) => {
 };
 
 
-// --- DELETE (Soft Delete - Tidak berubah) ---
-export const deleteUser = async (id: number) => {
-  const deactivatedUser = await prisma.user.update({
+export const toggleUserStatus = async (id: number) => {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    throw new Error('User tidak ditemukan');
+  }
+  return prisma.user.update({
     where: { id },
-    data: { is_active: false },
+    data: { is_active: !user.is_active },
   });
-  delete (deactivatedUser as { password?: string }).password;
-  return deactivatedUser;
+};
+
+export const deleteUser = async (id: number) => {
+  // Pastikan user tidak bisa menghapus dirinya sendiri
+  // Anda bisa menambahkan pengecekan lain jika perlu
+  // const adminUser = await prisma.user.findFirst({ where: { email: 'admin@portal.com' } });
+  // if (id === adminUser?.id) {
+  //   throw new Error('User admin utama tidak dapat dihapus.');
+  // }
+  return prisma.user.delete({ where: { id } });
 };
 
 // --- READ (Get All Roles) ---

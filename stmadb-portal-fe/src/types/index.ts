@@ -20,7 +20,6 @@ export interface UserRole {
 
 export interface TeacherExtension {
   nip?: string | null;
-  nuptk?: string | null;
   status?: EmploymentStatus | null;
 }
 
@@ -187,7 +186,7 @@ export enum ScheduleType {
 // Employment status enum mirrors Prisma enum
 export enum EmploymentStatus {
   PNS = "PNS",
-  PTK = "PTK",
+  PPPK = "PPPK",
   GTT = "GTT",
 }
 
@@ -217,4 +216,15 @@ export interface RoomsApiResponse {
   total: number;
   page: number;
   totalPages: number;
+}
+
+// --- TAMBAHKAN INTERFACE BARU DI SINI ---
+export interface RoutineActivity {
+  id: number;
+  activity_name: string;
+  day_of_week: DayOfWeek;
+  start_time: string; // Format "HH:mm"
+  end_time: string;   // Format "HH:mm"
+  description?: string | null;
+  academic_year_id: number;
 }

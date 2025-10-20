@@ -1,3 +1,4 @@
+// src/app/dashboard/users/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,14 +9,12 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Eye, Upload, ToggleLeft, ToggleRight } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
-import { useAuthStore } from "@/store/authStore";
 import { User, UsersApiResponse, UserRole } from "@/types";
-import { Upload } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,8 +42,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-// 1. Impor komponen paginasi baru
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
+import { useAuthStore } from "@/store/authStore";
 
 const fetchUsers = async (
   page = 1,
@@ -62,6 +61,29 @@ const fetchUsers = async (
   return data;
 };
 
+const withAdminAuth = (Component: React.ComponentType) => {
+  const AdminAuthComponent = (props: any) => {
+    const { user } = useAuthStore();
+    const isAdmin = user?.roles.some(
+      (role: UserRole) => role.role_name === "Admin"
+    );
+
+    if (user && !isAdmin) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-red-500 text-2xl font-semibold">
+            Akses Ditolak. Halaman ini hanya untuk Administrator.
+          </p>
+        </div>
+      );
+    }
+
+    return <Component {...props} />;
+  };
+  return withAuth(AdminAuthComponent);
+};
+
+
 function UsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -69,7 +91,7 @@ function UsersPage() {
   const debouncedSearch = useDebounce(search, 300);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const queryClient = useQueryClient();
-  const limit = 10; // Definisikan limit untuk diteruskan ke paginasi
+  const limit = 10;
 
   const {
     data: usersData,
@@ -87,19 +109,38 @@ function UsersPage() {
     placeholderData: keepPreviousData,
   });
 
+  // --- 1. UBAH MUTASI DELETE MENJADI HARD DELETE ---
   const { mutate: deleteUser } = useMutation({
     mutationFn: (userId: number) => api.delete(`/users/${userId}`),
     onSuccess: () => {
-      toast.success("User berhasil dinonaktifkan.");
+      toast.success("User berhasil dihapus secara permanen.");
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Gagal menonaktifkan user.");
+      toast.error(error.response?.data?.message || "Gagal menghapus user.");
+    },
+  });
+  
+  // --- 2. TAMBAHKAN MUTASI BARU UNTUK TOGGLE STATUS ---
+  const { mutate: toggleStatus } = useMutation({
+    mutationFn: (userId: number) => api.patch(`/users/${userId}/toggle-status`),
+    onSuccess: (response: any) => {
+      toast.success(response.data.message);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Gagal mengubah status.");
     },
   });
 
+  // --- 3. BUAT FUNGSI UNTUK KONFIRMASI PENGHAPUSAN ---
+  const handleDeleteWithConfirmation = (userId: number) => {
+    if (window.confirm("Apakah Anda yakin ingin menghapus user ini secara permanen? Aksi ini tidak dapat dibatalkan.")) {
+      deleteUser(userId);
+    }
+  };
+
   return (
-    // 2. Ubah layout agar lebih fleksibel
     <div className="flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manajemen User</h1>
@@ -149,7 +190,6 @@ function UsersPage() {
         </div>
       </div>
 
-      {/* Konten utama (tabel) */}
       <div className="border rounded-lg bg-white flex-grow">
         {isLoadingUsers ? (
           <p className="p-4 text-center">Memuat data pengguna...</p>
@@ -186,7 +226,7 @@ function UsersPage() {
                         "px-2 py-1 rounded-full text-xs font-semibold",
                         user.is_active
                           ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
                       )}
                     >
                       {user.is_active ? "Aktif" : "Non-Aktif"}
@@ -211,11 +251,22 @@ function UsersPage() {
                             <Pencil className="mr-2 h-4 w-4" /> Edit
                           </Link>
                         </DropdownMenuItem>
+                        
+                        {/* --- 4. TAMBAHKAN MENU ITEM BARU UNTUK TOGGLE --- */}
+                        <DropdownMenuItem onClick={() => toggleStatus(user.id)}>
+                          {user.is_active ? (
+                            <><ToggleLeft className="mr-2 h-4 w-4" /> Nonaktifkan</>
+                          ) : (
+                            <><ToggleRight className="mr-2 h-4 w-4" /> Aktifkan</>
+                          )}
+                        </DropdownMenuItem>
+
+                        {/* --- 5. UBAH MENU ITEM HAPUS --- */}
                         <DropdownMenuItem
-                          onClick={() => deleteUser(user.id)}
+                          onClick={() => handleDeleteWithConfirmation(user.id)}
                           className="text-red-600 focus:text-red-600 focus:bg-red-50"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                          <Trash2 className="mr-2 h-4 w-4" /> Hapus Permanen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -227,7 +278,6 @@ function UsersPage() {
         )}
       </div>
 
-      {/* --- 3. Ganti Paginasi Lama dengan yang Baru --- */}
       <div className="pt-4">
         {usersData && usersData.totalPages > 0 && (
           <DataTablePagination
@@ -247,27 +297,5 @@ function UsersPage() {
     </div>
   );
 }
-
-const withAdminAuth = (Component: React.ComponentType) => {
-  const AdminAuthComponent = (props: any) => {
-    const { user } = useAuthStore();
-    const isAdmin = user?.roles.some(
-      (role: UserRole) => role.role_name === "Admin"
-    );
-
-    if (user && !isAdmin) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <p className="text-red-500 text-2xl font-semibold">
-            Akses Ditolak. Halaman ini hanya untuk Administrator.
-          </p>
-        </div>
-      );
-    }
-
-    return <Component {...props} />;
-  };
-  return withAuth(AdminAuthComponent);
-};
 
 export default withAdminAuth(UsersPage);

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,11 +37,13 @@ export function ClassMembersTable({ classId, onAddStudent, activeAcademicYear }:
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+  const PAGE_LIMIT = 10;
+
   const queryParams = {
     page,
     q: debouncedSearchTerm,
     academicYearId: activeAcademicYear?.id,
-    limit: 10,
+    limit: PAGE_LIMIT,
   };
 
   const { data: membersData, isLoading, isError, error } = useQuery<ClassMembersApiResponse, Error>({
@@ -103,6 +106,11 @@ export function ClassMembersTable({ classId, onAddStudent, activeAcademicYear }:
         {isError && <p className="text-center text-red-500">Error: {error.message}</p>}
         {membersData && (
           <>
+            <div className="flex items-center justify-between mb-3">
+              <div />
+              <div className="text-sm text-gray-600">Total Siswa: <span className="font-semibold">{membersData.total}</span></div>
+            </div>
+
             <div className="border rounded-lg">
               <Table>
                 <TableHeader>
@@ -136,14 +144,14 @@ export function ClassMembersTable({ classId, onAddStudent, activeAcademicYear }:
               </Table>
             </div>
             {/* Pagination Controls */}
-            <div className="flex items-center justify-center pt-6">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem><PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage(p => Math.max(p - 1, 1)); }} className={cn({ "pointer-events-none text-gray-400": page === 1 })} /></PaginationItem>
-                  {[...Array(membersData?.totalPages || 0)].map((_, i) => <PaginationItem key={i}><PaginationLink href="#" isActive={page === i + 1} onClick={(e) => { e.preventDefault(); setPage(i + 1); }}>{i + 1}</PaginationLink></PaginationItem>)}
-                  <PaginationItem><PaginationNext href="#" onClick={(e) => { e.preventDefault(); if (membersData && page < membersData.totalPages) setPage(p => p + 1); }} className={cn({ "pointer-events-none text-gray-400": !membersData || page === membersData.totalPages })} /></PaginationItem>
-                </PaginationContent>
-              </Pagination>
+            <div className="pt-6">
+              <DataTablePagination
+                page={page}
+                setPage={setPage}
+                totalPages={membersData.totalPages}
+                totalData={membersData.total}
+                limit={PAGE_LIMIT}
+              />
             </div>
           </>
         )}

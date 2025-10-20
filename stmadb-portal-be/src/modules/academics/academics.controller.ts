@@ -466,3 +466,41 @@ export const deleteSchedule = async (req: Request, res: Response) => {
     res.status(500).json({ message: (error as Error).message });
   }
 };
+
+
+export const getSchedulesByTeacher = async (req: Request, res: Response) => {
+  try {
+    const { teacherId } = req.params;
+    const { academicYearId } = req.query;
+    if (!teacherId || !academicYearId) return res.status(400).json({ message: 'ID Guru dan ID Tahun Ajaran dibutuhkan' });
+
+    const schedules = await academicService.getSchedulesByTeacher(parseInt(teacherId), Number(academicYearId));
+    res.status(200).json(schedules);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getSchedulesByRoom = async (req: Request, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const { academicYearId } = req.query;
+    if (!roomId || !academicYearId) return res.status(400).json({ message: 'ID Ruangan dan ID Tahun Ajaran dibutuhkan' });
+
+    const schedules = await academicService.getSchedulesByRoom(parseInt(roomId), Number(academicYearId));
+    res.status(200).json(schedules);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getRoutineActivities = async (req: Request, res: Response) => {
+  try {
+    const { academicYearId } = req.query;
+    if (!academicYearId) return res.status(400).json({ message: 'ID Tahun Ajaran dibutuhkan' });
+    const activities = await academicService.getRoutineActivities(Number(academicYearId));
+    res.status(200).json(activities);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
