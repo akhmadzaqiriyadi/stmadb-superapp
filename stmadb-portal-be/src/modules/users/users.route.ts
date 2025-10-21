@@ -42,6 +42,24 @@ const router = Router();
  */
 router.get('/me', protect, userController.getMyProfile);
 
+/**
+ * @openapi
+ * /users/me/profile:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: Mendapatkan profil detail user yang sedang login (untuk halaman profil)
+ *     description: Mengambil detail profil lengkap, termasuk data kelas jika user adalah siswa.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Sukses, mengembalikan data profil lengkap.
+ *       '401':
+ *         description: Unauthorized.
+ */
+router.get('/me/profile', protect, userController.getMyDetailedProfile);
+
 
 // ===================================================================================
 // == Endpoint Khusus Admin

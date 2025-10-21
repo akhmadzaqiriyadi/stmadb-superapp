@@ -333,3 +333,58 @@ export const deleteUser = async (id: number) => {
 export const getRoles = async () => {
   return prisma.role.findMany();
 };
+
+// --- SERVICE BARU UNTUK PROFIL LENGKAP ---
+export const getUserProfile = async (userId: number) => {
+  // Ambil data user dasar seperti biasa
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      roles: true,
+      profile: true,
+      teacher_extension: true,
+      student_extension: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error('User tidak ditemukan');
+  }
+
+  delete (user as { password?: string }).password;
+
+  const isStudent = user.roles.some(role => role.role_name === 'Student');
+  
+  // Jika user adalah siswa, cari data kelasnya di tahun ajaran aktif
+  if (isStudent) {
+    const activeAcademicYear = await prisma.academicYear.findFirst({
+      where: { is_active: true },
+      select: { id: true },
+    });
+
+    if (activeAcademicYear) {
+      const classMembership = await prisma.classMember.findFirst({
+        where: {
+          student_user_id: userId,
+          academic_year_id: activeAcademicYear.id,
+        },
+        include: {
+          class: {
+            include: {
+              major: true,
+              homeroom_teacher: {
+                select: { profile: { select: { full_name: true } } }
+              }
+            }
+          }
+        }
+      });
+      
+      // Gabungkan data kelas ke dalam objek user
+      return { ...user, currentClass: classMembership?.class || null };
+    }
+  }
+
+  // Jika bukan siswa, kembalikan data user saja
+  return { ...user, currentClass: null };
+};

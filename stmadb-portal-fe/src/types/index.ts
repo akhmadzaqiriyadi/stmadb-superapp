@@ -228,3 +228,32 @@ export interface RoutineActivity {
   description?: string | null;
   academic_year_id: number;
 }
+
+export interface ProfileData {
+  id: number;
+  email: string;
+  is_active: boolean;
+  profile: {
+    full_name: string;
+    gender: string;
+    identity_number?: string | null;
+    birth_date?: string | null;
+  };
+  teacher_extension?: {
+    nip?: string | null;
+  } | null;
+  student_extension?: {
+    nisn?: string | null;
+  } | null;
+  currentClass?: {
+    class_name: string;
+    major: {
+      major_name: string;
+    };
+    homeroom_teacher?: {
+      profile: {
+        full_name: string;
+      };
+    } | null;
+  } | null;
+}

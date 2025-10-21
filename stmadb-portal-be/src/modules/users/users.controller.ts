@@ -151,3 +151,19 @@ export const getRoles = async (req: Request, res: Response) => {
         res.status(500).json({ message: errorMessage });
     }
 };
+
+// --- CONTROLLER BARU UNTUK HALAMAN PROFIL ---
+export const getMyDetailedProfile = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: 'Token tidak valid' });
+        }
+        // Panggil service baru yang sudah kita buat
+        const userProfile = await userService.getUserProfile(userId);
+        res.status(200).json(userProfile);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan';
+        res.status(500).json({ message: errorMessage });
+    }
+};

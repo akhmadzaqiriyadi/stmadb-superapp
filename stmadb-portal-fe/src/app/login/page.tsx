@@ -9,6 +9,8 @@ import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { User } from "@/types";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Mail, Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,15 +22,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Skema validasi sesuai dengan backend `auth.validation.ts`
 const loginSchema = z.object({
   email: z.string().email("Format email tidak valid"),
   password: z.string().min(1, "Password tidak boleh kosong"),
 });
 
-// Tipe untuk response API login
 interface LoginResponse {
   message: string;
   data: {
@@ -57,12 +56,22 @@ export default function LoginPage() {
     mutationFn: (credentials) =>
       api.post("/auth/login", credentials).then((res) => res.data),
     onSuccess: (data) => {
-      console.log("Login successful:", data);
-      login(data.data.user, data.data.token);
-      router.push("/dashboard"); // Redirect ke dashboard setelah login
+      const user = data.data.user;
+      const token = data.data.token;
+
+      login(user, token);
+
+      const roles = user.roles.map((role) => role.role_name);
+
+      if (roles.includes("Admin")) {
+        router.push("/dashboard");
+      } else if (roles.includes("Teacher") || roles.includes("Student")) {
+        router.push("/home");
+      } else {
+        router.push("/login");
+      }
     },
     onError: (error) => {
-      // Di sini Anda bisa menampilkan notifikasi error (misal: menggunakan toast)
       console.error("Login failed:", error.message);
       alert("Login Gagal! Cek kembali email dan password Anda.");
     },
@@ -73,47 +82,106 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <Card className="w-[400px]">
-        <CardHeader>
-          <CardTitle>STMADB Portal Login</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <div className="w-full max-w-md">
+        {/* Logo & Title Section */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <div className="w-20 h-20 bg-card rounded-2xl shadow-sm flex items-center justify-center border border-border">
+              <Image
+                src="/logo.png"
+                alt="STMADB Logo"
+                width={64}
+                height={64}
+                className="object-contain"
+              />
+            </div>
+          </div>
+          <h1 className="text-2xl font-semibold text-foreground mb-1">
+            Welcome Back
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Masuk ke STMADB Portal
+          </p>
+        </div>
+
+        {/* Form Card */}
+        <div className="bg-card rounded-3xl shadow-sm p-8 border border-border">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-foreground text-sm font-medium">
+                      Email
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder="admin@portal.com" {...field} />
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          placeholder="nis@smkn1adw.sch.id"
+                          className="pl-10 h-12"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-foreground text-sm font-medium">
+                      Password
+                    </FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="******" {...field} />
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder="Masukkan password"
+                          className="pl-10 h-12"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? "Loading..." : "Login"}
+
+              <Button
+                type="submit"
+                className="w-full h-12 rounded-xl font-medium shadow-sm transition-all mt-6"
+                disabled={isPending}
+              >
+                {isPending ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    Memproses...
+                  </span>
+                ) : (
+                  "Masuk"
+                )}
               </Button>
             </form>
           </Form>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-muted-foreground text-xs mt-6">
+          © 2025 STMADB Portal. All rights reserved.
+        </p>
+        <p className="text-center text-muted-foreground text-[10px] mt-1">
+          App Version 1.0.0
+        </p>
+      </div>
     </div>
   );
 }
