@@ -49,7 +49,7 @@ jobs:
           push: true
           # Menyuntikkan URL API publik ke dalam proses build Next.js
           build-args: |
-            NEXT_PUBLIC_API_URL=http://apps.smkn1adw.sch.id/api/v1
+            NEXT_PUBLIC_API_URL=https://apps.smkn1adw.sch.id/api/v1
           # Tag image dengan format Docker Hub
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/stmadb-portal-fe:latest
 
