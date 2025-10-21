@@ -16,7 +16,8 @@ const app: Express = express();
 // Daftar domain yang diizinkan untuk mengakses API
 const allowedOrigins = [
   'http://localhost:3000',      
-  'http://apps.smkn1adw.sch.id',           // Untuk development frontend lokal
+  'http://apps.smkn1adw.sch.id', 
+  'https://apps.smkn1adw.sch.id',
 
 ];
 
