@@ -239,6 +239,7 @@ export interface ProfileData {
     identity_number?: string | null;
     birth_date?: string | null;
   };
+  roles: UserRole[];
   teacher_extension?: {
     nip?: string | null;
   } | null;
@@ -246,7 +247,9 @@ export interface ProfileData {
     nisn?: string | null;
   } | null;
   currentClass?: {
+    id: number;
     class_name: string;
+    academic_year_id: number; 
     major: {
       major_name: string;
     };
@@ -256,4 +259,61 @@ export interface ProfileData {
       };
     } | null;
   } | null;
+}
+
+
+// ============== TIPE UNTUK FITUR IZIN KELUAR ==============
+
+export enum LeavePermitType {
+  Individual = "Individual",
+  Group = "Group",
+}
+
+
+export enum LeavePermitStatus {
+  WaitingForPiket = "WaitingForPiket",
+  WaitingForApproval = "WaitingForApproval",
+  Approved = "Approved",
+  Rejected = "Rejected",
+  Printed = "Printed",
+  Completed = "Completed",
+}
+
+export enum ApprovalStatus {
+  Pending = "Pending",
+  Approved = "Approved",
+  Rejected = "Rejected",
+}
+
+export interface LeaveApproval {
+  approver: {
+    profile: {
+      full_name: string;
+    };
+  };
+  approver_role: string;
+  status: ApprovalStatus;
+  notes?: string | null;
+  updatedAt: string;
+}
+
+export interface LeavePermit {
+  id: number;
+  requester: {
+    profile: {
+      full_name: string;
+    };
+  };
+  reason: string;
+  start_time: string;
+  status: LeavePermitStatus;
+  approvals: LeaveApproval[];
+  createdAt: string;
+}
+
+export interface LeavePermitsApiResponse {
+  data: LeavePermit[];
+  total: number;
+  page: number;
+  totalPages: number;
 }

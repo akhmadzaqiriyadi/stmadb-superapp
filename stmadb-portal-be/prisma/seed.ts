@@ -259,46 +259,46 @@ async function main() {
   }
   console.log('Data ruangan berhasil dibuat.');
 
-  // 8. Buat Data Aktivitas Rutin
-  console.log('Membuat data aktivitas rutin...');
-  const activeAcademicYear = await prisma.academicYear.findFirst({ where: { is_active: true } });
+  // // 8. Buat Data Aktivitas Rutin
+  // console.log('Membuat data aktivitas rutin...');
+  // const activeAcademicYear = await prisma.academicYear.findFirst({ where: { is_active: true } });
   
-  if (activeAcademicYear) {
-    const routineActivities = [
-      { day: 'Senin', name: 'Pembiasaan 1', start: '07:00', end: '07:45' }, { day: 'Senin', name: 'Istirahat 1', start: '10:00', end: '10:15' }, { day: 'Senin', name: 'Pembiasaan 2', start: '11:35', end: '12:15' },
-      { day: 'Senin', name: 'Istirahat 2', start: '12:15', end: '12:50' }, { day: 'Senin', name: 'Pembiasaan 3', start: '14:50', end: '15:30' }, { day: 'Selasa', name: 'Pembiasaan 1', start: '07:00', end: '07:45' },
-      { day: 'Selasa', name: 'Istirahat 1', start: '10:00', end: '10:15' }, { day: 'Selasa', name: 'Pembiasaan 2', start: '11:35', end: '12:15' }, { day: 'Selasa', name: 'Istirahat 2', start: '12:15', end: '12:50' },
-      { day: 'Selasa', name: 'Pembiasaan 3', start: '14:50', end: '15:30' }, { day: 'Rabu', name: 'Pembiasaan 1', start: '07:00', end: '07:45' }, { day: 'Rabu', name: 'Istirahat 1', start: '10:00', end: '10:15' },
-      { day: 'Rabu', name: 'Pembiasaan 2', start: '11:35', end: '12:15' }, { day: 'Rabu', name: 'Istirahat 2', start: '12:15', end: '12:50' }, { day: 'Rabu', name: 'Pembiasaan 3', start: '14:50', end: '15:30' },
-      { day: 'Kamis', name: 'Pembiasaan 1', start: '07:00', end: '07:45' }, { day: 'Kamis', name: 'Istirahat 1', start: '10:00', end: '10:15' }, { day: 'Kamis', name: 'Pembiasaan 2', start: '11:35', end: '12:15' },
-      { day: 'Kamis', name: 'Istirahat 2', start: '12:15', end: '12:50' }, { day: 'Kamis', name: 'Pembiasaan 3', start: '14:50', end: '15:30' }, { day: 'Jumat', name: 'Pembiasaan 1', start: '07:00', end: '07:45' },
-      { day: 'Jumat', name: 'Istirahat', start: '10:00', end: '10:15' }, { day: 'Jumat', name: 'Pembiasaan 3', start: '10:55', end: '11:35' }, { day: 'Jumat', name: 'Sholat Jumat', start: '11:35', end: '12:20' },
-    ];
+  // if (activeAcademicYear) {
+  //   const routineActivities = [
+  //     { day: 'Senin', name: 'Pembiasaan 1', start: '07:00', end: '07:45' }, { day: 'Senin', name: 'Istirahat 1', start: '10:00', end: '10:15' }, { day: 'Senin', name: 'Pembiasaan 2', start: '11:35', end: '12:15' },
+  //     { day: 'Senin', name: 'Istirahat 2', start: '12:15', end: '12:50' }, { day: 'Senin', name: 'Pembiasaan 3', start: '14:50', end: '15:30' }, { day: 'Selasa', name: 'Pembiasaan 1', start: '07:00', end: '07:45' },
+  //     { day: 'Selasa', name: 'Istirahat 1', start: '10:00', end: '10:15' }, { day: 'Selasa', name: 'Pembiasaan 2', start: '11:35', end: '12:15' }, { day: 'Selasa', name: 'Istirahat 2', start: '12:15', end: '12:50' },
+  //     { day: 'Selasa', name: 'Pembiasaan 3', start: '14:50', end: '15:30' }, { day: 'Rabu', name: 'Pembiasaan 1', start: '07:00', end: '07:45' }, { day: 'Rabu', name: 'Istirahat 1', start: '10:00', end: '10:15' },
+  //     { day: 'Rabu', name: 'Pembiasaan 2', start: '11:35', end: '12:15' }, { day: 'Rabu', name: 'Istirahat 2', start: '12:15', end: '12:50' }, { day: 'Rabu', name: 'Pembiasaan 3', start: '14:50', end: '15:30' },
+  //     { day: 'Kamis', name: 'Pembiasaan 1', start: '07:00', end: '07:45' }, { day: 'Kamis', name: 'Istirahat 1', start: '10:00', end: '10:15' }, { day: 'Kamis', name: 'Pembiasaan 2', start: '11:35', end: '12:15' },
+  //     { day: 'Kamis', name: 'Istirahat 2', start: '12:15', end: '12:50' }, { day: 'Kamis', name: 'Pembiasaan 3', start: '14:50', end: '15:30' }, { day: 'Jumat', name: 'Pembiasaan 1', start: '07:00', end: '07:45' },
+  //     { day: 'Jumat', name: 'Istirahat', start: '10:00', end: '10:15' }, { day: 'Jumat', name: 'Pembiasaan 3', start: '10:55', end: '11:35' }, { day: 'Jumat', name: 'Sholat Jumat', start: '11:35', end: '12:20' },
+  //   ];
     
-    for (const act of routineActivities) {
-        await prisma.routineActivity.upsert({
-            where: {
-                activity_name_day_of_week_academic_year_id: {
-                    activity_name: act.name,
-                    day_of_week: act.day as any,
-                    academic_year_id: activeAcademicYear.id,
-                }
-            },
-            update: {
-                start_time: new Date(`1970-01-01T${act.start}:00.000Z`),
-                end_time: new Date(`1970-01-01T${act.end}:00.000Z`),
-            },
-            create: {
-                activity_name: act.name,
-                day_of_week: act.day as any,
-                start_time: new Date(`1970-01-01T${act.start}:00.000Z`),
-                end_time: new Date(`1970-01-01T${act.end}:00.000Z`),
-                academic_year_id: activeAcademicYear.id,
-            }
-        });
-    }
-    console.log('Data aktivitas rutin berhasil dibuat.');
-  }
+  //   for (const act of routineActivities) {
+  //       await prisma.routineActivity.upsert({
+  //           where: {
+  //               activity_name_day_of_week_academic_year_id: {
+  //                   activity_name: act.name,
+  //                   day_of_week: act.day as any,
+  //                   academic_year_id: activeAcademicYear.id,
+  //               }
+  //           },
+  //           update: {
+  //               start_time: new Date(`1970-01-01T${act.start}:00.000Z`),
+  //               end_time: new Date(`1970-01-01T${act.end}:00.000Z`),
+  //           },
+  //           create: {
+  //               activity_name: act.name,
+  //               day_of_week: act.day as any,
+  //               start_time: new Date(`1970-01-01T${act.start}:00.000Z`),
+  //               end_time: new Date(`1970-01-01T${act.end}:00.000Z`),
+  //               academic_year_id: activeAcademicYear.id,
+  //           }
+  //       });
+  //   }
+  //   console.log('Data aktivitas rutin berhasil dibuat.');
+  // }
 
   console.log('Seeding selesai. ✅');
 }

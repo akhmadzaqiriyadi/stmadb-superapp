@@ -1,0 +1,43 @@
+/* src/app/dashboard/leave-permits/[id]/print/print-layout.css */
+
+/* Mengatur gaya dasar untuk halaman cetak */
+@media screen {
+    .print-container {
+        max-width: 21cm; /* Lebar kertas A4 */
+        min-height: 29.7cm; /* Tinggi kertas A4 */
+        margin: 2rem auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+}
+
+
+/* Aturan khusus yang hanya berlaku saat browser mencetak */
+@media print {
+    /* Sembunyikan semua elemen di body kecuali container print kita */
+    body * {
+        visibility: hidden;
+    }
+    .print-container, .print-container * {
+        visibility: visible;
+    }
+    .print-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    /* Sembunyikan tombol "Cetak Ulang" saat mencetak */
+    .print-only-hidden {
+        display: none;
+    }
+
+    /* Memastikan teks tidak terpotong antar halaman */
+    p, table, h1, h2, h3, h4 {
+        page-break-inside: avoid;
+    }
+}

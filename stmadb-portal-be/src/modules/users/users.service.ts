@@ -380,11 +380,18 @@ export const getUserProfile = async (userId: number) => {
         }
       });
       
-      // Gabungkan data kelas ke dalam objek user
-      return { ...user, currentClass: classMembership?.class || null };
+      if (classMembership) {
+        // --- PERUBAHAN UTAMA DI SINI ---
+        // Gabungkan data kelas dan academic_year_id ke dalam satu objek
+        const currentClassWithYear = {
+            ...classMembership.class,
+            academic_year_id: classMembership.academic_year_id // Tambahkan ini
+        };
+        return { ...user, currentClass: currentClassWithYear };
+      }
     }
   }
 
-  // Jika bukan siswa, kembalikan data user saja
+  // Jika bukan siswa atau tidak ditemukan data kelas, kembalikan data user saja
   return { ...user, currentClass: null };
 };

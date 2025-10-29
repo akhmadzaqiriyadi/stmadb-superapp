@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, LayoutDashboard, BookCopy, Home, CalendarClock, ChevronDown } from "lucide-react"; 
+import { Users, LayoutDashboard, BookCopy, Home, CalendarClock, ChevronDown, LogOut } from "lucide-react"; 
 
 type NavItem = {
   href: string;
@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   },
   { href: "/dashboard/classes", label: "Manajemen Kelas", icon: Home },
   { href: "/dashboard/schedules", label: "Manajemen Jadwal", icon: CalendarClock },
+  { href: "/dashboard/leave-permits", label: "Izin Keluar", icon: LogOut },
 ];
 
 export function Sidebar() {

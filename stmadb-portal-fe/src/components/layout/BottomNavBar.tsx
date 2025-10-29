@@ -4,17 +4,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, User, BookOpenText } from "lucide-react";
+import { Home, Calendar, User, BookOpenText, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
 // Definisikan item menu dengan properti `isCentral`
 // Urutan item di sini menentukan posisi mereka di layar
 const navigationMenuItems = [
-  { href: "/portal/schedule", label: "Jadwal", icon: Calendar },
+  { href: "/schedule", label: "Jadwal", icon: Calendar },
+  { href: "/approvals", label: "Persetujuan", icon: CheckSquare, roles: ["Teacher", "WaliKelas", "Waka", "KepalaSekolah"] },
   { href: "/portal/journal", label: "Jurnal", icon: BookOpenText, roles: ["Teacher"] },
-  { href: "/portal/home", label: "Beranda", icon: Home, isCentral: true },
-  { href: "/portal/profile", label: "Profil", icon: User },
+  { href: "/home", label: "Beranda", icon: Home, isCentral: true },
+  { href: "/profile", label: "Profil", icon: User },
 ];
 
 export function BottomNavBar() {
@@ -29,26 +30,29 @@ export function BottomNavBar() {
   });
 
   return (
-    // Container utama dengan gaya dari contoh Anda (backdrop-blur, etc.)
-    <div className="fixed bottom-0 left-0 right-0 z-50 w-full border-t bg-background/95 backdrop-blur-sm">
-      {/* Garis gradient di bagian atas */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+    // Container utama dengan background putih dan shadow
+    <div className="fixed bottom-0 left-0 right-0 z-50 w-full bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
       
-      <div className="flex h-16 items-center justify-around px-2">
+      <div className="flex h-20 items-center justify-around px-4 relative">
         {filteredNavItems.map((item) => {
           const isActive = pathname === item.href;
 
-          // Render tombol tengah yang menonjol
+          // Render tombol tengah yang menonjol (Scan button)
           if (item.isCentral) {
             return (
               <Link
                 key={item.label}
                 href={item.href}
-                className="group relative -translate-y-4 rounded-full bg-primary p-4 text-primary-foreground shadow-lg hover:bg-primary/90 transition-all duration-200 hover:scale-105 border-4 border-white dark:border-gray-900"
+                className="group relative -translate-y-6"
                 aria-label={item.label}
               >
-                <item.icon className="h-7 w-7" />
-                <div className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-active:opacity-100 transition-opacity duration-150" />
+                {/* Outer circle dengan gradient */}
+                <div className="relative rounded-full bg-gradient-to-br from-[#9CBEFE] to-[#44409D] p-1 shadow-lg">
+                  {/* Inner circle */}
+                  <div className="rounded-full bg-[#44409D] p-4 transition-all duration-200 group-hover:scale-105 group-active:scale-95">
+                    <item.icon className="h-8 w-8 text-[#FFCD6A]" strokeWidth={2.5} />
+                  </div>
+                </div>
               </Link>
             )
           }
@@ -58,27 +62,30 @@ export function BottomNavBar() {
             <Link
               key={item.label}
               href={item.href}
-              className={cn(
-                "relative flex h-full w-full flex-col items-center justify-center gap-1 text-xs font-medium transition-all duration-200 hover:scale-105",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-primary/80"
-              )}
+              className="relative flex flex-col items-center justify-center gap-1.5 min-w-[64px] py-2 transition-all duration-200 group"
             >
               <div className="relative">
-                <item.icon className={cn("h-5 w-5", isActive && "drop-shadow-sm")} />
-                {isActive && (
-                  <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
-                )}
+                <item.icon 
+                  className={cn(
+                    "h-6 w-6 transition-all duration-200",
+                    isActive ? "text-[#44409D]" : "text-gray-400 group-hover:text-[#44409D]/60"
+                  )}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
               </div>
               
               <span className={cn(
-                "transition-all duration-200 leading-none",
-                isActive ? "font-semibold scale-105" : ""
+                "text-[11px] transition-all duration-200 leading-tight",
+                isActive 
+                  ? "text-[#44409D] font-semibold" 
+                  : "text-gray-400 group-hover:text-[#44409D]/60"
               )}>
                 {item.label}
               </span>
               
+              {/* Underline untuk item aktif */}
               {isActive && (
-                <div className="absolute bottom-0 h-0.5 w-8 rounded-full bg-primary" />
+                <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-8 rounded-full bg-[#FFCD6A]" />
               )}
             </Link>
           )

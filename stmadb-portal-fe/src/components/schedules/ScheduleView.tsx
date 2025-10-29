@@ -7,33 +7,32 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import api from "@/lib/axios";
-import { Schedule, DayOfWeek, AcademicYear, ScheduleType, RoutineActivity } from "@/types";
+import { Schedule, DayOfWeek, AcademicYear, ScheduleType } from "@/types";
 import { ManageScheduleDialog } from "./ManageScheduleDialog";
 import { ScheduleCard } from "./ScheduleCard";
 
-// Time slots untuk Senin - Kamis
-const timeSlotsWeekday = [
-  "07:00", "07:45", "08:30", "09:15", 
-  "10:00", "10:15", "10:55", "11:35", 
-  "12:15", "12:50", "13:30", "14:10", "14:50"
-];
-
-// Time slots untuk Jumat
-const timeSlotsFriday = [
-  "07:00", "07:45", "08:30", "09:15", 
-  "10:00", "10:15", "10:55", "11:35", 
-  "12:20", "12:45", "13:10", "13:35"
-];
+// === KONFIGURASI GRID BERBASIS WAKTU ===
+const SCHOOL_START = "07:00"; // Jam mulai sekolah
+const SCHOOL_END = "15:00";   // Jam akhir sekolah
+const MINUTES_PER_ROW = 15;   // Setiap row = 15 menit (bisa disesuaikan: 15, 30, atau 45)
 
 const days: DayOfWeek[] = [DayOfWeek.Senin, DayOfWeek.Selasa, DayOfWeek.Rabu, DayOfWeek.Kamis, DayOfWeek.Jumat];
 
-const timeToMinutes = (time: string) => {
+// Konversi waktu ke menit sejak tengah malam
+const timeToMinutes = (time: string): number => {
   if (!time) return 0;
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
 };
 
-// Helper function to convert ISO timestamp or HH:mm to HH:mm format
+// Konversi menit ke format HH:mm
+const minutesToTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+// Normalisasi waktu dari berbagai format
 const normalizeTime = (time: string | Date): string => {
   if (!time) return "00:00";
   
@@ -49,9 +48,29 @@ const normalizeTime = (time: string | Date): string => {
   return time;
 };
 
+// Hitung total rows yang dibutuhkan
+const calculateTotalRows = (): number => {
+  const startMinutes = timeToMinutes(SCHOOL_START);
+  const endMinutes = timeToMinutes(SCHOOL_END);
+  return Math.ceil((endMinutes - startMinutes) / MINUTES_PER_ROW);
+};
+
+// Generate time labels untuk setiap row
+const generateTimeLabels = (): string[] => {
+  const labels: string[] = [];
+  const startMinutes = timeToMinutes(SCHOOL_START);
+  const totalRows = calculateTotalRows();
+  
+  for (let i = 0; i <= totalRows; i++) {
+    labels.push(minutesToTime(startMinutes + (i * MINUTES_PER_ROW)));
+  }
+  
+  return labels;
+};
+
 const fetchActiveAcademicYear = async (): Promise<AcademicYear> => {
-    const { data } = await api.get('/academics/academic-years/active');
-    return data;
+  const { data } = await api.get('/academics/academic-years/active');
+  return data;
 };
 
 const fetchScheduleData = async (viewMode: string, viewId: string, academicYearId: number) => {
@@ -59,11 +78,8 @@ const fetchScheduleData = async (viewMode: string, viewId: string, academicYearI
                    viewMode === 'teacher' ? `/academics/schedules/teacher/${viewId}` : 
                    `/academics/schedules/room/${viewId}`;
   
-  const [scheduleRes, routineRes] = await Promise.all([
-      api.get(endpoint, { params: { academicYearId } }),
-      api.get('/academics/routine-activities', { params: { academicYearId } })
-  ]);
-  return { schedules: scheduleRes.data, routineActivities: routineRes.data };
+  const scheduleRes = await api.get(endpoint, { params: { academicYearId } });
+  return { schedules: scheduleRes.data };
 };
 
 interface ScheduleViewProps {
@@ -90,50 +106,49 @@ export function ScheduleView({ viewMode, viewId, scheduleTypeFilter }: ScheduleV
   });
   
   const { mutate: deleteSchedule } = useMutation({
-      mutationFn: (scheduleId: number) => api.delete(`/academics/schedules/${scheduleId}`),
-      onSuccess: () => {
-          toast.success("Jadwal berhasil dihapus.");
-          queryClient.invalidateQueries({queryKey: ['scheduleViewData', viewMode, viewId, activeAcademicYear?.id]});
-      },
-      onError: (e: any) => toast.error(e.response?.data?.message || "Gagal menghapus jadwal.")
+    mutationFn: (scheduleId: number) => api.delete(`/academics/schedules/${scheduleId}`),
+    onSuccess: () => {
+      toast.success("Jadwal berhasil dihapus.");
+      queryClient.invalidateQueries({queryKey: ['scheduleViewData', viewMode, viewId, activeAcademicYear?.id]});
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || "Gagal menghapus jadwal.")
   });
 
-  const getGridRow = (time: string, day: DayOfWeek) => {
+  // === FUNGSI GRID POSITIONING YANG DIPERBAIKI ===
+  
+  // Hitung posisi row berdasarkan waktu aktual
+  const getGridRow = (time: string): number => {
     const normalizedTime = normalizeTime(time);
-    const timeSlots = day === DayOfWeek.Jumat ? timeSlotsFriday : timeSlotsWeekday;
+    const timeMinutes = timeToMinutes(normalizedTime);
+    const startMinutes = timeToMinutes(SCHOOL_START);
     
-    // Find closest time slot
-    let closestIndex = 0;
-    let minDiff = Math.abs(timeToMinutes(normalizedTime) - timeToMinutes(timeSlots[0]));
-    
-    for (let i = 1; i < timeSlots.length; i++) {
-      const diff = Math.abs(timeToMinutes(normalizedTime) - timeToMinutes(timeSlots[i]));
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIndex = i;
-      }
-    }
-    
-    return closestIndex + 2;
+    // Row dimulai dari 2 (karena row 1 adalah header)
+    const rowOffset = Math.floor((timeMinutes - startMinutes) / MINUTES_PER_ROW);
+    return rowOffset + 2;
   };
 
-  const calculateRowSpan = (startTime: string, endTime: string, day: DayOfWeek) => {
+  // Hitung berapa baris yang di-span oleh jadwal
+  const calculateRowSpan = (startTime: string, endTime: string): number => {
     const normalizedStart = normalizeTime(startTime);
     const normalizedEnd = normalizeTime(endTime);
     const startMinutes = timeToMinutes(normalizedStart);
     const endMinutes = timeToMinutes(normalizedEnd);
     const durationMinutes = endMinutes - startMinutes;
     
-    // Durasi per slot bervariasi (45 menit untuk KBM, bisa berbeda untuk aktivitas)
-    const avgSlotDuration = 45;
-    return Math.max(1, Math.round(durationMinutes / avgSlotDuration));
+    return Math.max(1, Math.ceil(durationMinutes / MINUTES_PER_ROW));
   };
 
-  const handleCellClick = (day: DayOfWeek, startTime: string) => {
+  const handleCellClick = (day: DayOfWeek, rowIndex: number) => {
     if (viewMode !== 'class') {
-        toast.info("Penambahan jadwal hanya bisa dilakukan pada mode 'Per Kelas'.");
-        return;
+      toast.info("Penambahan jadwal hanya bisa dilakukan pada mode 'Per Kelas'.");
+      return;
     }
+    
+    // Hitung waktu berdasarkan row yang diklik
+    const startMinutes = timeToMinutes(SCHOOL_START);
+    const clickedMinutes = startMinutes + (rowIndex * MINUTES_PER_ROW);
+    const startTime = minutesToTime(clickedMinutes);
+    
     setEditingSchedule(null);
     setSelectedSlot({ day, startTime });
     setIsDialogOpen(true);
@@ -145,133 +160,104 @@ export function ScheduleView({ viewMode, viewId, scheduleTypeFilter }: ScheduleV
     setIsDialogOpen(true);
   };
 
-  if (isLoading) return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
-  // Determine max rows needed
-  const maxRows = Math.max(timeSlotsWeekday.length, timeSlotsFriday.length);
+  const totalRows = calculateTotalRows();
+  const timeLabels = generateTimeLabels();
 
   return (
     <>
       <div className="overflow-x-auto">
-        <div className="inline-grid grid-cols- gap-1 w-full">
-          {/* Headers */}
+        <div className="inline-grid gap-1 w-full" style={{ gridTemplateColumns: `80px repeat(${days.length}, 1fr)` }}>
+          
+          {/* Header */}
           <div className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md">
-            JAM KE
+            WAKTU
           </div>
           {days.map(day => (
-            <div key={day} className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md">
+            <div 
+              key={day} 
+              className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md"
+            >
               {day.toUpperCase()}
             </div>
           ))}
           
-          {/* Time Slots & Empty Cells */}
-          {Array.from({ length: maxRows }).map((_, index) => {
-            const timeWeekday = timeSlotsWeekday[index];
-            const timeFriday = timeSlotsFriday[index];
+          {/* Time Labels & Grid Cells */}
+          {Array.from({ length: totalRows }).map((_, rowIndex) => {
+            const timeLabel = timeLabels[rowIndex];
+            const showLabel = rowIndex % (60 / MINUTES_PER_ROW) === 0; // Tampilkan label setiap jam
             
             return (
-              <React.Fragment key={`row-${index}`}>
+              <React.Fragment key={`row-${rowIndex}`}>
+                {/* Kolom Waktu */}
                 <div 
-                  style={{ gridRow: index + 2 }} 
-                  className="p-2 border-2 border-gray-300 text-sm font-bold text-gray-700 flex items-center justify-center bg-gray-100"
+                  style={{ gridRow: rowIndex + 2 }} 
+                  className="p-2 border-2 border-gray-300 text-xs font-mono text-gray-600 flex items-start justify-center bg-gray-50"
                 >
-                  {index + 1}
+                  {showLabel && <span className="font-semibold">{timeLabel}</span>}
                 </div>
-                {days.map((day, dayIndex) => {
-                  const isJumat = day === DayOfWeek.Jumat;
-                  const time = isJumat ? timeFriday : timeWeekday;
-                  
-                  if (!time) {
-                    return (
-                      <div 
-                        key={`${day}-empty-${index}`}
-                        style={{ gridRow: index + 2, gridColumn: dayIndex + 2 }}
-                        className="border border-gray-200 bg-gray-50"
-                      />
-                    );
-                  }
-                  
-                  return (
-                    <div 
-                      key={`${day}-${time}`} 
-                      style={{ gridRow: index + 2, gridColumn: dayIndex + 2, minHeight: '4.5rem' }}
-                      className="border border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors relative bg-white"
-                      onClick={() => handleCellClick(day, time)}
-                    >
-                      <div className="absolute top-1 left-1 text-[10px] text-gray-400 font-mono">
-                        {time}
+                
+                {/* Kolom untuk setiap hari */}
+                {days.map((day, dayIndex) => (
+                  <div 
+                    key={`${day}-${rowIndex}`} 
+                    style={{ 
+                      gridRow: rowIndex + 2, 
+                      gridColumn: dayIndex + 2,
+                      minHeight: '2rem'
+                    }}
+                    className="border border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors relative bg-white"
+                    onClick={() => handleCellClick(day, rowIndex)}
+                  >
+                    {/* Label waktu kecil di pojok */}
+                    {rowIndex % 2 === 0 && (
+                      <div className="absolute top-0.5 left-0.5 text-[9px] text-gray-300 font-mono">
+                        {timeLabel}
                       </div>
-                    </div>
-                  );
-                })}
+                    )}
+                  </div>
+                ))}
               </React.Fragment>
             );
           })}
 
-          {/* Routine Activities */}
-          {data?.routineActivities?.map((activity: RoutineActivity) => {
-            const startRow = getGridRow(activity.start_time, activity.day_of_week);
-            const rowSpan = calculateRowSpan(activity.start_time, activity.end_time, activity.day_of_week);
-            const dayIndex = days.indexOf(activity.day_of_week) + 2;
-            
-            // Color coding for different activities
-            let activityColors = '';
-            const activityName = activity.activity_name.toLowerCase();
-            
-            if (activityName.includes('istirahat')) {
-              activityColors = 'bg-amber-200 border-amber-400 text-amber-900';
-            } else if (activityName.includes('sholat') || activityName.includes('jumat')) {
-              activityColors = 'bg-emerald-200 border-emerald-400 text-emerald-900';
-            } else if (activityName.includes('pembiasaan')) {
-              activityColors = 'bg-violet-200 border-violet-400 text-violet-900';
-            } else {
-              activityColors = 'bg-sky-200 border-sky-400 text-sky-900';
-            }
-            
-            return (
-              <div
-                key={activity.id}
-                className={`${activityColors} border-2 rounded-lg p-2 text-xs font-bold flex flex-col items-center justify-center z-10 shadow-md pointer-events-none`}
-                style={{ 
-                  gridColumn: dayIndex, 
-                  gridRow: `${startRow} / span ${rowSpan}`,
-                }}
-              >
-                <div className="text-center leading-tight">
-                  {activity.activity_name}
-                </div>
-                <div className="text-[10px] opacity-75 mt-1 font-mono">
-                  {normalizeTime(activity.start_time)} - {normalizeTime(activity.end_time)}
-                </div>
-              </div>
-            );
-          })}
-          
-          {/* Schedule Cards */}
+          {/* Schedule Cards - Overlay di atas grid */}
           {data?.schedules
-              ?.filter((s: Schedule) => scheduleTypeFilter === "ALL" || s.schedule_type === ScheduleType.Umum || s.schedule_type === scheduleTypeFilter)
-              .map((schedule: Schedule) => {
-                  const startRow = getGridRow(schedule.start_time, schedule.day_of_week);
-                  const rowSpan = calculateRowSpan(schedule.start_time, schedule.end_time, schedule.day_of_week);
-                  const dayIndex = days.indexOf(schedule.day_of_week) + 2;
-                  return (
-                      <div 
-                          key={schedule.id}
-                          style={{ 
-                            gridColumn: dayIndex, 
-                            gridRow: `${startRow} / span ${rowSpan}`,
-                          }}
-                          className="p-1 z-20"
-                      >
-                          <ScheduleCard 
-                            schedule={schedule} 
-                            viewMode={viewMode} 
-                            onEdit={handleEditClick} 
-                            onDelete={deleteSchedule} 
-                          />
-                      </div>
-                  );
-          })}
+            ?.filter((s: Schedule) => 
+              scheduleTypeFilter === "ALL" || 
+              s.schedule_type === ScheduleType.Umum || 
+              s.schedule_type === scheduleTypeFilter
+            )
+            .map((schedule: Schedule) => {
+              const startRow = getGridRow(schedule.start_time);
+              const rowSpan = calculateRowSpan(schedule.start_time, schedule.end_time);
+              const dayIndex = days.indexOf(schedule.day_of_week) + 2;
+              
+              return (
+                <div 
+                  key={schedule.id}
+                  style={{ 
+                    gridColumn: dayIndex, 
+                    gridRow: `${startRow} / span ${rowSpan}`,
+                  }}
+                  className="p-1 z-30"
+                >
+                  <ScheduleCard 
+                    schedule={schedule} 
+                    viewMode={viewMode} 
+                    onEdit={handleEditClick} 
+                    onDelete={deleteSchedule} 
+                  />
+                </div>
+              );
+            })}
         </div>
       </div>
       

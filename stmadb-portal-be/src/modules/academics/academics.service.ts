@@ -1,6 +1,6 @@
 // src/modules/academics/academics.service.ts
 import { PrismaClient } from '@prisma/client';
-import { Prisma } from '@prisma/client';
+import { Prisma, DayOfWeek } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -475,20 +475,26 @@ export const createSchedule = async (data: any) => {
 };
 
 // Mendapatkan semua jadwal untuk satu kelas pada tahun ajaran tertentu
-export const getSchedulesByClass = async (classId: number, academicYearId: number) => {
-  return prisma.schedule.findMany({
-    where: {
-      assignment: {
-        class_id: classId,
-      },
-      academic_year_id: academicYearId,
+export const getSchedulesByClass = async (classId: number, academicYearId: number, day?: DayOfWeek) => {
+  const whereCondition: any = {
+    assignment: {
+      class_id: classId,
     },
+    academic_year_id: academicYearId,
+  };
+
+  if (day) {
+    whereCondition.day_of_week = day;
+  }
+
+  return prisma.schedule.findMany({
+    where: whereCondition,
     include: {
       room: { select: { id: true, room_code: true } },
       assignment: {
         include: {
           teacher: { select: { profile: { select: { full_name: true } } } },
-          subject: { select: { id: true, subject_code: true } },
+          subject: { select: { id: true, subject_code: true, subject_name: true } },
         },
       },
     },
@@ -560,21 +566,26 @@ export const deleteSchedule = async (scheduleId: number) => {
 
 
 // Mengambil jadwal berdasarkan ID Guru
-export const getSchedulesByTeacher = async (teacherId: number, academicYearId: number) => {
-  return prisma.schedule.findMany({
-    where: {
-      assignment: {
-        teacher_user_id: teacherId,
-      },
-      academic_year_id: academicYearId,
+export const getSchedulesByTeacher = async (teacherId: number, academicYearId: number, day?: DayOfWeek) => {
+  const whereCondition: any = {
+    assignment: {
+      teacher_user_id: teacherId,
     },
+    academic_year_id: academicYearId,
+  };
+
+  if (day) {
+    whereCondition.day_of_week = day;
+  }
+  
+  return prisma.schedule.findMany({
+    where: whereCondition,
     include: {
       room: { select: { id: true, room_code: true } },
       assignment: {
         include: {
           teacher: { select: { profile: { select: { full_name: true } } } },
           subject: { select: { id: true, subject_code: true, subject_name: true } },
-          // Sertakan info kelas di sini
           class: { select: { id: true, class_name: true } },
         },
       },
@@ -602,9 +613,9 @@ export const getSchedulesByRoom = async (roomId: number, academicYearId: number)
   });
 };
 
-// Mengambil aktivitas rutin untuk tahun ajaran aktif
-export const getRoutineActivities = async (academicYearId: number) => {
-  return prisma.routineActivity.findMany({
-    where: { academic_year_id: academicYearId },
-  });
-};
+// // Mengambil aktivitas rutin untuk tahun ajaran aktif
+// export const getRoutineActivities = async (academicYearId: number) => {
+//   return prisma.routineActivity.findMany({
+//     where: { academic_year_id: academicYearId },
+//   });
+// };

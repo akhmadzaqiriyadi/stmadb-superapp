@@ -54,7 +54,7 @@ export function PortalHeader() {
 
         {/* === SISI KANAN: AVATAR === */}
         <Link href="/profile">
-          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center cursor-pointer border-2">
+          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center cursor-pointer border-2 border-[#FFCD6A]">
             <User className="w-4 h-4 text-primary-foreground" />
           </div>
         </Link>

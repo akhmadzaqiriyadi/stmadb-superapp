@@ -5,6 +5,7 @@ import cors from 'cors';
 import authRoutes from './modules/auth/auth.route.js';
 import userRoutes from './modules/users/users.route.js';
 import academicRoutes from './modules/academics/academics.route.js';
+import leaveRoutes from './modules/leave/leave.route.js';
 
 // Impor swagger
 import swaggerUi from 'swagger-ui-express';
@@ -30,7 +31,7 @@ app.use(cors({
       callback(new Error('Akses ditolak oleh kebijakan CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -48,5 +49,7 @@ app.get('/api/v1/health', (req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/academics', academicRoutes);
+app.use('/api/v1/leave-permits', leaveRoutes);
+
 
 export default app;

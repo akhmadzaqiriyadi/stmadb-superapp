@@ -8,8 +8,16 @@ import { academicYearSchema, majorSchema, subjectSchema, getSubjectsSchema, clas
 
 const router = Router();
 
+router.get(
+    '/classes/:id/members',
+    protect, // 1. Pastikan user sudah login
+    authorize(['Admin', 'Student', 'Teacher', 'WaliKelas']), // 2. Izinkan Siswa & role lain yang relevan
+    validate(getPaginatedDataSchema),
+    academicController.getClassMembers
+);
+
 // Semua rute di bawah ini dilindungi dan hanya untuk Admin
-router.use(protect, authorize(['Admin']));
+router.use(protect, authorize(['Admin', 'WaliKelas', 'Teacher', 'Waka', 'KepalaSekolah', 'Student']));
 
 /**
  * @openapi
@@ -1342,25 +1350,25 @@ router.get('/schedules/teacher/:teacherId', academicController.getSchedulesByTea
  */
 router.get('/schedules/room/:roomId', academicController.getSchedulesByRoom);
 
-/**
- * @openapi
- * /academics/routine-activities:
- *   get:
- *     tags: [Academics - Schedules]
- *     summary: Mendapatkan semua aktivitas rutin
- *     description: Mengambil daftar aktivitas rutin seperti istirahat, upacara, dll
- *     responses:
- *       200:
- *         description: Berhasil mendapatkan daftar aktivitas rutin
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *       500:
- *         description: Kesalahan server
- */
-router.get('/routine-activities', academicController.getRoutineActivities);
+// /**
+//  * @openapi
+//  * /academics/routine-activities:
+//  *   get:
+//  *     tags: [Academics - Schedules]
+//  *     summary: Mendapatkan semua aktivitas rutin
+//  *     description: Mengambil daftar aktivitas rutin seperti istirahat, upacara, dll
+//  *     responses:
+//  *       200:
+//  *         description: Berhasil mendapatkan daftar aktivitas rutin
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: array
+//  *               items:
+//  *                 type: object
+//  *       500:
+//  *         description: Kesalahan server
+//  */
+// router.get('/routine-activities', academicController.getRoutineActivities);
 
 export default router;

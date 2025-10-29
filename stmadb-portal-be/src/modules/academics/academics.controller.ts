@@ -1,7 +1,7 @@
 // src/modules/academics/academics.controller.ts
 import type { Request, Response } from 'express';
 import * as academicService from './academics.service.js';
-import { Prisma } from '@prisma/client';
+import { Prisma, DayOfWeek } from '@prisma/client';
 
 export const createAcademicYear = async (req: Request, res: Response) => {
   try {
@@ -435,10 +435,10 @@ export const getSchedulesByClass = async (req: Request, res: Response) => {
   try {
     const { classId } = req.params;
     if (!classId) return res.status(400).json({ message: 'ID Kelas dibutuhkan' });
-    const { academicYearId } = req.query;
+    const { academicYearId, day } = req.query; // Ambil 'day' dari query
     if (!academicYearId) return res.status(400).json({ message: 'ID Tahun Ajaran dibutuhkan' });
 
-    const schedules = await academicService.getSchedulesByClass(parseInt(classId, 10), Number(academicYearId));
+    const schedules = await academicService.getSchedulesByClass(parseInt(classId, 10), Number(academicYearId), day as DayOfWeek);
     res.status(200).json(schedules);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
@@ -471,10 +471,10 @@ export const deleteSchedule = async (req: Request, res: Response) => {
 export const getSchedulesByTeacher = async (req: Request, res: Response) => {
   try {
     const { teacherId } = req.params;
-    const { academicYearId } = req.query;
+    const { academicYearId, day } = req.query; // Ambil 'day' dari query
     if (!teacherId || !academicYearId) return res.status(400).json({ message: 'ID Guru dan ID Tahun Ajaran dibutuhkan' });
 
-    const schedules = await academicService.getSchedulesByTeacher(parseInt(teacherId), Number(academicYearId));
+    const schedules = await academicService.getSchedulesByTeacher(parseInt(teacherId), Number(academicYearId), day as DayOfWeek);
     res.status(200).json(schedules);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
@@ -494,13 +494,13 @@ export const getSchedulesByRoom = async (req: Request, res: Response) => {
   }
 };
 
-export const getRoutineActivities = async (req: Request, res: Response) => {
-  try {
-    const { academicYearId } = req.query;
-    if (!academicYearId) return res.status(400).json({ message: 'ID Tahun Ajaran dibutuhkan' });
-    const activities = await academicService.getRoutineActivities(Number(academicYearId));
-    res.status(200).json(activities);
-  } catch (error) {
-    res.status(500).json({ message: (error as Error).message });
-  }
-};
+// export const getRoutineActivities = async (req: Request, res: Response) => {
+//   try {
+//     const { academicYearId } = req.query;
+//     if (!academicYearId) return res.status(400).json({ message: 'ID Tahun Ajaran dibutuhkan' });
+//     const activities = await academicService.getRoutineActivities(Number(academicYearId));
+//     res.status(200).json(activities);
+//   } catch (error) {
+//     res.status(500).json({ message: (error as Error).message });
+//   }
+// };
