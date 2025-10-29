@@ -25,18 +25,18 @@ async function main() {
 
 
   // 2. Bersihkan data lama
-  console.log('Membersihkan data lama...');
-  await prisma.schedule.deleteMany({});
-  await prisma.teacherAssignment.deleteMany({});
-  await prisma.classMember.deleteMany({});
-  await prisma.classes.deleteMany({});
-  await prisma.user.deleteMany({ where: { email: { not: 'admin@portal.com' } } });
-  await prisma.subject.deleteMany({});
-  await prisma.room.deleteMany({});
-  await prisma.major.deleteMany({});
-  await prisma.academicYear.deleteMany({});
-  await prisma.routineActivity.deleteMany({});
-  console.log('Data lama berhasil dibersihkan.');
+  // console.log('Membersihkan data lama...');
+  // await prisma.schedule.deleteMany({});
+  // await prisma.teacherAssignment.deleteMany({});
+  // await prisma.classMember.deleteMany({});
+  // await prisma.classes.deleteMany({});
+  // await prisma.user.deleteMany({ where: { email: { not: 'admin@portal.com' } } });
+  // await prisma.subject.deleteMany({});
+  // await prisma.room.deleteMany({});
+  // await prisma.major.deleteMany({});
+  // await prisma.academicYear.deleteMany({});
+  // await prisma.routineActivity.deleteMany({});
+  // console.log('Data lama berhasil dibersihkan.');
 
 
   // 3. Buat atau Perbarui User Admin Utama
