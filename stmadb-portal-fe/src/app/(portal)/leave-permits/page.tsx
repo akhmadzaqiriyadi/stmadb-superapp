@@ -9,83 +9,58 @@ import { LeavePermitHistory } from "@/components/leave/LeavePermitHistory";
 
 function LeavePermitsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#9CBEFE]/10 to-white pb-24">
-      {/* Header Section - Clean & Modern */}
-      <div className="bg-[#44409D] px-4 pt-2 pb-6 shadow-lg">
-        <div className="space-y-1 mb-4">
-          <h1 className="text-2xl font-bold text-white tracking-tight">
+    <div className="min-h-screen bg-gradient-to-b from-white to-[#9CBEFE]/5 pb-24">
+      {/* Header Section */}
+      <div className="px-4 pt-6 pb-8 shadow-lg border-b-2 border-slate-300 bg-white">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight drop-shadow-sm">
             Izin Keluar Sekolah
           </h1>
-          <p className="text-[#d3e0f8] text-sm">
-            Kelola perizinan keluar sekolah dengan mudah
-          </p>
-        </div>
-
-        {/* Quick Stats Cards */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
-            <p className="text-white/80 text-xs text-center">Pending</p>
-            <p className="text-white font-bold text-lg text-center">-</p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
-            <p className="text-white/80 text-xs text-center">Disetujui</p>
-            <p className="text-white font-bold text-lg text-center">-</p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
-
-            <p className="text-white/80 text-xs text-center">Ditolak</p>
-            <p className="text-white font-bold text-lg text-center">-</p>
-          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="px-4 -mt-4">
+      <div className="px-4 -mt-6">
         {/* CTA Button - Floating Style */}
         <Button 
           asChild 
-          className="w-full bg-[#44409D] hover:from-[#44409D]/90 hover:to-[#44409D] text-white shadow-lg hover:shadow-xl transition-all duration-200 h-14 rounded-b-3xl font-semibold text-base mb-6"
+          className="w-full h-12 bg-gradient-to-br from-[#44409D] to-[#9CBEFE] hover:from-[#9CBEFE] hover:to-[#44409D] text-white shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 rounded-2xl font-semibold text-base mb-6"
         >
           <Link href="/leave-permits/new">
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-[#FFCD6A] flex items-center justify-center">
-                <Plus className="h-5 w-5 text-[#44409D]" strokeWidth={3} />
-              </div>
-              <span>Ajukan Izin Baru</span>
+            <div className="flex items-center justify-center gap-3">
+                <Plus className="h-6 w-6" strokeWidth={3} />
+              <span className="drop-shadow-sm">Ajukan Izin Baru</span>
             </div>
           </Link>
         </Button>
 
         {/* Section Header */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-6 bg-[#44409D] rounded-full"></div>
-          <h2 className="text-lg font-bold text-gray-800">Riwayat Pengajuan</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-1.5 h-7 bg-gradient-to-b from-[#44409D] to-[#9CBEFE] rounded-full"></div>
+          <h2 className="text-xl font-bold text-[#44409D]">Riwayat Pengajuan</h2>
         </div>
 
         {/* History Component */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border-2 border-[#44409D]/30 overflow-hidden">
           <LeavePermitHistory />
         </div>
       </div>
 
-      {/* Info Card - Optional */}
+      {/* Info Card */}
       <div className="px-4 mt-6">
-        <div className="bg-gradient-to-br from-[#9CBEFE]/20 to-[#9CBEFE]/5 rounded-2xl p-4 border border-[#9CBEFE]/30">
+        <div className="bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 rounded-2xl p-4 border-2 border-[#FFCD6A]/30">
           <div className="flex gap-3">
             <div className="flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-[#44409D]/10 flex items-center justify-center">
-                <AlertCircle className="h-5 w-5 text-[#44409D]" />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#9CBEFE]/20 to-[#44409D]/20 border-2 border-[#FFCD6A]/30 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-[#44409D]" strokeWidth={2.5} />
               </div>
             </div>
             <div>
-              <h3 className="font-semibold text-[#44409D] text-sm mb-1">
+              <h3 className="font-bold text-[#44409D] text-base mb-1.5">
                 Informasi Penting
               </h3>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Pastikan mengajukan izin minimal 1 hari sebelum tanggal kepergian. 
-                Persetujuan akan diproses oleh wali kelas Anda.
+              <p className="text-sm text-gray-700 leading-relaxed">
+                Pastikan setelah mengisi form lakukan konfirmasi di ruang Piket. Izin keluar hanya berlaku pada hari yang sama dengan tanggal pengajuan.
               </p>
             </div>
           </div>

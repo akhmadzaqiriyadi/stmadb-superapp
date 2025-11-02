@@ -323,9 +323,17 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
           )}
         />
 
-        {selectedRoleNames.includes('Teacher') && (
+        {/* --- PERBAIKAN LOGIKA TAMPILAN NIP --- */}
+        {(selectedRoleNames.includes('Teacher') || 
+          selectedRoleNames.includes('Admin') ||
+          selectedRoleNames.includes('Piket') ||
+          selectedRoleNames.includes('Waka') ||
+          selectedRoleNames.includes('WaliKelas') ||
+          selectedRoleNames.includes('KepalaSekolah')
+        ) && (
             <div className="p-3 border rounded-md space-y-4 bg-gray-50/70">
-                <p className="text-sm font-medium">Data Tambahan Guru</p>
+                {/* Ganti judulnya agar lebih umum */}
+                <p className="text-sm font-medium">Data Tambahan Guru/Staff (NIP)</p>
                 <FormField control={form.control} name="teacherData.nip" render={({ field }) => (
                     <FormItem>
                         <FormLabel>NIP</FormLabel>

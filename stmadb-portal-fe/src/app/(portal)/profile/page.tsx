@@ -4,6 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import {
@@ -19,6 +20,7 @@ import {
   AlertCircle,
   Mail,
   UserCircle2,
+  LayoutDashboard,
 } from "lucide-react";
 
 import api from "@/lib/axios";
@@ -46,13 +48,13 @@ const InfoRow = ({
 }) => {
   if (!value) return null;
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-        <Icon className="h-5 w-5 text-primary" />
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 border-2 border-[#FFCD6A]/20 hover:border-[#FFCD6A]/40 transition-all duration-200 hover:shadow-sm">
+      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#9CBEFE]/20 to-[#44409D]/20 border-2 border-[#FFCD6A]/30 flex items-center justify-center flex-shrink-0">
+        <Icon className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="font-medium text-foreground truncate">{value}</p>
+        <p className="text-xs font-semibold text-[#44409D]/70">{label}</p>
+        <p className="font-semibold text-gray-800 truncate">{value}</p>
       </div>
     </div>
   );
@@ -75,10 +77,10 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-b from-white to-[#9CBEFE]/5">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Memuat profil...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-[#44409D] mx-auto mb-3" />
+          <p className="text-base font-semibold text-[#44409D]">Memuat profil...</p>
         </div>
       </div>
     );
@@ -86,21 +88,24 @@ export default function ProfilePage() {
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="text-center">
-            <div className="w-16 h-16 bg-destructive/10 rounded-full mx-auto flex items-center justify-center mb-4">
-              <AlertCircle className="h-8 w-8 text-destructive" />
+      <div className="flex items-center justify-center min-h-screen p-4 bg-gradient-to-b from-white to-[#9CBEFE]/5">
+        <div className="w-full max-w-md">
+          <div className="text-center p-6 bg-gradient-to-br from-red-50 to-red-100/30 rounded-2xl border-2 border-red-200">
+            <div className="w-20 h-20 bg-red-100 rounded-2xl mx-auto flex items-center justify-center mb-4 border-2 border-red-200">
+              <AlertCircle className="h-10 w-10 text-red-600" strokeWidth={2.5} />
             </div>
-            <h3 className="font-semibold text-lg mb-2">Gagal Memuat Profil</h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <h3 className="font-bold text-xl mb-2 text-red-700">Gagal Memuat Profil</h3>
+            <p className="text-sm text-red-600 mb-6">
               Terjadi kesalahan saat memuat data profil.
             </p>
-            <Button onClick={() => window.location.reload()} variant="outline">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="bg-gradient-to-br from-[#44409D] to-[#9CBEFE] hover:from-[#9CBEFE] hover:to-[#44409D] text-white h-11"
+            >
               Coba Lagi
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -109,36 +114,36 @@ export default function ProfilePage() {
   const isTeacher = profile?.teacher_extension != null;
 
   return (
-    <div className="min-h-screen pb-20">
+    <div className="min-h-screen pb-24 bg-gradient-to-b from-white to-[#9CBEFE]/5">
       {/* Header Profile */}
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background pt-6 pb-20 px-4">
+      <div className="bg-gradient-to-br from-[#44409D] to-[#9CBEFE] pt-8 pb-24 px-4 shadow-lg">
         <div className="max-w-2xl mx-auto">
           <div className="flex flex-col items-center">
             {/* Avatar */}
-            <div className="w-24 h-24 rounded-full bg-card border-4 border-background shadow-lg flex items-center justify-center mb-4">
-              <UserCircle2 className="h-16 w-16 text-primary" />
+            <div className="w-28 h-32 rounded-2xl bg-white border-4 border-[#FFCD6A] shadow-xl flex items-center justify-center mb-4">
+              <UserCircle2 className="h-20 w-20 text-[#44409D]" strokeWidth={2} />
             </div>
             
             {/* Name & Email */}
-            <h1 className="text-2xl font-bold text-foreground text-center mb-1">
+            <h1 className="text-2xl font-bold text-white text-center mb-2 drop-shadow-sm">
               {profile?.profile.full_name}
             </h1>
-            <p className="text-sm text-muted-foreground mb-3">
+            <p className="text-base text-white/90 mb-4 drop-shadow-sm">
               {profile?.email}
             </p>
             
             {/* Status Badge */}
             <div
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium",
+                "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border-2 shadow-md",
                 profile?.is_active
-                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                  : "bg-destructive/10 text-destructive"
+                  ? "bg-gradient-to-br from-green-50 to-green-100/50 text-green-700 border-green-200"
+                  : "bg-gradient-to-br from-red-50 to-red-100/50 text-red-700 border-red-200"
               )}
             >
               <div className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                profile?.is_active ? "bg-green-500" : "bg-destructive"
+                "w-2 h-2 rounded-full",
+                profile?.is_active ? "bg-green-500" : "bg-red-500"
               )} />
               {profile?.is_active ? "Aktif" : "Non-Aktif"}
             </div>
@@ -146,13 +151,16 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 -mt-12 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 -mt-16 space-y-4">
         {/* Informasi Dasar */}
-        <Card className="shadow-sm">
+        <Card className="shadow-lg border-2 border-[#FFCD6A]/30 rounded-2xl bg-white">
           <CardContent className="space-y-3">
-            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
-              Informasi Dasar
-            </h2>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-1.5 h-7 bg-gradient-to-b from-[#44409D] to-[#9CBEFE] rounded-full"></div>
+              <h2 className="font-bold text-lg text-[#44409D]">
+                Informasi Dasar
+              </h2>
+            </div>
             
             <InfoRow 
               icon={User} 
@@ -178,11 +186,14 @@ export default function ProfilePage() {
 
         {/* Informasi Akademik */}
         {(isStudent || isTeacher) && (
-          <Card className="shadow-sm">
+          <Card className="shadow-lg border-2 border-[#FFCD6A]/30 rounded-2xl bg-white">
             <CardContent className="space-y-3">
-              <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
-                Informasi Akademik
-              </h2>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1.5 h-7 bg-gradient-to-b from-[#44409D] to-[#9CBEFE] rounded-full"></div>
+                <h2 className="font-bold text-lg text-[#44409D]">
+                  Informasi Akademik
+                </h2>
+              </div>
               
               {isStudent && (
                 <>
@@ -221,18 +232,35 @@ export default function ProfilePage() {
         )}
 
         {/* Pengaturan Akun */}
-        <Card className="shadow-sm">
-          <CardContent className="space-y-2">
-            <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-4">
-              Pengaturan
-            </h2>
+        <Card className="shadow-lg border-2 border-[#FFCD6A]/30 rounded-2xl bg-white">
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-1.5 h-7 bg-gradient-to-b from-[#44409D] to-[#9CBEFE] rounded-full"></div>
+              <h2 className="font-bold text-lg text-[#44409D]">
+                Pengaturan
+              </h2>
+            </div>
+            
+            {/* Link Dashboard untuk Guru */}
+            {isTeacher && (
+              <Link href="/dashboard">
+                <button className="flex items-center gap-3 w-full p-3 rounded-xl bg-gradient-to-br from-[#44409D]/10 to-[#9CBEFE]/10 border-2 border-[#44409D]/30 hover:border-[#44409D]/50 hover:shadow-sm transition-all duration-200 group mb-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#44409D]/20 to-[#9CBEFE]/20 border-2 border-[#44409D]/40 flex items-center justify-center flex-shrink-0">
+                    <LayoutDashboard className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
+                  </div>
+                  <span className="font-semibold text-[#44409D] flex-1 text-left">
+                    Buka Dashboard Guru
+                  </span>
+                </button>
+              </Link>
+            )}
             
             {/* Ubah Password */}
-            <button className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-colors group">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                <KeyRound className="h-5 w-5 text-primary" />
+            <button className="flex items-center gap-3 w-full p-3 rounded-xl bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 border-2 border-[#FFCD6A]/20 hover:border-[#FFCD6A]/40 hover:shadow-sm transition-all duration-200 group">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#9CBEFE]/20 to-[#44409D]/20 border-2 border-[#FFCD6A]/30 flex items-center justify-center flex-shrink-0">
+                <KeyRound className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
               </div>
-              <span className="font-medium text-foreground flex-1 text-left">
+              <span className="font-semibold text-gray-800 flex-1 text-left">
                 Ubah Password
               </span>
             </button>
@@ -242,12 +270,12 @@ export default function ProfilePage() {
             {/* Logout */}
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-destructive/10 transition-colors group"
+              className="flex items-center gap-3 w-full p-3 rounded-xl bg-gradient-to-br from-red-50 to-red-100/30 border-2 border-red-200 hover:border-red-300 hover:shadow-sm transition-all duration-200 group"
             >
-              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center flex-shrink-0 group-hover:bg-destructive/20 transition-colors">
-                <LogOut className="h-5 w-5 text-destructive" />
+              <div className="w-11 h-11 rounded-xl bg-red-100 border-2 border-red-200 flex items-center justify-center flex-shrink-0">
+                <LogOut className="h-5 w-5 text-red-600" strokeWidth={2.5} />
               </div>
-              <span className="font-medium text-destructive flex-1 text-left">
+              <span className="font-semibold text-red-700 flex-1 text-left">
                 Keluar dari Akun
               </span>
             </button>

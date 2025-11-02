@@ -7,9 +7,9 @@
         min-height: 29.7cm; /* Tinggi kertas A4 */
         margin: 2rem auto;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        color: #000; /* Pastikan teks hitam untuk preview */
     }
 }
-
 
 /* Aturan khusus yang hanya berlaku saat browser mencetak */
 @media print {
@@ -19,6 +19,7 @@
     }
     .print-container, .print-container * {
         visibility: visible;
+        color: #000 !important; /* Paksa teks jadi hitam saat cetak */
     }
     .print-container {
         position: absolute;
@@ -37,7 +38,65 @@
     }
 
     /* Memastikan teks tidak terpotong antar halaman */
-    p, table, h1, h2, h3, h4 {
+    p, table, h1, h2, h3, h4, div {
         page-break-inside: avoid;
     }
+}
+
+/* --- LAYOUT TANDA TANGAN SESUAI DOCX --- */
+
+/* Container untuk keseluruhan bagian tanda tangan */
+.signature-wrapper {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    page-break-inside: avoid;
+}
+
+/* Bagian kiri: Mengetahui (3 kolom) */
+.signature-left {
+    width: 65%;
+}
+
+.signature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+/* Bagian kanan: Guru Piket (1 kolom) */
+.signature-right {
+    width: 30%;
+    padding-left: 1rem;
+}
+
+.signature-single {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.5rem;
+}
+
+/* Styling untuk setiap blok tanda tangan */
+.signature-block {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.2rem;
+}
+
+.signature-block p {
+    margin: 0.15rem 0;
+}
+
+.signature-spacer {
+    height: 4rem; /* Spasi untuk tanda tangan fisik */
+}
+
+/* Styling untuk garis putus-putus di alasan */
+.reason-dashed {
+    border-bottom: 1px dashed #000;
+    padding-bottom: 0.5rem;
+    min-height: 3rem;
 }

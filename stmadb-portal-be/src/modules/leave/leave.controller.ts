@@ -1,6 +1,9 @@
 // src/modules/leave/leave.controller.ts
 import type { Request, Response } from 'express';
 import * as leaveService from './leave.service.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * Controller untuk siswa membuat pengajuan izin baru.
@@ -59,7 +62,23 @@ export const printPermit = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'ID Pengajuan Izin dibutuhkan' });
         }
         const permitId = parseInt(id, 10);
-        const permit = await leaveService.printPermit(permitId, req.user);
+
+        // --- PERBAIKAN DIMULAI DI SINI ---
+        // Ambil ID user piket dari token JWT
+        const piketUserId = req.user?.userId;
+        if (!piketUserId) {
+            return res.status(401).json({ message: "Token tidak valid" });
+        }
+
+        // Ambil data LENGKAP user piket dari database
+        const piketUser = await prisma.user.findUnique({ where: { id: piketUserId } });
+        if (!piketUser) {
+            return res.status(404).json({ message: "User piket tidak ditemukan" });
+        }
+        // --- AKHIR PERBAIKAN ---
+
+        // Sekarang kirim object 'piketUser' yang lengkap ke service
+        const permit = await leaveService.printPermit(permitId, piketUser);
         res.status(200).json({ message: "Status izin berhasil difinalisasi.", data: permit });
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });

@@ -1,7 +1,7 @@
 // src/components/schedules/ManageScheduleDialog.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  SearchableSelect, 
+  SearchableSelectContent, 
+  SearchableSelectItem, 
+  SearchableSelectTrigger, 
+  SearchableSelectValue 
+} from "@/components/ui/searchable-select";
 
 // Time slots untuk Senin - Kamis
 const timeSlotsWeekday = [
@@ -114,6 +121,9 @@ export function ManageScheduleDialog({ isOpen, setIsOpen, classId, activeAcademi
   const isEditMode = !!scheduleData;
   const isFriday = selectedSlot?.day === DayOfWeek.Jumat;
 
+  const [assignmentSearch, setAssignmentSearch] = useState("")
+  const [roomSearch, setRoomSearch] = useState("")
+
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema) as unknown as Resolver<ScheduleFormValues>,
     defaultValues: {
@@ -176,6 +186,22 @@ export function ManageScheduleDialog({ isOpen, setIsOpen, classId, activeAcademi
   const startTimeOptions = isFriday ? timeSlotsFriday : timeSlotsWeekday;
   const endTimeOptions = isFriday ? endTimesFriday : endTimesWeekday;
 
+  // Filter assignments based on search
+  const filteredAssignments = formData?.assignments.filter((a: TeacherAssignment) => {
+    const searchLower = assignmentSearch.toLowerCase()
+    const teacherName = a.teacher.profile.full_name.toLowerCase()
+    const subjectName = a.subject.subject_name.toLowerCase()
+    return teacherName.includes(searchLower) || subjectName.includes(searchLower)
+  }) || []
+
+  // Filter rooms based on search
+  const filteredRooms = formData?.rooms.filter((r: Room) => {
+    const searchLower = roomSearch.toLowerCase()
+    const roomCode = r.room_code.toLowerCase()
+    const roomName = r.room_name.toLowerCase()
+    return roomCode.includes(searchLower) || roomName.includes(searchLower)
+  }) || []
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="max-w-xl">
@@ -196,26 +222,37 @@ export function ManageScheduleDialog({ isOpen, setIsOpen, classId, activeAcademi
                   <FormLabel className="text-sm font-semibold text-gray-700">
                     Guru & Mata Pelajaran
                   </FormLabel>
-                  <Select 
+                  <SearchableSelect 
                     onValueChange={(val) => field.onChange(Number(val))} 
                     value={field.value ? String(field.value) : ""}
                   >
                     <FormControl>
-                      <SelectTrigger disabled={isLoadingData} className="h-11">
-                        <SelectValue placeholder="Pilih guru dan mata pelajaran..." />
-                      </SelectTrigger>
+                      <SearchableSelectTrigger disabled={isLoadingData} className="h-11">
+                        <SearchableSelectValue placeholder="Pilih guru dan mata pelajaran..." />
+                      </SearchableSelectTrigger>
                     </FormControl>
-                    <SelectContent position="popper" className="max-h-[300px]">
-                      {formData?.assignments.map((a: TeacherAssignment) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          <div className="flex flex-col py-1">
-                            <span className="font-medium">{a.teacher.profile.full_name}</span>
-                            <span className="text-xs text-gray-500">{a.subject.subject_name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    <SearchableSelectContent 
+                      position="popper" 
+                      searchable 
+                      searchPlaceholder="Cari guru atau mata pelajaran..."
+                      onSearchChange={setAssignmentSearch}
+                    >
+                      {filteredAssignments.length === 0 ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Tidak ada data yang ditemukan.
+                        </div>
+                      ) : (
+                        filteredAssignments.map((a: TeacherAssignment) => (
+                          <SearchableSelectItem key={a.id} value={String(a.id)}>
+                            <div className="flex flex-col py-1">
+                              <span className="font-medium">{a.teacher.profile.full_name}</span>
+                              <span className="text-xs text-gray-500">{a.subject.subject_name}</span>
+                            </div>
+                          </SearchableSelectItem>
+                        ))
+                      )}
+                    </SearchableSelectContent>
+                  </SearchableSelect>
                   <FormMessage />
                 </FormItem>
               )}
@@ -310,27 +347,38 @@ export function ManageScheduleDialog({ isOpen, setIsOpen, classId, activeAcademi
                   <FormLabel className="text-sm font-semibold text-gray-700">
                     Ruangan <span className="text-gray-400 font-normal">(Opsional)</span>
                   </FormLabel>
-                  <Select 
+                  <SearchableSelect 
                     onValueChange={(val) => field.onChange(val === "none" ? null : Number(val))} 
                     value={field.value ? String(field.value) : "none"}
                   >
                     <FormControl>
-                      <SelectTrigger disabled={isLoadingData} className="h-11">
-                        <SelectValue placeholder="Pilih ruangan..." />
-                      </SelectTrigger>
+                      <SearchableSelectTrigger disabled={isLoadingData} className="h-11">
+                        <SearchableSelectValue placeholder="Pilih ruangan..." />
+                      </SearchableSelectTrigger>
                     </FormControl>
-                    <SelectContent position="popper" className="max-h-[300px]">
-                      <SelectItem value="none">
+                    <SearchableSelectContent 
+                      position="popper" 
+                      searchable 
+                      searchPlaceholder="Cari kode atau nama ruangan..."
+                      onSearchChange={setRoomSearch}
+                    >
+                      <SearchableSelectItem value="none">
                         <span className="text-gray-400">Tidak ada ruangan</span>
-                      </SelectItem>
-                      {formData?.rooms.map((r: Room) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          <span className="font-mono font-semibold">{r.room_code}</span>
-                          <span className="text-gray-500"> - {r.room_name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      </SearchableSelectItem>
+                      {filteredRooms.length === 0 && roomSearch ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Tidak ada ruangan yang ditemukan.
+                        </div>
+                      ) : (
+                        filteredRooms.map((r: Room) => (
+                          <SearchableSelectItem key={r.id} value={String(r.id)}>
+                            <span className="font-mono font-semibold">{r.room_code}</span>
+                            <span className="text-gray-500"> - {r.room_name}</span>
+                          </SearchableSelectItem>
+                        ))
+                      )}
+                    </SearchableSelectContent>
+                  </SearchableSelect>
                   <FormMessage />
                 </FormItem>
               )}

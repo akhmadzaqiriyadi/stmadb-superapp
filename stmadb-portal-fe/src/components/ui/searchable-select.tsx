@@ -2,29 +2,37 @@
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useDebounce } from "@/hooks/useDebounce"
 
-function Select({
+interface SearchableSelectProps extends React.ComponentProps<typeof SelectPrimitive.Root> {
+  searchPlaceholder?: string
+  onSearchChange?: (value: string) => void
+}
+
+function SearchableSelect({
+  searchPlaceholder = "Cari...",
+  onSearchChange,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+}: SearchableSelectProps) {
   return <SelectPrimitive.Root data-slot="select" {...props} />
 }
 
-function SelectGroup({
+function SearchableSelectGroup({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Group>) {
   return <SelectPrimitive.Group data-slot="select-group" {...props} />
 }
 
-function SelectValue({
+function SearchableSelectValue({
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
-function SelectTrigger({
+function SearchableSelectTrigger({
   className,
   size = "default",
   children,
@@ -37,8 +45,6 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        // allow the trigger to shrink inside grid/flex containers and ensure
-        // the select value can truncate long text via the data-slot selector
         "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-base whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-12 data-[size=sm]:h-10 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 *:data-[slot=select-value]:truncate [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
@@ -52,19 +58,46 @@ function SelectTrigger({
   )
 }
 
-function SelectContent({
+interface SearchableSelectContentProps extends React.ComponentProps<typeof SelectPrimitive.Content> {
+  searchable?: boolean
+  searchPlaceholder?: string
+  onSearchChange?: (value: string) => void
+}
+
+function SearchableSelectContent({
   className,
   children,
   position = "popper",
   align = "center",
+  searchable = false,
+  searchPlaceholder = "Cari...",
+  onSearchChange,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: SearchableSelectContentProps) {
+  const [search, setSearch] = React.useState("")
+  const debouncedSearch = useDebounce(search, 300)
+
+  React.useEffect(() => {
+    if (onSearchChange) {
+      onSearchChange(debouncedSearch)
+    }
+  }, [debouncedSearch, onSearchChange])
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value)
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent select from closing when typing
+    e.stopPropagation()
+  }
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-hidden rounded-md border shadow-md",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
@@ -73,23 +106,37 @@ function SelectContent({
         align={align}
         {...props}
       >
-        <SelectScrollUpButton />
+        {searchable && (
+          <div className="flex items-center border-b px-3 pb-2 pt-2 sticky top-0 bg-popover z-10">
+            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown}
+              className="flex h-9 w-full rounded-md bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+        )}
+        <SearchableSelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
             "p-1",
+            searchable && "max-h-[300px] overflow-y-auto",
             position === "popper" &&
               "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
           )}
         >
           {children}
         </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
+        <SearchableSelectScrollDownButton />
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   )
 }
 
-function SelectLabel({
+function SearchableSelectLabel({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Label>) {
@@ -102,7 +149,7 @@ function SelectLabel({
   )
 }
 
-function SelectItem({
+function SearchableSelectItem({
   className,
   children,
   ...props
@@ -126,7 +173,7 @@ function SelectItem({
   )
 }
 
-function SelectSeparator({
+function SearchableSelectSeparator({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Separator>) {
@@ -139,7 +186,7 @@ function SelectSeparator({
   )
 }
 
-function SelectScrollUpButton({
+function SearchableSelectScrollUpButton({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
@@ -157,7 +204,7 @@ function SelectScrollUpButton({
   )
 }
 
-function SelectScrollDownButton({
+function SearchableSelectScrollDownButton({
   className,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
@@ -176,14 +223,14 @@ function SelectScrollDownButton({
 }
 
 export {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectScrollDownButton,
-  SelectScrollUpButton,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
+  SearchableSelectContent,
+  SearchableSelectGroup,
+  SearchableSelectItem,
+  SearchableSelectLabel,
+  SearchableSelectScrollDownButton,
+  SearchableSelectScrollUpButton,
+  SearchableSelectSeparator,
+  SearchableSelectTrigger,
+  SearchableSelectValue,
 }

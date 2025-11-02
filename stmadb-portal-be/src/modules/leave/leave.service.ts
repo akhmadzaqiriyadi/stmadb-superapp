@@ -179,8 +179,18 @@ export const giveApproval = async (permitId: number, approver: any, data: any) =
 
 export const printPermit = async (permitId: number, piket: User) => {
   return prisma.leavePermit.update({
-    where: { id: permitId, status: "Approved" },
-    data: { status: LeavePermitStatus.Completed, printed_by_id: piket.id },
+    // --- PERBAIKAN DI SINI ---
+    // Izinkan pembaruan jika statusnya 'Approved' ATAU 'Completed'
+    // Ini memperbaiki kasus jika 'printed_by_id' null saat status sudah 'Completed'
+    where: { 
+      id: permitId,
+      status: { in: [LeavePermitStatus.Approved, LeavePermitStatus.Completed] }
+    },
+    // --- AKHIR PERBAIKAN ---
+    data: { 
+      status: LeavePermitStatus.Completed, // Selalu set ke Completed
+      printed_by_id: piket.id           // Selalu set ID Piket
+    },
   });
 };
 
@@ -222,9 +232,7 @@ export const getLeavePermits = async (filters: any) => {
 };
 
 
-// --- PERUBAHAN DIMULAI DI SINI (2/2): MENAMBAHKAN DETAIL ANGGOTA GRUP ---
-
-// Fungsi helper baru untuk mengambil detail anggota grup
+// Fungsi helper baru untuk mengambil detail anggota grup (Termasuk NISN)
 const getGroupMembersDetails = async (memberIds: number[]) => {
   if (!memberIds || memberIds.length === 0) {
     return [];
@@ -233,28 +241,56 @@ const getGroupMembersDetails = async (memberIds: number[]) => {
     where: { id: { in: memberIds } },
     select: {
       id: true,
-      profile: { select: { full_name: true } }
+      profile: { select: { full_name: true } },
+      // Tambahkan student_extension untuk data NISN jika perlu
+      student_extension: { select: { nisn: true } }
     }
   });
 };
 
+/**
+ * Mengambil detail lengkap satu izin, TERMASUK NIP untuk semua approver.
+ */
 export const getLeavePermitById = async (permitId: number) => {
   const permit = await prisma.leavePermit.findUnique({
       where: { id: permitId },
       include: {
           requester: { include: { profile: true, student_extension: true } },
-          approvals: { include: { approver: { select: { profile: { select: { full_name: true } } } } }},
+          approvals: { 
+              include: { 
+                  approver: { 
+                      include: { 
+                          profile: { select: { full_name: true } },
+                          // Ambil NIP untuk approver (WaliKelas, Waka)
+                          teacher_extension: { select: { nip: true } } 
+                      } 
+                  }
+              }
+          },
           related_schedule: { 
               include: { 
                   assignment: { 
                       include: { 
                           subject: true,
-                          class: true
+                          class: true,
+                          // Ambil data Guru Mapel (termasuk NIP)
+                          teacher: { 
+                              include: { 
+                                  profile: { select: { full_name: true } }, 
+                                  teacher_extension: { select: { nip: true } } 
+                              }
+                          }
                       }
                   }
               }
           },
-          printed_by: { select: { profile: { select: { full_name: true } } } }
+          // Ambil data Guru Piket (termasuk NIP)
+          printed_by: { 
+              include: { 
+                  profile: { select: { full_name: true } }, 
+                  teacher_extension: { select: { nip: true } } 
+              } 
+          }
       }
   });
 
@@ -265,7 +301,9 @@ export const getLeavePermitById = async (permitId: number) => {
       const memberIds = permit.group_members as number[];
       const membersDetails = await getGroupMembersDetails(memberIds);
       // Ganti properti `group_members` dengan hasil yang lebih detail
-      (permit as any).group_members = membersDetails;
+      (permit as any).group_members = membersDetails
+          .map(m => m.profile?.full_name) 
+          .filter(name => !!name) as string[];// Kita ubah jadi array nama (atau null jika profile tidak ada)
   } else {
       // Jika bukan grup atau tidak ada anggota, pastikan nilainya array kosong
       (permit as any).group_members = [];
@@ -273,8 +311,6 @@ export const getLeavePermitById = async (permitId: number) => {
 
   return permit;
 };
-
-// --- AKHIR PERUBAHAN (2/2) ---
 
 
 export const getLeavePermitsByUserId = async (userId: number) => {

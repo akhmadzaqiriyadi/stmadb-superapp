@@ -1,4 +1,4 @@
-// src/app/dashboard/leave-permits/[id]/print/page.tsx
+// src/app/(portal)/leave-permits/[id]/print/page.tsx
 
 "use client";
 
@@ -11,20 +11,42 @@ import Image from "next/image";
 import { Loader2, AlertCircle, Printer } from "lucide-react";
 
 import api from "@/lib/axios";
-import { LeavePermit } from "@/types";
-import "./print-layout.css"; // Kita akan buat file ini selanjutnya
+import { LeavePermit, ApprovalStatus } from "@/types";
+import "./print-layout.css";
 import { Button } from "@/components/ui/button";
 
-// Tipe data yang lebih detail, karena kita butuh info kelas dan mapel
+// --- TIPE DATA ---
+interface ApproverDetail {
+  approver_role: string;
+  status: ApprovalStatus;
+  approver: {
+    profile: {
+      full_name: string;
+    };
+    teacher_extension?: {
+      nip: string | null;
+    } | null;
+  };
+  updatedAt: string;
+}
+
+interface TeacherDetail {
+  profile: {
+    full_name: string;
+  };
+  teacher_extension?: {
+    nip: string | null;
+  } | null;
+}
+
 interface DetailedLeavePermit extends LeavePermit {
+  estimated_return: string;
   requester: {
     profile: {
       full_name: string;
     };
-    student_extension?: {
-      nisn: string | null;
-    } | null;
   };
+  group_members: string[]; 
   related_schedule?: {
     assignment: {
       subject: {
@@ -32,16 +54,37 @@ interface DetailedLeavePermit extends LeavePermit {
       };
       class: {
         class_name: string;
-      }
+      };
+      teacher: TeacherDetail; 
     };
   } | null;
+  printed_by?: TeacherDetail | null; 
+  approvals: ApproverDetail[];
 }
-
 
 const fetchLeavePermitById = async (id: string): Promise<DetailedLeavePermit> => {
   const { data } = await api.get(`/leave-permits/${id}`);
   return data;
 };
+
+// Komponen helper untuk blok Tanda Tangan
+const SignatureBlock = ({
+  title,
+  name,
+  nip,
+}: {
+  title: string;
+  name?: string | null;
+  nip?: string | null;
+}) => (
+  <div className="signature-block">
+    <p>{title}</p>
+    <p>ttd</p>
+    <div className="signature-spacer" />
+    <p className="font-bold underline">{name || "(_________________________)"}</p>
+    <p>NIP. {nip || "........................................."}</p>
+  </div>
+);
 
 export default function PrintLeavePermitPage() {
   const params = useParams();
@@ -53,12 +96,11 @@ export default function PrintLeavePermitPage() {
     enabled: !!permitId,
   });
 
-  // Efek untuk memicu dialog print browser secara otomatis saat data siap
   useEffect(() => {
     if (permit && !isLoading) {
       setTimeout(() => {
         window.print();
-      }, 500); // Beri sedikit jeda agar semua elemen termuat
+      }, 500);
     }
   }, [permit, isLoading]);
 
@@ -82,67 +124,118 @@ export default function PrintLeavePermitPage() {
       return <div>Data Izin Tidak Ditemukan</div>
   }
 
+  // --- LOGIKA DATA ---
+  const allNames = [
+    permit.requester.profile.full_name,
+    ...permit.group_members,
+  ].join(", ");
+
+  const className = permit.related_schedule?.assignment.class.class_name || 'Tidak ada data kelas';
+  
+  const waka = permit.approvals.find(a => a.approver_role.includes('Waka'));
+  const waliKelas = permit.approvals.find(a => a.approver_role.includes('WaliKelas'));
+  const guruMapel = permit.related_schedule?.assignment.teacher;
+  const guruPiket = permit.printed_by;
+
   return (
-    <div className="print-container bg-white p-8">
+    <div className="print-container bg-white p-8 text-black">
       {/* --- KOP SURAT --- */}
-      <header className="flex items-center gap-4 border-b-4 border-black pb-4">
-        <Image src="/logo.png" alt="Logo Sekolah" width={80} height={80} />
-        <div className="text-center flex-1">
+      <header className="flex items-center gap-4 border-b-[3px] border-black pb-2">
+        <Image src="/jateng.png" alt="Logo Sekolah" width={68} height={68} className="w-fit" />
+        <div className="text-left flex-1">
           <h1 className="text-xl font-bold uppercase">Pemerintah Provinsi Jawa Tengah</h1>
-          <h2 className="text-lg font-semibold uppercase">Dinas Pendidikan dan Kebudayaan</h2>
-          <h3 className="text-2xl font-bold uppercase">SMK Negeri 1 Adiwerna</h3>
+          <h2 className="text-xl font-bold uppercase">Dinas Pendidikan dan Kebudayaan</h2>
+          <h3 className="text-xl font-bold uppercase">SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA</h3>
           <p className="text-xs">
-            Jl. Raya II Po. Box 24, Adiwerna, Tegal 52194 | Telp. (0283) 443224 | Website: www.smkn1adw.sch.id
+            Jl. Raya II Po. Box 24, Telp : (0283) 443768, Fax: (0283) 445494 Adiwerna 52194 Kab. Tegal
+          </p>
+          <p className="text-xs">
+            website: smkn1adw.sch.id, e-mail: mail@smkn1adw.sch.id
           </p>
         </div>
       </header>
       
       {/* --- JUDUL SURAT --- */}
-      <main className="mt-8">
-        <h4 className="text-center text-lg font-bold underline">SURAT IZIN KELUAR LINGKUNGAN SEKOLAH</h4>
-        <p className="text-center text-sm">Nomor: 421.5 / {String(permit.id).padStart(3, '0')} / {new Date().getFullYear()}</p>
+      <main className="mt-6">
+        <h4 className="text-center text-lg font-bold underline decoration-2">SURAT IZIN KELUAR SEKOLAH</h4>
 
         {/* --- ISI SURAT --- */}
-        <div className="mt-8 space-y-4 text-sm leading-relaxed">
-          <p>Yang bertanda tangan di bawah ini, Guru Piket SMK Negeri 1 Adiwerna, memberikan izin kepada:</p>
+        <div className="mt-6 space-y-3 text-sm leading-relaxed">
+          <p>Yang bertanda tangan di bawah ini, a.n Kepala SMKN 1 Adiwerna memberikan izin kepada:</p>
+          
+          {/* Tabel Nama dan Kelas */}
           <table className="w-full max-w-lg">
             <tbody>
               <tr>
-                <td className="w-1/3 py-1">Nama</td>
-                <td>: <strong>{permit.requester.profile.full_name}</strong></td>
+                <td className="w-20 py-0.5 align-top">Nama</td>
+                <td className="align-top">: <strong>{allNames}</strong></td>
               </tr>
               <tr>
-                <td className="py-1">NISN</td>
-                <td>: {permit.requester.student_extension?.nisn || '-'}</td>
-              </tr>
-              <tr>
-                <td className="py-1">Kelas</td>
-                <td>: {permit.related_schedule?.assignment.class.class_name || '-'}</td>
+                <td className="py-0.5 align-top">Kelas</td>
+                <td className="align-top">: <strong>{className}</strong></td>
               </tr>
             </tbody>
           </table>
+          
+          {/* Waktu dan Alasan Izin */}
           <p>
             Untuk meninggalkan lingkungan sekolah pada hari{" "}
             <strong>{format(new Date(permit.start_time), "EEEE, dd MMMM yyyy", { locale: idLocale })}</strong>, 
-            mulai pukul <strong>{format(new Date(permit.start_time), "HH:mm", { locale: idLocale })} WIB</strong>, 
-            dengan alasan:
+            mulai pukul <strong>{format(new Date(permit.start_time), "HH:mm", { locale: idLocale })} WIB</strong>
+            {permit.estimated_return && (
+              <>
+                {" "}sampai <strong>{format(new Date(permit.estimated_return), "HH:mm", { locale: idLocale })} WIB</strong>
+              </>
+            )}
+            , dengan alasan:
           </p>
-          <p className="border-l-4 pl-4 italic">
+          
+          {/* Alasan dengan garis putus-putus */}
+          <div className="reason-dashed italic">
             {permit.reason}
-          </p>
+          </div>
+          
           <p>
             Demikian surat izin ini dibuat untuk dapat dipergunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
           </p>
         </div>
 
-        {/* --- TANDA TANGAN --- */}
-        <div className="mt-12 flex justify-end">
-          <div className="text-center text-sm">
-            <p>Adiwerna, {format(new Date(), "dd MMMM yyyy", { locale: idLocale })}</p>
-            <p>Guru Piket,</p>
-            <div className="h-20" /> {/* Spasi untuk tanda tangan & stempel */}
-            <p className="font-bold underline">(_________________________)</p>
-            <p>NIP. .........................................</p>
+        {/* --- TANDA TANGAN (LAYOUT BARU SESUAI DOCX) --- */}
+        <div className="signature-wrapper">
+          {/* Kolom Kiri: Mengetahui (3 TTD) */}
+          <div className="signature-left">
+            <p className="text-sm text-left">Mengetahui,</p>
+            <div className="signature-grid">
+              <SignatureBlock
+                title="Wakil Kepala Sekolah"
+                name={waka?.approver.profile.full_name}
+                nip={waka?.approver.teacher_extension?.nip}
+              />
+              <SignatureBlock
+                title={`Wali Kelas ${className}`}
+                name={waliKelas?.approver.profile.full_name}
+                nip={waliKelas?.approver.teacher_extension?.nip}
+              />
+              <SignatureBlock
+                title="Guru Mapel"
+                name={guruMapel?.profile.full_name}
+                nip={guruMapel?.teacher_extension?.nip}
+              />
+            </div>
+          </div>
+
+          {/* Kolom Kanan: Guru Piket */}
+          <div className="signature-right">
+            <p className="text-sm text-center">
+              Adiwerna, {format(new Date(permit.start_time), "dd MMMM yyyy", { locale: idLocale })}
+            </p>
+            <div className="signature-single">
+              <SignatureBlock
+                title="Guru Piket"
+                name={guruPiket?.profile.full_name}
+                nip={guruPiket?.teacher_extension?.nip}
+              />
+            </div>
           </div>
         </div>
       </main>

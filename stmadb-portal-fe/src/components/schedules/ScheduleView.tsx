@@ -11,26 +11,41 @@ import { Schedule, DayOfWeek, AcademicYear, ScheduleType } from "@/types";
 import { ManageScheduleDialog } from "./ManageScheduleDialog";
 import { ScheduleCard } from "./ScheduleCard";
 
-// === KONFIGURASI GRID BERBASIS WAKTU ===
-const SCHOOL_START = "07:00"; // Jam mulai sekolah
-const SCHOOL_END = "15:00";   // Jam akhir sekolah
-const MINUTES_PER_ROW = 15;   // Setiap row = 15 menit (bisa disesuaikan: 15, 30, atau 45)
-
+// === KONFIGURASI SLOT JADWAL (SESUAI DENGAN MANAGESCHEDULEDIALOG) ===
 const days: DayOfWeek[] = [DayOfWeek.Senin, DayOfWeek.Selasa, DayOfWeek.Rabu, DayOfWeek.Kamis, DayOfWeek.Jumat];
 
-// Konversi waktu ke menit sejak tengah malam
-const timeToMinutes = (time: string): number => {
-  if (!time) return 0;
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours * 60 + minutes;
-};
+// Slot waktu untuk Senin - Kamis
+const timeSlotsWeekday = [
+  { start: "07:00", end: "07:45", label: "Pembiasaan 1" },
+  { start: "07:45", end: "08:30", label: "Jam 2" },
+  { start: "08:30", end: "09:15", label: "Jam 3" },
+  { start: "09:15", end: "10:00", label: "Jam 4" },
+  { start: "10:00", end: "10:15", label: "Istirahat 1" },
+  { start: "10:15", end: "10:55", label: "Jam 5" },
+  { start: "10:55", end: "11:35", label: "Jam 6" },
+  { start: "11:35", end: "12:15", label: "Pembiasaan 2" },
+  { start: "12:15", end: "12:50", label: "Istirahat 2" },
+  { start: "12:50", end: "13:30", label: "Jam 8" },
+  { start: "13:30", end: "14:10", label: "Jam 9" },
+  { start: "14:10", end: "14:50", label: "Jam 10" },
+  { start: "14:50", end: "15:30", label: "Pembiasaan 3" },
+];
 
-// Konversi menit ke format HH:mm
-const minutesToTime = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
-};
+// Slot waktu untuk Jumat
+const timeSlotsFriday = [
+  { start: "07:00", end: "07:45", label: "Pembiasaan 1" },
+  { start: "07:45", end: "08:30", label: "Jam 2" },
+  { start: "08:30", end: "09:15", label: "Jam 3" },
+  { start: "09:15", end: "10:00", label: "Jam 4" },
+  { start: "10:00", end: "10:15", label: "Istirahat 1" },
+  { start: "10:15", end: "10:55", label: "Jam 5" },
+  { start: "10:55", end: "11:35", label: "Pembiasaan 3" },
+  { start: "11:35", end: "12:20", label: "Istirahat & Sholat" },
+  { start: "12:20", end: "12:45", label: "Jam 8" },
+  { start: "12:45", end: "13:10", label: "Jam 9" },
+  { start: "13:10", end: "13:35", label: "Jam 10" },
+  { start: "13:35", end: "14:00", label: "Jam 11" },
+];
 
 // Normalisasi waktu dari berbagai format
 const normalizeTime = (time: string | Date): string => {
@@ -46,26 +61,6 @@ const normalizeTime = (time: string | Date): string => {
   }
   
   return time;
-};
-
-// Hitung total rows yang dibutuhkan
-const calculateTotalRows = (): number => {
-  const startMinutes = timeToMinutes(SCHOOL_START);
-  const endMinutes = timeToMinutes(SCHOOL_END);
-  return Math.ceil((endMinutes - startMinutes) / MINUTES_PER_ROW);
-};
-
-// Generate time labels untuk setiap row
-const generateTimeLabels = (): string[] => {
-  const labels: string[] = [];
-  const startMinutes = timeToMinutes(SCHOOL_START);
-  const totalRows = calculateTotalRows();
-  
-  for (let i = 0; i <= totalRows; i++) {
-    labels.push(minutesToTime(startMinutes + (i * MINUTES_PER_ROW)));
-  }
-  
-  return labels;
 };
 
 const fetchActiveAcademicYear = async (): Promise<AcademicYear> => {
@@ -114,43 +109,14 @@ export function ScheduleView({ viewMode, viewId, scheduleTypeFilter }: ScheduleV
     onError: (e: any) => toast.error(e.response?.data?.message || "Gagal menghapus jadwal.")
   });
 
-  // === FUNGSI GRID POSITIONING YANG DIPERBAIKI ===
-  
-  // Hitung posisi row berdasarkan waktu aktual
-  const getGridRow = (time: string): number => {
-    const normalizedTime = normalizeTime(time);
-    const timeMinutes = timeToMinutes(normalizedTime);
-    const startMinutes = timeToMinutes(SCHOOL_START);
-    
-    // Row dimulai dari 2 (karena row 1 adalah header)
-    const rowOffset = Math.floor((timeMinutes - startMinutes) / MINUTES_PER_ROW);
-    return rowOffset + 2;
-  };
-
-  // Hitung berapa baris yang di-span oleh jadwal
-  const calculateRowSpan = (startTime: string, endTime: string): number => {
-    const normalizedStart = normalizeTime(startTime);
-    const normalizedEnd = normalizeTime(endTime);
-    const startMinutes = timeToMinutes(normalizedStart);
-    const endMinutes = timeToMinutes(normalizedEnd);
-    const durationMinutes = endMinutes - startMinutes;
-    
-    return Math.max(1, Math.ceil(durationMinutes / MINUTES_PER_ROW));
-  };
-
-  const handleCellClick = (day: DayOfWeek, rowIndex: number) => {
+  const handleCellClick = (day: DayOfWeek, slotStartTime: string) => {
     if (viewMode !== 'class') {
       toast.info("Penambahan jadwal hanya bisa dilakukan pada mode 'Per Kelas'.");
       return;
     }
     
-    // Hitung waktu berdasarkan row yang diklik
-    const startMinutes = timeToMinutes(SCHOOL_START);
-    const clickedMinutes = startMinutes + (rowIndex * MINUTES_PER_ROW);
-    const startTime = minutesToTime(clickedMinutes);
-    
     setEditingSchedule(null);
-    setSelectedSlot({ day, startTime });
+    setSelectedSlot({ day, startTime: slotStartTime });
     setIsDialogOpen(true);
   };
   
@@ -168,96 +134,139 @@ export function ScheduleView({ viewMode, viewId, scheduleTypeFilter }: ScheduleV
     );
   }
 
-  const totalRows = calculateTotalRows();
-  const timeLabels = generateTimeLabels();
+  // Gunakan slot hari Senin-Kamis sebagai master (yang terpanjang)
+  const masterSlots = timeSlotsWeekday;
 
   return (
     <>
       <div className="overflow-x-auto">
-        <div className="inline-grid gap-1 w-full" style={{ gridTemplateColumns: `80px repeat(${days.length}, 1fr)` }}>
-          
-          {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md">
-            WAKTU
-          </div>
-          {days.map(day => (
-            <div 
-              key={day} 
-              className="sticky top-0 bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-t-lg z-20 flex items-center justify-center font-bold text-white shadow-md"
-            >
-              {day.toUpperCase()}
+        <div className="min-w-max">
+          {/* Header Row */}
+          <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: '180px repeat(5, minmax(200px, 1fr))' }}>
+            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-lg font-bold text-white text-center shadow-md">
+              WAKTU
             </div>
-          ))}
-          
-          {/* Time Labels & Grid Cells */}
-          {Array.from({ length: totalRows }).map((_, rowIndex) => {
-            const timeLabel = timeLabels[rowIndex];
-            const showLabel = rowIndex % (60 / MINUTES_PER_ROW) === 0; // Tampilkan label setiap jam
+            {days.map(day => (
+              <div 
+                key={day} 
+                className="bg-gradient-to-br from-indigo-500 to-blue-600 p-3 border-2 border-indigo-300 rounded-lg font-bold text-white text-center shadow-md"
+              >
+                {day.toUpperCase()}
+              </div>
+            ))}
+          </div>
+
+          {/* Slot Rows */}
+          {masterSlots.map((slot, slotIdx) => {
+            const isBreakTime = slot.label.includes('Istirahat') || slot.label.includes('Sholat');
             
             return (
-              <React.Fragment key={`row-${rowIndex}`}>
+              <div 
+                key={`slot-${slotIdx}`} 
+                className="grid gap-1 mb-1" 
+                style={{ gridTemplateColumns: '180px repeat(5, minmax(200px, 1fr))' }}
+              >
                 {/* Kolom Waktu */}
-                <div 
-                  style={{ gridRow: rowIndex + 2 }} 
-                  className="p-2 border-2 border-gray-300 text-xs font-mono text-gray-600 flex items-start justify-center bg-gray-50"
-                >
-                  {showLabel && <span className="font-semibold">{timeLabel}</span>}
+                <div className={`p-2 border-2 rounded-lg font-mono text-xs ${
+                  isBreakTime ? 'bg-gray-100 border-gray-300' : 'bg-gray-50 border-gray-300'
+                }`}>
+                  <div className="font-bold">{slot.start} - {slot.end}</div>
+                  <div className="text-gray-600 text-[10px] mt-0.5">{slot.label}</div>
                 </div>
-                
+
                 {/* Kolom untuk setiap hari */}
-                {days.map((day, dayIndex) => (
-                  <div 
-                    key={`${day}-${rowIndex}`} 
-                    style={{ 
-                      gridRow: rowIndex + 2, 
-                      gridColumn: dayIndex + 2,
-                      minHeight: '2rem'
-                    }}
-                    className="border border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors relative bg-white"
-                    onClick={() => handleCellClick(day, rowIndex)}
-                  >
-                    {/* Label waktu kecil di pojok */}
-                    {rowIndex % 2 === 0 && (
-                      <div className="absolute top-0.5 left-0.5 text-[9px] text-gray-300 font-mono">
-                        {timeLabel}
+                {days.map((day) => {
+                  // Untuk Jumat, gunakan slot Jumat
+                  const daySlots = day === DayOfWeek.Jumat ? timeSlotsFriday : timeSlotsWeekday;
+                  const currentDaySlot = daySlots[slotIdx];
+                  
+                  // Jika slot tidak ada di hari ini (misal Jumat lebih pendek), tampilkan disabled
+                  if (!currentDaySlot) {
+                    return (
+                      <div key={`${day}-${slotIdx}`} className="border-2 border-gray-200 rounded-lg bg-gray-50" />
+                    );
+                  }
+
+                  const isDayBreakTime = currentDaySlot.label.includes('Istirahat') || currentDaySlot.label.includes('Sholat');
+                  
+                  // Helper: konversi waktu ke menit untuk perbandingan
+                  const timeToMinutes = (time: string): number => {
+                    const [h, m] = time.split(':').map(Number);
+                    return h * 60 + m;
+                  };
+                  
+                  const slotStartMinutes = timeToMinutes(currentDaySlot.start);
+                  const slotEndMinutes = timeToMinutes(currentDaySlot.end);
+                  
+                  // Cari jadwal yang OVERLAP dengan slot ini (tidak hanya yang start di slot ini)
+                  const scheduleInSlot = data?.schedules?.find((s: Schedule) => {
+                    if (s.day_of_week !== day) return false;
+                    if (scheduleTypeFilter !== "ALL" && 
+                        s.schedule_type !== ScheduleType.Umum && 
+                        s.schedule_type !== scheduleTypeFilter) return false;
+                    
+                    const scheduleStartMinutes = timeToMinutes(normalizeTime(s.start_time));
+                    const scheduleEndMinutes = timeToMinutes(normalizeTime(s.end_time));
+                    
+                    // Jadwal overlap jika:
+                    // - Jadwal mulai sebelum slot selesai DAN
+                    // - Jadwal selesai setelah slot mulai
+                    return scheduleStartMinutes < slotEndMinutes && scheduleEndMinutes > slotStartMinutes;
+                  });
+
+                  // Cek apakah ini slot pertama dari jadwal (untuk tampilkan card)
+                  const isFirstSlot = scheduleInSlot && 
+                    normalizeTime(scheduleInSlot.start_time) === currentDaySlot.start;
+
+                  return (
+                    <div 
+                      key={`${day}-${slotIdx}`}
+                      className={`border-2 rounded-lg transition-all ${
+                        isDayBreakTime
+                          ? 'bg-gray-100 border-gray-300'
+                          : scheduleInSlot
+                            ? 'bg-blue-50 border-blue-300' // Ada jadwal - warna biru muda
+                            : 'bg-white border-gray-300 hover:bg-blue-50 cursor-pointer hover:border-blue-300'
+                      }`}
+                      onClick={() => {
+                        if (isDayBreakTime) return;
+                        if (scheduleInSlot) {
+                          handleEditClick(scheduleInSlot); // Klik jadwal = edit
+                        } else {
+                          handleCellClick(day, currentDaySlot.start); // Klik kosong = tambah
+                        }
+                      }}
+                    >
+                      <div className="p-2 min-h-[80px]">
+                        {isFirstSlot ? (
+                          // Tampilkan card hanya di slot pertama
+                          <ScheduleCard 
+                            schedule={scheduleInSlot} 
+                            viewMode={viewMode} 
+                            onEdit={handleEditClick} 
+                            onDelete={deleteSchedule} 
+                          />
+                        ) : scheduleInSlot ? (
+                          // Slot lanjutan dari jadwal yang sama - tampilkan indikator
+                          <div className="text-xs text-blue-600 text-center py-6 font-medium">
+                            ↑ {scheduleInSlot.assignment?.subject?.subject_code || 'N/A'}
+                          </div>
+                        ) : isDayBreakTime ? (
+                          <div className="text-xs text-gray-500 text-center py-2 italic">
+                            {currentDaySlot.label}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 text-center py-6">
+                            {viewMode === 'class' ? '+ Tambah' : '—'}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
-              </React.Fragment>
+                    </div>
+                  );
+                })}
+              </div>
             );
           })}
-
-          {/* Schedule Cards - Overlay di atas grid */}
-          {data?.schedules
-            ?.filter((s: Schedule) => 
-              scheduleTypeFilter === "ALL" || 
-              s.schedule_type === ScheduleType.Umum || 
-              s.schedule_type === scheduleTypeFilter
-            )
-            .map((schedule: Schedule) => {
-              const startRow = getGridRow(schedule.start_time);
-              const rowSpan = calculateRowSpan(schedule.start_time, schedule.end_time);
-              const dayIndex = days.indexOf(schedule.day_of_week) + 2;
-              
-              return (
-                <div 
-                  key={schedule.id}
-                  style={{ 
-                    gridColumn: dayIndex, 
-                    gridRow: `${startRow} / span ${rowSpan}`,
-                  }}
-                  className="p-1 z-30"
-                >
-                  <ScheduleCard 
-                    schedule={schedule} 
-                    viewMode={viewMode} 
-                    onEdit={handleEditClick} 
-                    onDelete={deleteSchedule} 
-                  />
-                </div>
-              );
-            })}
         </div>
       </div>
       

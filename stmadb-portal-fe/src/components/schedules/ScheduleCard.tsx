@@ -80,32 +80,25 @@ export function ScheduleCard({ schedule, viewMode, onEdit, onDelete }: ScheduleC
       )}
 
       {/* Content */}
-      <div className="flex flex-col h-full justify-between text-xs">
-        <div className="space-y-1">
-          {/* Subject Code */}
-          <div className="font-bold text-sm">
-            {schedule.assignment?.subject?.subject_code || 'N/A'}
+      <div className="flex flex-col h-full justify-center text-xs space-y-1">
+        {/* Subject Name - Full name instead of code */}
+        <div className="font-bold text-sm leading-tight">
+          {schedule.assignment?.subject?.subject_name || 'N/A'}
+        </div>
+
+        {/* Teacher Name - Only show if not in teacher view */}
+        {viewMode !== 'teacher' && (
+          <div className="text-[11px] font-medium truncate opacity-90">
+            {schedule.assignment?.teacher?.profile?.full_name || 'N/A'}
           </div>
+        )}
 
-          {/* Teacher Name - Only show if not in teacher view */}
-          {viewMode !== 'teacher' && (
-            <div className="font-medium truncate">
-              {schedule.assignment?.teacher?.profile?.full_name || 'N/A'}
-            </div>
-          )}
-
-          {/* Room - Only show if not in room view and room exists */}
-          {viewMode !== 'room' && schedule.room && (
-            <div className="text-[10px] opacity-80 font-mono">
-              {schedule.room.room_code}
-            </div>
-          )}
-        </div>
-
-        {/* Time */}
-        <div className="text-[10px] font-mono mt-1 opacity-75">
-          {startTime} - {endTime}
-        </div>
+        {/* Room - Only show if not in room view and room exists */}
+        {viewMode !== 'room' && schedule.room && (
+          <div className="text-[10px] opacity-75 font-mono">
+            📍 {schedule.room.room_code}
+          </div>
+        )}
       </div>
 
       {/* Action Buttons - Only visible on hover and in class view */}

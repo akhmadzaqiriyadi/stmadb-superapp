@@ -8,6 +8,13 @@ import api from "@/lib/axios";
 import { ClassesApiResponse, Room, TeacherList, ScheduleType } from "@/types";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  SearchableSelect, 
+  SearchableSelectContent, 
+  SearchableSelectItem, 
+  SearchableSelectTrigger, 
+  SearchableSelectValue 
+} from "@/components/ui/searchable-select";
 import { ScheduleView } from "@/components/schedules/ScheduleView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +36,7 @@ function SchedulesPage() {
   const [viewMode, setViewMode] = useState<'class' | 'teacher' | 'room'>('class');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scheduleType, setScheduleType] = useState<"ALL" | ScheduleType>("ALL");
+  const [search, setSearch] = useState("");
 
   const { data: filterData, isLoading } = useQuery({
       queryKey: ['scheduleFilterData'],
@@ -45,12 +53,47 @@ function SchedulesPage() {
       }
   };
 
+  // Filter data based on search
+  const getFilteredData = () => {
+      const data = getDropdownData();
+      if (!search) return data;
+      
+      const searchLower = search.toLowerCase();
+      
+      switch (viewMode) {
+          case 'class':
+              return data.filter((item: any) => 
+                  item.class_name?.toLowerCase().includes(searchLower)
+              );
+          case 'teacher':
+              return data.filter((item: any) => 
+                  item.profile?.full_name?.toLowerCase().includes(searchLower)
+              );
+          case 'room':
+              return data.filter((item: any) => 
+                  item.room_code?.toLowerCase().includes(searchLower) ||
+                  item.room_name?.toLowerCase().includes(searchLower)
+              );
+          default:
+              return data;
+      }
+  };
+
   const getPlaceholderText = () => {
     switch (viewMode) {
       case 'class': return 'Pilih Kelas';
       case 'teacher': return 'Pilih Guru';
       case 'room': return 'Pilih Ruangan';
       default: return 'Pilih...';
+    }
+  };
+
+  const getSearchPlaceholder = () => {
+    switch (viewMode) {
+      case 'class': return 'Cari kelas...';
+      case 'teacher': return 'Cari nama guru...';
+      case 'room': return 'Cari kode atau nama ruangan...';
+      default: return 'Cari...';
     }
   };
 
@@ -122,24 +165,41 @@ function SchedulesPage() {
                 {viewMode === 'teacher' && 'Pilih Guru'}
                 {viewMode === 'room' && 'Pilih Ruangan'}
               </label>
-              <Select 
+              <SearchableSelect 
                 onValueChange={setSelectedId} 
                 value={selectedId || ""}
                 disabled={isLoading}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue 
+                <SearchableSelectTrigger className="w-full">
+                  <SearchableSelectValue 
                     placeholder={isLoading ? 'Memuat...' : getPlaceholderText()} 
                   />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {getDropdownData().map((item: any) => (
-                    <SelectItem key={item.id} value={String(item.id)}>
-                      {item.class_name || item.profile?.full_name || `${item.room_code} - ${item.room_name}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                </SearchableSelectTrigger>
+                <SearchableSelectContent 
+                  searchable 
+                  searchPlaceholder={getSearchPlaceholder()}
+                  onSearchChange={setSearch}
+                >
+                  {getFilteredData().length === 0 ? (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                      {search ? 'Tidak ada data yang ditemukan.' : 'Tidak ada data.'}
+                    </div>
+                  ) : (
+                    getFilteredData().map((item: any) => (
+                      <SearchableSelectItem key={item.id} value={String(item.id)}>
+                        {viewMode === 'class' && item.class_name}
+                        {viewMode === 'teacher' && item.profile?.full_name}
+                        {viewMode === 'room' && (
+                          <>
+                            <span className="font-mono font-semibold">{item.room_code}</span>
+                            <span className="text-muted-foreground"> - {item.room_name}</span>
+                          </>
+                        )}
+                      </SearchableSelectItem>
+                    ))
+                  )}
+                </SearchableSelectContent>
+              </SearchableSelect>
             </div>
 
             {/* Schedule View */}
