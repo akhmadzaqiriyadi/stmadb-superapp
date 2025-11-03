@@ -23,8 +23,8 @@ router.use(protect);
  * /leave-permits:
  *   post:
  *     tags: [Leave Permits]
- *     summary: (Student) - Apply for a new school leave permit
- *     description: Endpoint for students to create a new leave permit application. The initial status will be 'WaitingForPiket'.
+ *     summary: (Student/Teacher) - Apply for a new school leave permit
+ *     description: Smart endpoint for creating leave permits. Auto-detects if requester is Student or Teacher and applies appropriate flow. Students go through Piket -> WaliKelas -> GuruMapel -> Waka. Teachers go directly to Waka -> KepalaSekolah.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -65,7 +65,7 @@ router.use(protect);
  */
 router.post(
   '/',
-  authorize(['Student']),
+  authorize(['Student', 'Teacher', 'WaliKelas']), // Guru juga bisa mengajukan izin
   validate(createLeavePermitSchema),
   leaveController.createLeavePermit
 );
@@ -116,8 +116,8 @@ router.get(
  * /leave-permits/me:
  *   get:
  *     tags: [Leave Permits]
- *     summary: (Student) - Get your own leave permit history
- *     description: Retrieves a list of all leave applications submitted by the currently logged-in user.
+ *     summary: (Student/Teacher) - Get your own leave permit history
+ *     description: Retrieves a list of all leave applications submitted by the currently logged-in user (student or teacher).
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -126,7 +126,7 @@ router.get(
  */
 router.get(
   '/me',
-  authorize(['Student']),
+  authorize(['Student', 'Teacher', 'WaliKelas']),
   leaveController.getMyLeavePermits
 );
 
@@ -242,7 +242,7 @@ router.patch(
  */
 router.post(
   '/:id/approval',
-  authorize(['WaliKelas', 'Teacher', 'Waka']),
+  authorize(['WaliKelas', 'Teacher', 'Waka', 'KepalaSekolah']), // Tambah KS untuk approve izin guru
   validate(giveApprovalSchema),
   leaveController.giveApproval
 );

@@ -264,6 +264,11 @@ export interface ProfileData {
 
 // ============== TIPE UNTUK FITUR IZIN KELUAR ==============
 
+export enum RequesterType {
+  Student = "Student",
+  Teacher = "Teacher",
+}
+
 export enum LeavePermitType {
   Individual = "Individual",
   Group = "Group",
@@ -299,16 +304,33 @@ export interface LeaveApproval {
 
 export interface LeavePermit {
   id: number;
+  requester_type: RequesterType;
   requester: {
     profile: {
       full_name: string;
     };
+    student_extension?: {
+      nisn?: string | null;
+    } | null;
+    teacher_extension?: {
+      nip?: string | null;
+    } | null;
   };
+  leave_type: LeavePermitType;
   reason: string;
   start_time: string;
+  estimated_return?: string | null;
   status: LeavePermitStatus;
   approvals: LeaveApproval[];
+  related_schedule_id?: number | null;
+  group_members?: string[] | null;
+  printed_by?: {
+    profile: {
+      full_name: string;
+    };
+  } | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface LeavePermitsApiResponse {

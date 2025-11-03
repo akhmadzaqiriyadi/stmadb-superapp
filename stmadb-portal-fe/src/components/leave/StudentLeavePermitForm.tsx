@@ -1,6 +1,4 @@
 // src/components/leave/LeavePermitForm.tsx
-// DEPRECATED: Use LeavePermitFormSmart instead
-// This file kept for backward compatibility
 
 "use client";
 
@@ -148,7 +146,7 @@ const fetchMyClassmates = async (): Promise<ClassMember[]> => {
   return data.data;
 };
 
-export function StudentLeavePermitForm() {
+export function LeavePermitForm() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -208,7 +206,7 @@ export function StudentLeavePermitForm() {
         description: "Segera temui guru piket untuk verifikasi.",
       });
       queryClient.invalidateQueries({ queryKey: ["leavePermitHistory"] });
-      router.push("/dashboard/leave-permits");
+      router.push("/leave-permits");
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Gagal membuat pengajuan.");

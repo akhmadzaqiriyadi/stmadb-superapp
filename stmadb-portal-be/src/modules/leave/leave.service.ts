@@ -5,6 +5,7 @@ import {
   ApprovalStatus,
   DayOfWeek,
   Prisma,
+  RequesterType,
 } from "@prisma/client";
 import type { User } from "@prisma/client";
 
@@ -28,7 +29,43 @@ const getDayOfWeekInWIB = (date: Date): DayOfWeek => {
   return day;
 };
 
+/**
+ * Helper: Cek apakah user adalah guru (punya role Teacher/WaliKelas/dll)
+ */
+const isTeacher = async (userId: number): Promise<boolean> => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { 
+      roles: true,
+      teacher_extension: true 
+    },
+  });
+  
+  const teacherRoles = ['Teacher', 'WaliKelas', 'KepalaSekolah', 'Waka', 'Staff'];
+  return !!(
+    user?.teacher_extension || 
+    user?.roles.some(role => teacherRoles.includes(role.role_name))
+  );
+};
+
+/**
+ * Create Leave Permit - Smart Detection (Student vs Teacher)
+ */
 export const createLeavePermit = async (requester: any, data: any) => {
+  // Auto-detect requester type
+  const isRequesterTeacher = await isTeacher(requester.userId);
+  
+  if (isRequesterTeacher) {
+    return createTeacherLeavePermit(requester, data);
+  } else {
+    return createStudentLeavePermit(requester, data);
+  }
+};
+
+/**
+ * Create Leave Permit untuk SISWA (flow lengkap dengan piket)
+ */
+const createStudentLeavePermit = async (requester: any, data: any) => {
   const { leave_type, reason, start_time, estimated_return, group_member_ids } =
     data;
   const leaveStartDate = new Date(start_time);
@@ -110,9 +147,12 @@ export const createLeavePermit = async (requester: any, data: any) => {
     { approver_user_id: wakaUser.id, approver_role: "WakaKesiswaan" },
   ];
 
+  // Gunakan kombinasi user_id + role sebagai key untuk menghindari role tertimpa
+  // jika user yang sama punya multiple roles (misal: wali kelas juga mengajar mapel)
   const uniqueApproversMap = new Map();
   potentialApprovers.forEach((approver) => {
-    uniqueApproversMap.set(approver.approver_user_id, approver);
+    const key = `${approver.approver_user_id}-${approver.approver_role}`;
+    uniqueApproversMap.set(key, approver);
   });
 
   const finalApprovers = Array.from(uniqueApproversMap.values());
@@ -120,6 +160,7 @@ export const createLeavePermit = async (requester: any, data: any) => {
   return prisma.leavePermit.create({
     data: {
       requester_user_id: studentUserId,
+      requester_type: RequesterType.Student,
       leave_type,
       reason,
       start_time: leaveStartDate,
@@ -131,6 +172,67 @@ export const createLeavePermit = async (requester: any, data: any) => {
       },
     },
     include: { approvals: true },
+  });
+};
+
+/**
+ * Create Leave Permit untuk GURU (flow sederhana, hanya Waka & KS)
+ */
+const createTeacherLeavePermit = async (requester: any, data: any) => {
+  const { reason, start_time, estimated_return } = data;
+  const leaveStartDate = new Date(start_time);
+
+  // Cari Waka
+  const wakaUser = await prisma.user.findFirst({
+    where: { roles: { some: { role_name: "Waka" } } },
+  });
+  if (!wakaUser) throw new Error("User dengan role 'Waka' tidak ditemukan.");
+
+  // Cari Kepala Sekolah
+  const kepalaSekolahUser = await prisma.user.findFirst({
+    where: { roles: { some: { role_name: "KepalaSekolah" } } },
+  });
+  if (!kepalaSekolahUser) throw new Error("User dengan role 'KepalaSekolah' tidak ditemukan.");
+
+  // Guru selalu Individual, tidak ada group
+  const approvers = [
+    { approver_user_id: wakaUser.id, approver_role: "Waka" },
+    { approver_user_id: kepalaSekolahUser.id, approver_role: "KepalaSekolah" },
+  ];
+
+  // Deduplikasi jika Waka dan KS adalah orang yang sama
+  const uniqueApproversMap = new Map();
+  approvers.forEach((approver) => {
+    const key = `${approver.approver_user_id}-${approver.approver_role}`;
+    uniqueApproversMap.set(key, approver);
+  });
+
+  const finalApprovers = Array.from(uniqueApproversMap.values());
+
+  return prisma.leavePermit.create({
+    data: {
+      requester_user_id: requester.userId,
+      requester_type: RequesterType.Teacher,
+      leave_type: 'Individual', // Guru selalu individual
+      reason,
+      start_time: leaveStartDate,
+      estimated_return: estimated_return ? new Date(estimated_return) : null,
+      status: LeavePermitStatus.WaitingForApproval, // Langsung ke approval, skip piket
+      approvals: {
+        create: finalApprovers,
+      },
+    },
+    include: { 
+      approvals: {
+        include: {
+          approver: {
+            select: {
+              profile: { select: { full_name: true } }
+            }
+          }
+        }
+      }
+    },
   });
 };
 
@@ -195,11 +297,12 @@ export const printPermit = async (permitId: number, piket: User) => {
 };
 
 export const getLeavePermits = async (filters: any) => {
-  const { page = 1, limit = 10, q, status } = filters;
+  const { page = 1, limit = 10, q, status, requester_type } = filters;
   const skip = (page - 1) * limit;
 
   const whereCondition: Prisma.LeavePermitWhereInput = {};
   if (status) whereCondition.status = status;
+  if (requester_type) whereCondition.requester_type = requester_type; // Filter by Student/Teacher
   if (q) {
     whereCondition.requester = {
       profile: { full_name: { contains: q, mode: "insensitive" } },

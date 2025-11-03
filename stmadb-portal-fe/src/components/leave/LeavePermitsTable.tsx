@@ -9,7 +9,7 @@ import { id as idLocale } from "date-fns/locale";
 import { Search, MoreHorizontal, Check, Eye, Printer } from "lucide-react";
 
 import api from "@/lib/axios";
-import { LeavePermit, LeavePermitsApiResponse, LeavePermitStatus } from "@/types";
+import { LeavePermit, LeavePermitsApiResponse, LeavePermitStatus, RequesterType } from "@/types";
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +42,7 @@ export function LeavePermitsTable() {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [requesterTypeFilter, setRequesterTypeFilter] = useState<string>("all");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   
@@ -50,6 +51,9 @@ export function LeavePermitsTable() {
   const queryParams: any = { page, q: debouncedSearchTerm, limit: 10 };
   if (statusFilter !== "all") {
     queryParams.status = statusFilter;
+  }
+  if (requesterTypeFilter !== "all") {
+    queryParams.requester_type = requesterTypeFilter;
   }
 
   const { data: permitsData, isLoading, isError, error } = useQuery<LeavePermitsApiResponse, Error>({
@@ -95,19 +99,29 @@ export function LeavePermitsTable() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle>Daftar Pengajuan Izin</CardTitle>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <div className="relative w-full sm:w-auto">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Cari nama pemohon..."
-                  className="pl-8 w-full sm:w-[250px]"
+                  className="pl-8 w-full sm:w-[200px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+              <Select value={requesterTypeFilter} onValueChange={setRequesterTypeFilter}>
+                  <SelectTrigger className="w-full sm:w-[140px]">
+                      <SelectValue placeholder="Tipe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">Semua Tipe</SelectItem>
+                      <SelectItem value={RequesterType.Student}>Siswa</SelectItem>
+                      <SelectItem value={RequesterType.Teacher}>Guru</SelectItem>
+                  </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Filter Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -130,6 +144,7 @@ export function LeavePermitsTable() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Pemohon</TableHead>
+                      <TableHead>Tipe</TableHead>
                       <TableHead>Waktu Izin</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
@@ -137,11 +152,20 @@ export function LeavePermitsTable() {
                   </TableHeader>
                   <TableBody>
                     {permitsData.data.length === 0 ? (
-                      <TableRow><TableCell colSpan={4} className="text-center h-24">Tidak ada data pengajuan.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center h-24">Tidak ada data pengajuan.</TableCell></TableRow>
                     ) : (
                       permitsData.data.map((permit) => (
                         <TableRow key={permit.id}>
                           <TableCell className="font-medium">{permit.requester.profile.full_name}</TableCell>
+                          <TableCell>
+                            <Badge className={cn("font-semibold", 
+                              permit.requester_type === RequesterType.Teacher 
+                                ? "bg-purple-100 text-purple-800" 
+                                : "bg-blue-100 text-blue-800"
+                            )}>
+                              {permit.requester_type === RequesterType.Teacher ? "Guru" : "Siswa"}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{format(new Date(permit.start_time), "dd MMM yyyy, HH:mm", { locale: idLocale })}</TableCell>
                           <TableCell>
                             <Badge className={cn("font-semibold", statusConfig[permit.status]?.color || "bg-gray-100 text-gray-800")}>
@@ -159,20 +183,22 @@ export function LeavePermitsTable() {
                                       
                                       <DropdownMenuSeparator />
 
-                                      {permit.status === LeavePermitStatus.WaitingForPiket && (
+                                      {/* Only show piket actions for students */}
+                                      {permit.requester_type === RequesterType.Student && permit.status === LeavePermitStatus.WaitingForPiket && (
                                           <DropdownMenuItem onClick={() => startApproval(permit.id)} disabled={isStartingApproval}>
                                               <Check className="mr-2 h-4 w-4" /> Mulai Persetujuan
                                           </DropdownMenuItem>
                                       )}
 
-                                      {permit.status === LeavePermitStatus.Approved && (
+                                      {/* Only show print for students */}
+                                      {permit.requester_type === RequesterType.Student && permit.status === LeavePermitStatus.Approved && (
                                           <DropdownMenuItem onClick={() => printPermit(permit.id)} disabled={isPrinting}>
                                               <Printer className="mr-2 h-4 w-4" /> Finalisasi & Cetak
                                           </DropdownMenuItem>
                                       )}
                                       
-                                      {/* Tambahkan kondisi untuk "Cetak Ulang" */}
-                                      {(permit.status === LeavePermitStatus.Completed || permit.status === LeavePermitStatus.Printed) && (
+                                      {/* Cetak Ulang - Only for students */}
+                                      {permit.requester_type === RequesterType.Student && (permit.status === LeavePermitStatus.Completed || permit.status === LeavePermitStatus.Printed) && (
                                           <DropdownMenuItem onClick={() => window.open(`/leave-permits/${permit.id}/print`, '_blank')}>
                                               <Printer className="mr-2 h-4 w-4" /> Cetak Ulang
                                           </DropdownMenuItem>

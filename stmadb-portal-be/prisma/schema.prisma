@@ -289,42 +289,9 @@ model Room {
 
 // ============== MODUL 3: IZIN KELUAR SEKOLAH ==============
 
-model LeavePermit {
-  id                  Int       @id @default(autoincrement())
-  requester_user_id   Int
-  requester           User      @relation("Requester", fields: [requester_user_id], references: [id])
-  leave_type          LeavePermitType
-  reason              String    @db.Text
-  start_time          DateTime  @db.Timestamp()
-  estimated_return    DateTime? @db.Timestamp()
-  status              LeavePermitStatus @default(WaitingForPiket)
-  approvals           LeaveApproval[]
-  related_schedule_id Int?
-  related_schedule    Schedule? @relation(fields: [related_schedule_id], references: [id])
-  group_members       Json?
-  printed_by_id       Int?
-  printed_by          User?     @relation("PrintedBy", fields: [printed_by_id], references: [id])
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  @@index([requester_user_id])
-  @@index([printed_by_id])
-}
-
-model LeaveApproval {
-  id               Int            @id @default(autoincrement())
-  leave_permit_id  Int
-  leave_permit     LeavePermit    @relation(fields: [leave_permit_id], references: [id])
-  approver_user_id Int
-  approver         User           @relation("Approver", fields: [approver_user_id], references: [id])
-  approver_role    String
-  status           ApprovalStatus @default(Pending)
-  notes            String?        @db.Text
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  @@unique([leave_permit_id, approver_user_id])
-  @@index([approver_user_id])
+enum RequesterType {
+  Student
+  Teacher
 }
 
 enum LeavePermitType {
@@ -344,4 +311,44 @@ enum ApprovalStatus {
   Pending
   Approved
   Rejected
+}
+
+model LeavePermit {
+  id                  Int               @id @default(autoincrement())
+  requester_user_id   Int
+  requester           User              @relation("Requester", fields: [requester_user_id], references: [id])
+  requester_type      RequesterType     @default(Student)
+  leave_type          LeavePermitType
+  reason              String            @db.Text
+  start_time          DateTime          @db.Timestamp()
+  estimated_return    DateTime?         @db.Timestamp()
+  status              LeavePermitStatus @default(WaitingForPiket)
+  approvals           LeaveApproval[]
+  related_schedule_id Int?
+  related_schedule    Schedule?         @relation(fields: [related_schedule_id], references: [id])
+  group_members       Json?
+  printed_by_id       Int?
+  printed_by          User?             @relation("PrintedBy", fields: [printed_by_id], references: [id])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([requester_user_id])
+  @@index([printed_by_id])
+  @@index([requester_type])
+}
+
+model LeaveApproval {
+  id               Int            @id @default(autoincrement())
+  leave_permit_id  Int
+  leave_permit     LeavePermit    @relation(fields: [leave_permit_id], references: [id])
+  approver_user_id Int
+  approver         User           @relation("Approver", fields: [approver_user_id], references: [id])
+  approver_role    String
+  status           ApprovalStatus @default(Pending)
+  notes            String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([leave_permit_id, approver_user_id])
+  @@index([approver_user_id])
 }
