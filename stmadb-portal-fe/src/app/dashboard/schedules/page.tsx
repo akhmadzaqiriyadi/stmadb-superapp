@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import withAuth from "@/components/auth/withAuth";
 import api from "@/lib/axios";
-import { ClassesApiResponse, Room, TeacherList, ScheduleType } from "@/types";
+import { ClassesApiResponse, Room, TeacherList, ScheduleType, AcademicYear } from "@/types";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
@@ -16,6 +16,7 @@ import {
   SearchableSelectValue 
 } from "@/components/ui/searchable-select";
 import { ScheduleView } from "@/components/schedules/ScheduleView";
+import { ActiveScheduleToggle } from "@/components/schedules/ActiveScheduleToggle";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -32,6 +33,11 @@ const fetchFilterData = async () => {
     };
 };
 
+const fetchActiveAcademicYear = async (): Promise<AcademicYear> => {
+  const { data } = await api.get('/academics/academic-years/active');
+  return data;
+};
+
 function SchedulesPage() {
   const [viewMode, setViewMode] = useState<'class' | 'teacher' | 'room'>('class');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -41,6 +47,11 @@ function SchedulesPage() {
   const { data: filterData, isLoading } = useQuery({
       queryKey: ['scheduleFilterData'],
       queryFn: fetchFilterData
+  });
+
+  const { data: activeAcademicYear } = useQuery({
+      queryKey: ['activeAcademicYear'],
+      queryFn: fetchActiveAcademicYear
   });
 
   const getDropdownData = () => {
@@ -115,6 +126,11 @@ function SchedulesPage() {
           Kelola dan lihat jadwal dari berbagai perspektif
         </p>
       </div>
+
+      {/* Active Schedule Toggle */}
+      {activeAcademicYear && (
+        <ActiveScheduleToggle academicYearId={activeAcademicYear.id} />
+      )}
 
       {/* Main Content */}
       <Card>

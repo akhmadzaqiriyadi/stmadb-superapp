@@ -190,6 +190,15 @@ export enum EmploymentStatus {
   GTT = "GTT",
 }
 
+// Active Schedule Week per Grade Level
+export interface ActiveScheduleWeek {
+  id: number;
+  grade_level: number; // 10, 11, 12
+  active_week_type: ScheduleType;
+  academic_year_id: number;
+  updated_at: string;
+}
+
 export interface Schedule {
   id: number;
   day_of_week: DayOfWeek;

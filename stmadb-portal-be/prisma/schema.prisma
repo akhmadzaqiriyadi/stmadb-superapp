@@ -103,16 +103,17 @@ model GuardianExtension {
 // ============== MODUL 2: STRUKTUR AKADEMIK & JADWAL ==============
 
 model AcademicYear {
-  id                  Int                 @id @default(autoincrement())
-  year                String              @unique
-  start_date          DateTime
-  end_date            DateTime
-  is_active           Boolean             @default(false)
-  class_memberships   ClassMember[]
-  teacher_assignments TeacherAssignment[]
-  schedules           Schedule[]
-  academic_weeks      AcademicWeek[]
-  special_events      SpecialEvent[]
+  id                   Int                    @id @default(autoincrement())
+  year                 String                 @unique
+  start_date           DateTime
+  end_date             DateTime
+  is_active            Boolean                @default(false)
+  class_memberships    ClassMember[]
+  teacher_assignments  TeacherAssignment[]
+  schedules            Schedule[]
+  academic_weeks       AcademicWeek[]
+  special_events       SpecialEvent[]
+  active_schedule_week ActiveScheduleWeek[]
   // routine_activities   RoutineActivity[] // DIHAPUS
 
   createdAt DateTime @default(now())
@@ -210,6 +211,17 @@ model SpecialEvent {
   end_date         DateTime     @db.Date
   academic_year_id Int
   academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+}
+
+model ActiveScheduleWeek {
+  id               Int          @id @default(autoincrement())
+  grade_level      Int          // 10, 11, 12 (untuk X, XI, XII)
+  active_week_type ScheduleType @default(Umum) // A, B, atau Umum
+  academic_year_id Int
+  academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+  updated_at       DateTime     @updatedAt
+  
+  @@unique([grade_level, academic_year_id])
 }
 
 model DutySchedule {

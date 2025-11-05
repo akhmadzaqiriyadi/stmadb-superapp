@@ -504,3 +504,73 @@ export const getSchedulesByRoom = async (req: Request, res: Response) => {
 //     res.status(500).json({ message: (error as Error).message });
 //   }
 // };
+
+
+// --- CONTROLLERS FOR ACTIVE SCHEDULE WEEK TOGGLE ---
+
+export const setActiveScheduleWeek = async (req: Request, res: Response) => {
+  try {
+    const { gradeLevel, weekType, academicYearId } = req.body;
+    
+    if (!gradeLevel || !weekType || !academicYearId) {
+      return res.status(400).json({ message: 'Grade level, week type, dan academic year ID dibutuhkan' });
+    }
+
+    // Validasi grade level (harus 10, 11, atau 12)
+    if (![10, 11, 12].includes(Number(gradeLevel))) {
+      return res.status(400).json({ message: 'Grade level harus 10, 11, atau 12' });
+    }
+
+    const result = await academicService.setActiveScheduleWeek(
+      Number(gradeLevel),
+      weekType,
+      Number(academicYearId)
+    );
+
+    res.status(200).json({ 
+      message: 'Jadwal aktif berhasil diatur', 
+      data: result 
+    });
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getActiveScheduleWeeks = async (req: Request, res: Response) => {
+  try {
+    const { academicYearId } = req.query;
+    
+    if (!academicYearId) {
+      return res.status(400).json({ message: 'Academic year ID dibutuhkan' });
+    }
+
+    const result = await academicService.getActiveScheduleWeeks(Number(academicYearId));
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getActiveScheduleWeekByGrade = async (req: Request, res: Response) => {
+  try {
+    const { gradeLevel } = req.params;
+    const { academicYearId } = req.query;
+    
+    if (!gradeLevel || !academicYearId) {
+      return res.status(400).json({ message: 'Grade level dan academic year ID dibutuhkan' });
+    }
+
+    const result = await academicService.getActiveScheduleWeekByGrade(
+      Number(gradeLevel),
+      Number(academicYearId)
+    );
+
+    if (!result) {
+      return res.status(404).json({ message: 'Pengaturan jadwal aktif tidak ditemukan' });
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};

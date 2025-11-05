@@ -5,10 +5,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Loader2, Clock, User, MapPin } from "lucide-react";
+import { Loader2, Clock, User, MapPin, Calendar } from "lucide-react";
 
 import api from "@/lib/axios";
-import { ProfileData, Schedule, DayOfWeek } from "@/types";
+import { ProfileData, Schedule, DayOfWeek, ActiveScheduleWeek, ScheduleType } from "@/types";
 
 // Fungsi untuk format waktu dari UTC
 const formatTime = (timeString: string | Date): string => {
@@ -20,7 +20,7 @@ const formatTime = (timeString: string | Date): string => {
 };
 
 const fetchTodayScheduleData = async (user: ProfileData | null) => {
-  if (!user) return [];
+  if (!user) return { schedules: [], activeWeek: null };
 
   const isStudent = user.roles.some(role => role.role_name === 'Student');
   const isTeacher = user.roles.some(role => role.role_name === 'Teacher');
@@ -28,11 +28,22 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
   let viewMode: 'class' | 'teacher' | null = null;
   let viewId: number | undefined;
   let academicYearId: number | undefined;
+  let gradeLevel: number | undefined;
 
   if (isStudent && user.currentClass) {
     viewMode = 'class';
     viewId = user.currentClass.id;
     academicYearId = (user.currentClass as any).academic_year_id;
+    
+    // Extract grade level dari nama kelas (misal: "X IPA 1" -> 10, "XI IPS 2" -> 11, "XII MIPA 3" -> 12)
+    const className = user.currentClass.class_name;
+    if (className.startsWith('X ') || className === 'X') {
+      gradeLevel = 10;
+    } else if (className.startsWith('XI ')) {
+      gradeLevel = 11;
+    } else if (className.startsWith('XII ')) {
+      gradeLevel = 12;
+    }
   } else if (isTeacher) {
     viewMode = 'teacher';
     viewId = user.id;
@@ -40,7 +51,7 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     academicYearId = activeYear.id;
   }
 
-  if (!viewMode || !viewId || !academicYearId) return [];
+  if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null };
 
   const currentDay = format(new Date(), 'EEEE', { locale: idLocale }) as DayOfWeek;
   
@@ -50,14 +61,40 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
 
   const endpoint = `/academics/schedules/${viewMode}/${viewId}`;
   
-  const { data: todaySchedules } = await api.get<Schedule[]>(endpoint, { 
+  const { data: allSchedules } = await api.get<Schedule[]>(endpoint, { 
     params: { 
       academicYearId,
       day: currentDay 
     } 
   });
+
+  // Fetch active schedule week untuk siswa
+  let activeWeek: ActiveScheduleWeek | null = null;
+  if (isStudent && gradeLevel) {
+    try {
+      const { data } = await api.get<ActiveScheduleWeek>(
+        `/academics/active-schedule-week/${gradeLevel}`,
+        { params: { academicYearId } }
+      );
+      activeWeek = data;
+    } catch (error) {
+      console.error('Failed to fetch active schedule week:', error);
+    }
+  }
+
+  // Filter schedules berdasarkan active week type (untuk siswa)
+  let filteredSchedules = allSchedules;
+  if (isStudent && activeWeek) {
+    filteredSchedules = allSchedules.filter(schedule => 
+      schedule.schedule_type === activeWeek.active_week_type || 
+      schedule.schedule_type === ScheduleType.Umum
+    );
+  }
   
-  return todaySchedules.sort((a, b) => a.start_time.localeCompare(b.start_time));
+  return {
+    schedules: filteredSchedules.sort((a, b) => a.start_time.localeCompare(b.start_time)),
+    activeWeek: activeWeek
+  };
 };
 
 export function TodaySchedule() {
@@ -66,7 +103,7 @@ export function TodaySchedule() {
       queryFn: async () => (await api.get('/users/me/profile')).data,
   });
 
-  const { data: schedules, isLoading } = useQuery({
+  const { data: result, isLoading } = useQuery({
     queryKey: ['todaySchedule', profile?.id],
     queryFn: () => fetchTodayScheduleData(profile || null),
     enabled: !!profile,
@@ -94,14 +131,45 @@ export function TodaySchedule() {
     </div>
   );
 
+  // Helper function to get schedule type label and color
+  const getScheduleTypeDisplay = (type: ScheduleType) => {
+    switch (type) {
+      case ScheduleType.A:
+        return { label: 'Minggu A', color: 'bg-blue-100 text-blue-700' };
+      case ScheduleType.B:
+        return { label: 'Minggu B', color: 'bg-green-100 text-green-700' };
+      case ScheduleType.Umum:
+        return { label: 'Umum', color: 'bg-purple-100 text-purple-700' };
+      default:
+        return { label: 'Umum', color: 'bg-gray-100 text-gray-700' };
+    }
+  };
+
+  const schedules = result === 'WEEKEND' ? 'WEEKEND' : result?.schedules || [];
+  const activeWeek = result !== 'WEEKEND' ? result?.activeWeek : null;
+
   return (
     <div className="bg-white rounded-xl border-2 border-[#FFCD6A]">
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">Jadwal Hari Ini</h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {format(new Date(), 'EEEE, dd MMM yyyy', { locale: idLocale })}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Jadwal Hari Ini</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {format(new Date(), 'EEEE, dd MMM yyyy', { locale: idLocale })}
+            </p>
+          </div>
+          
+          {/* Active Schedule Badge - Only for students */}
+          {isStudent && activeWeek && (
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-gray-400" />
+              <span className={`text-xs font-medium px-2 py-1 rounded-md ${getScheduleTypeDisplay(activeWeek.active_week_type).color}`}>
+                {getScheduleTypeDisplay(activeWeek.active_week_type).label}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -112,7 +180,7 @@ export function TodaySchedule() {
           renderEmptyState("Tidak ada jadwal")
         ) : (
           <div className="space-y-3">
-            {(schedules as Schedule[]).map((item) => (
+            {schedules.map((item) => (
               <div 
                 key={item.id} 
                 className="bg-gray-50 rounded-lg p-3 border border-gray-200"

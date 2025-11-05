@@ -1,25 +1,25 @@
 /* src/app/dashboard/leave-permits/[id]/print/print-layout.css */
 
-/* Mengatur gaya dasar untuk halaman cetak */
+/* === BASE STYLES === */
 @media screen {
     .print-container {
         max-width: 21cm; /* Lebar kertas A4 */
         min-height: 29.7cm; /* Tinggi kertas A4 */
         margin: 2rem auto;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        color: #000; /* Pastikan teks hitam untuk preview */
+        color: #000;
     }
 }
 
-/* Aturan khusus yang hanya berlaku saat browser mencetak */
+/* === PRINT MEDIA QUERY === */
 @media print {
-    /* Sembunyikan semua elemen di body kecuali container print kita */
+    /* Sembunyikan semua elemen kecuali print container */
     body * {
         visibility: hidden;
     }
     .print-container, .print-container * {
         visibility: visible;
-        color: #000 !important; /* Paksa teks jadi hitam saat cetak */
+        color: #000 !important;
     }
     .print-container {
         position: absolute;
@@ -27,76 +27,169 @@
         top: 0;
         width: 100%;
         margin: 0;
-        padding: 0;
+        padding: 1.5cm 2cm; /* Standard A4 margins */
         border: none;
         box-shadow: none;
     }
 
-    /* Sembunyikan tombol "Cetak Ulang" saat mencetak */
+    /* Sembunyikan tombol cetak */
     .print-only-hidden {
         display: none;
     }
 
-    /* Memastikan teks tidak terpotong antar halaman */
+    /* Prevent page breaks inside elements */
     p, table, h1, h2, h3, h4, div {
         page-break-inside: avoid;
     }
+    
+    /* Force page break before signatures if needed */
+    .signature-wrapper {
+        page-break-before: auto;
+    }
 }
 
-/* --- LAYOUT TANDA TANGAN SESUAI DOCX --- */
+/* === HEADER SECTION === */
+.print-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1rem;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 3px solid #000;
+    margin-bottom: 1.5rem;
+}
 
-/* Container untuk keseluruhan bagian tanda tangan */
+.print-header-text {
+    display: grid;
+    gap: 0.125rem;
+}
+
+/* === MAIN CONTENT SECTION === */
+.print-title {
+    text-align: center;
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    margin-bottom: 1.5rem;
+}
+
+.print-content {
+    display: grid;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+/* Student/Teacher Info Table */
+.info-table {
+    width: 100%;
+    margin: 0.5rem 0;
+}
+
+.info-table tr {
+    display: grid;
+    grid-template-columns: 5rem 1fr;
+    gap: 0.5rem;
+    padding: 0.125rem 0;
+}
+
+.info-table td {
+    align-self: start;
+}
+
+/* Reason section with dashed border */
+.reason-section {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+}
+
+.reason-dashed {
+    border-bottom: 1px dashed #000;
+    padding: 0.5rem 0;
+    min-height: 3rem;
+    font-style: italic;
+}
+
+/* === SIGNATURE SECTION === */
 .signature-wrapper {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 2rem;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-top: 2.5rem;
     page-break-inside: avoid;
 }
 
-/* Bagian kiri: Mengetahui (3 kolom) */
+/* Left side: Mengetahui (3 signatures) */
 .signature-left {
-    width: 65%;
+    display: grid;
+    gap: 0.5rem;
+}
+
+.signature-left-header {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
 }
 
 .signature-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
-    margin-top: 0.5rem;
 }
 
-/* Bagian kanan: Guru Piket (1 kolom) */
+/* Right side: Guru Piket (1 signature) */
 .signature-right {
-    width: 30%;
-    padding-left: 1rem;
+    display: grid;
+    gap: 0.5rem;
+    justify-items: center;
+}
+
+.signature-right-date {
+    font-size: 0.875rem;
+    text-align: center;
 }
 
 .signature-single {
-    display: flex;
-    flex-direction: column;
-    margin-top: 0.5rem;
+    display: grid;
+    width: 100%;
 }
 
-/* Styling untuk setiap blok tanda tangan */
+/* Individual signature block */
 .signature-block {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    gap: 0.25rem;
     text-align: center;
-    font-size: 0.75rem; /* 12px */
-    line-height: 1.2rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    justify-items: center;
 }
 
 .signature-block p {
-    margin: 0.15rem 0;
+    margin: 0;
 }
 
 .signature-spacer {
-    height: 4rem; /* Spasi untuk tanda tangan fisik */
+    height: 4rem; /* Space for physical signature */
+    width: 100%;
 }
 
-/* Styling untuk garis putus-putus di alasan */
-.reason-dashed {
-    border-bottom: 1px dashed #000;
-    padding-bottom: 0.5rem;
-    min-height: 3rem;
+.signature-name {
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.signature-nip {
+    font-size: 0.7rem;
+}
+
+/* === UTILITY CLASSES === */
+@media print {
+    .signature-wrapper {
+        margin-top: 2rem;
+    }
+    
+    .signature-grid {
+        gap: 0.75rem;
+    }
 }

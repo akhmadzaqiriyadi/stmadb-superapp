@@ -206,7 +206,9 @@ export function LeavePermitForm() {
         description: "Segera temui guru piket untuk verifikasi.",
       });
       queryClient.invalidateQueries({ queryKey: ["leavePermitHistory"] });
+      // Fix redirect untuk portal siswa
       router.push("/leave-permits");
+      router.refresh();
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Gagal membuat pengajuan.");

@@ -63,12 +63,27 @@ export default function LoginPage() {
 
       const roles = user.roles.map((role) => role.role_name);
 
-      if (roles.includes("Admin")) {
+      // Admin dan Piket ke dashboard
+      if (roles.includes("Admin") || roles.includes("Piket")) {
         router.push("/dashboard");
-      } else if (roles.includes("Teacher") || roles.includes("Student")) {
+      } 
+      // Guru (Teacher, WaliKelas, Waka, KepalaSekolah, Staff) ke dashboard
+      else if (
+        roles.includes("Teacher") || 
+        roles.includes("WaliKelas") || 
+        roles.includes("Waka") || 
+        roles.includes("KepalaSekolah") ||
+        roles.includes("Staff")
+      ) {
+        router.push("/dashboard");
+      } 
+      // Student ke home (portal)
+      else if (roles.includes("Student")) {
         router.push("/home");
-      } else {
-        router.push("/login");
+      } 
+      // Fallback ke dashboard untuk role lain
+      else {
+        router.push("/dashboard");
       }
     },
     onError: (error) => {

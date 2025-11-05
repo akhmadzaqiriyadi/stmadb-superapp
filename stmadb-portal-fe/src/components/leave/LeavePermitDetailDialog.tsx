@@ -3,7 +3,7 @@
 
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Loader2, CheckCircle2, XCircle, Clock, Check, Printer } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Check, Printer, Users } from "lucide-react";
 
 import { useAuthStore } from "@/store/authStore";
 import { LeavePermit, LeavePermitStatus, ApprovalStatus, UserRole, RequesterType } from "@/types";
@@ -102,18 +102,48 @@ export function LeavePermitDetailDialog({
                 <p className="text-sm text-gray-700">{permit.reason}</p>
             </div>
 
+            {/* Tampilkan anggota kelompok jika izin group untuk Guru/Admin/Piket/Waka/WaliKelas */}
+            {permit.leave_type === 'Group' && permit.group_members && permit.group_members.length > 0 && (
+              <div className="border rounded-lg p-3 bg-blue-50/50 border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm font-semibold text-blue-900">
+                    Anggota Kelompok ({permit.group_members.length} {isTeacherPermit ? 'guru' : 'siswa'})
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {permit.group_members.map((member, index) => (
+                    <div key={index} className="text-xs bg-white rounded px-2 py-1.5 border border-blue-100">
+                      <span className="text-gray-700">{index + 1}. {member}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <p className="text-sm font-medium mb-2">Alur Persetujuan:</p>
               <ul className="space-y-3">
                 {permit.approvals.map((approval) => {
                   const Icon = approvalStatusConfig[approval.status].icon;
                   return (
-                    <li key={approval.approver_role} className="flex items-center justify-between p-2 border-l-4 rounded bg-white border-gray-200">
-                      <div>
+                    <li key={approval.approver_role} className="flex items-start justify-between p-2 border-l-4 rounded bg-white border-gray-200">
+                      <div className="flex-1">
                         <p className="font-semibold text-sm">{approval.approver_role}</p>
                         <p className="text-xs text-gray-500">{approval.approver.profile.full_name}</p>
+                        {/* Show approval date/time for approved status */}
+                        {approval.status === ApprovalStatus.Approved && approval.updatedAt && (
+                          <p className="text-xs text-green-600 mt-1">
+                            Disetujui pada {format(new Date(approval.updatedAt), "dd MMM yyyy 'pukul' HH:mm", { locale: idLocale })}
+                          </p>
+                        )}
+                        {approval.status === ApprovalStatus.Rejected && approval.updatedAt && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Ditolak pada {format(new Date(approval.updatedAt), "dd MMM yyyy 'pukul' HH:mm", { locale: idLocale })}
+                          </p>
+                        )}
                       </div>
-                      <div className={cn("flex items-center gap-2 text-sm font-medium", approvalStatusConfig[approval.status].color)}>
+                      <div className={cn("flex items-center gap-2 text-sm font-medium flex-shrink-0", approvalStatusConfig[approval.status].color)}>
                         <Icon className="h-4 w-4" />
                         <span>{approvalStatusConfig[approval.status].label}</span>
                       </div>
@@ -152,11 +182,32 @@ export function LeavePermitDetailDialog({
             </DialogFooter>
         )}
         
-        {/* Info for teacher permits - no action needed */}
+        {/* Info for teacher permits - show approved by whom */}
         {permit && isTeacherPermit && permit.status === LeavePermitStatus.Approved && (
           <DialogFooter className="pt-4">
-            <div className="w-full text-center py-2 bg-green-50 rounded-lg border-2 border-green-200">
-              <p className="text-sm font-semibold text-green-700">✓ Izin Disetujui & Dapat Digunakan</p>
+            <div className="w-full space-y-2">
+              <div className="text-center py-2 bg-green-50 rounded-lg border-2 border-green-200">
+                <p className="text-sm font-semibold text-green-700">✓ Izin Disetujui & Dapat Digunakan</p>
+              </div>
+              {/* Show who approved and when */}
+              {(() => {
+                const approvedBy = permit.approvals.find(a => a.status === ApprovalStatus.Approved);
+                if (approvedBy) {
+                  return (
+                    <div className="text-center py-2 px-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs text-gray-700">
+                        Disetujui oleh <span className="font-semibold text-blue-700">{approvedBy.approver.profile.full_name}</span> ({approvedBy.approver_role})
+                      </p>
+                      {approvedBy.updatedAt && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          Pada {format(new Date(approvedBy.updatedAt), "EEEE, dd MMMM yyyy 'pukul' HH:mm", { locale: idLocale })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </DialogFooter>
         )}

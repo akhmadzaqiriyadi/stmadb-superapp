@@ -1371,4 +1371,151 @@ router.get('/schedules/room/:roomId', academicController.getSchedulesByRoom);
 //  */
 // router.get('/routine-activities', academicController.getRoutineActivities);
 
+
+// --- RUTE UNTUK TOGGLE JADWAL AKTIF PER JENJANG ---
+
+/**
+ * @openapi
+ * /academics/active-schedule-week:
+ *   post:
+ *     tags: [Academics - Schedule Settings]
+ *     summary: Set jadwal aktif untuk satu jenjang (X, XI, atau XII)
+ *     description: Admin dapat mengatur jadwal aktif (Minggu A, B, atau Umum) per jenjang kelas
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - gradeLevel
+ *               - weekType
+ *               - academicYearId
+ *             properties:
+ *               gradeLevel:
+ *                 type: integer
+ *                 enum: [10, 11, 12]
+ *                 description: Tingkat kelas (10=X, 11=XI, 12=XII)
+ *                 example: 12
+ *               weekType:
+ *                 type: string
+ *                 enum: [A, B, Umum]
+ *                 description: Tipe jadwal yang aktif
+ *                 example: "Umum"
+ *               academicYearId:
+ *                 type: integer
+ *                 description: ID tahun ajaran
+ *                 example: 1
+ *     responses:
+ *       200:
+ *         description: Jadwal aktif berhasil diatur
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Bad Request - Data tidak valid
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Hanya Admin yang bisa mengatur
+ *   get:
+ *     tags: [Academics - Schedule Settings]
+ *     summary: Get jadwal aktif untuk semua jenjang
+ *     description: Mendapatkan pengaturan jadwal aktif untuk semua jenjang (X, XI, XII)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID tahun ajaran
+ *     responses:
+ *       200:
+ *         description: Sukses mendapatkan pengaturan jadwal aktif
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   grade_level:
+ *                     type: integer
+ *                   active_week_type:
+ *                     type: string
+ *                   academic_year_id:
+ *                     type: integer
+ *                   updated_at:
+ *                     type: string
+ *                     format: date-time
+ *       400:
+ *         description: Bad Request
+ *       401:
+ *         description: Unauthorized
+ */
+router.route('/active-schedule-week')
+  .post(academicController.setActiveScheduleWeek)
+  .get(academicController.getActiveScheduleWeeks);
+
+/**
+ * @openapi
+ * /academics/active-schedule-week/{gradeLevel}:
+ *   get:
+ *     tags: [Academics - Schedule Settings]
+ *     summary: Get jadwal aktif untuk satu jenjang tertentu
+ *     description: Mendapatkan pengaturan jadwal aktif untuk jenjang tertentu (X, XI, atau XII)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: gradeLevel
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           enum: [10, 11, 12]
+ *         description: Tingkat kelas (10=X, 11=XI, 12=XII)
+ *       - in: query
+ *         name: academicYearId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID tahun ajaran
+ *     responses:
+ *       200:
+ *         description: Sukses mendapatkan pengaturan jadwal aktif
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 grade_level:
+ *                   type: integer
+ *                 active_week_type:
+ *                   type: string
+ *                 academic_year_id:
+ *                   type: integer
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
+ *       404:
+ *         description: Pengaturan tidak ditemukan
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/active-schedule-week/:gradeLevel', academicController.getActiveScheduleWeekByGrade);
+
 export default router;

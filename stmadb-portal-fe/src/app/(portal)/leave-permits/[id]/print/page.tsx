@@ -67,7 +67,7 @@ const fetchLeavePermitById = async (id: string): Promise<DetailedLeavePermit> =>
   return data;
 };
 
-// Komponen helper untuk blok Tanda Tangan
+// Signature Block Component
 const SignatureBlock = ({
   title,
   name,
@@ -79,10 +79,9 @@ const SignatureBlock = ({
 }) => (
   <div className="signature-block">
     <p>{title}</p>
-    <p>ttd</p>
     <div className="signature-spacer" />
-    <p className="font-bold underline">{name || "(_________________________)"}</p>
-    <p>NIP. {nip || "........................................."}</p>
+    <p className="signature-name">{name || "(_________________________)"}</p>
+    <p className="signature-nip">NIP. {nip || "........................................."}</p>
   </div>
 );
 
@@ -139,10 +138,16 @@ export default function PrintLeavePermitPage() {
 
   return (
     <div className="print-container bg-white p-8 text-black">
-      {/* --- KOP SURAT --- */}
-      <header className="flex items-center gap-4 border-b-[3px] border-black pb-2">
-        <Image src="/jateng.png" alt="Logo Sekolah" width={68} height={68} className="w-fit" />
-        <div className="text-left flex-1">
+      {/* === HEADER (KOP SURAT) === */}
+      <header className="print-header">
+        <Image 
+          src="/jateng.png" 
+          alt="Logo Sekolah" 
+          width={88} 
+          height={88} 
+          className="print-header-logo" 
+        />
+        <div className="print-header-text">
           <h1 className="text-xl font-bold uppercase">Pemerintah Provinsi Jawa Tengah</h1>
           <h2 className="text-xl font-bold uppercase">Dinas Pendidikan dan Kebudayaan</h2>
           <h3 className="text-xl font-bold uppercase">SEKOLAH MENENGAH KEJURUAN NEGERI 1 ADIWERNA</h3>
@@ -155,29 +160,30 @@ export default function PrintLeavePermitPage() {
         </div>
       </header>
       
-      {/* --- JUDUL SURAT --- */}
-      <main className="mt-6">
-        <h4 className="text-center text-lg font-bold underline decoration-2">SURAT IZIN KELUAR SEKOLAH</h4>
+      {/* === MAIN CONTENT === */}
+      <main>
+        {/* Title */}
+        <h4 className="print-title">SURAT IZIN KELUAR SEKOLAH</h4>
 
-        {/* --- ISI SURAT --- */}
-        <div className="mt-6 space-y-3 text-sm leading-relaxed">
+        {/* Content */}
+        <div className="print-content">
           <p>Yang bertanda tangan di bawah ini, a.n Kepala SMKN 1 Adiwerna memberikan izin kepada:</p>
           
-          {/* Tabel Nama dan Kelas */}
-          <table className="w-full max-w-lg">
+          {/* Student/Teacher Information */}
+          <table className="info-table">
             <tbody>
               <tr>
-                <td className="w-20 py-0.5 align-top">Nama</td>
-                <td className="align-top">: <strong>{allNames}</strong></td>
+                <td>Nama</td>
+                <td>: <strong>{allNames}</strong></td>
               </tr>
               <tr>
-                <td className="py-0.5 align-top">Kelas</td>
-                <td className="align-top">: <strong>{className}</strong></td>
+                <td>Kelas</td>
+                <td>: <strong>{className}</strong></td>
               </tr>
             </tbody>
           </table>
           
-          {/* Waktu dan Alasan Izin */}
+          {/* Time and Reason */}
           <p>
             Untuk meninggalkan lingkungan sekolah pada hari{" "}
             <strong>{format(new Date(permit.start_time), "EEEE, dd MMMM yyyy", { locale: idLocale })}</strong>, 
@@ -190,9 +196,11 @@ export default function PrintLeavePermitPage() {
             , dengan alasan:
           </p>
           
-          {/* Alasan dengan garis putus-putus */}
-          <div className="reason-dashed italic">
-            {permit.reason}
+          {/* Reason with dashed border */}
+          <div className="reason-section">
+            <div className="reason-dashed">
+              {permit.reason}
+            </div>
           </div>
           
           <p>
@@ -200,11 +208,11 @@ export default function PrintLeavePermitPage() {
           </p>
         </div>
 
-        {/* --- TANDA TANGAN (LAYOUT BARU SESUAI DOCX) --- */}
+        {/* === SIGNATURES === */}
         <div className="signature-wrapper">
-          {/* Kolom Kiri: Mengetahui (3 TTD) */}
+          {/* Left: Mengetahui (3 signatures) */}
           <div className="signature-left">
-            <p className="text-sm text-left">Mengetahui,</p>
+            <p className="signature-left-header">Mengetahui,</p>
             <div className="signature-grid">
               <SignatureBlock
                 title="Wakil Kepala Sekolah"
@@ -224,9 +232,9 @@ export default function PrintLeavePermitPage() {
             </div>
           </div>
 
-          {/* Kolom Kanan: Guru Piket */}
+          {/* Right: Guru Piket */}
           <div className="signature-right">
-            <p className="text-sm text-center">
+            <p className="signature-right-date">
               Adiwerna, {format(new Date(permit.start_time), "dd MMMM yyyy", { locale: idLocale })}
             </p>
             <div className="signature-single">
@@ -240,12 +248,12 @@ export default function PrintLeavePermitPage() {
         </div>
       </main>
 
-       {/* --- TOMBOL CETAK (HANYA MUNCUL DI LAYAR) --- */}
-       <div className="print-only-hidden mt-8 text-center">
-            <Button onClick={() => window.print()}>
-                <Printer className="mr-2 h-4 w-4" /> Cetak Ulang
-            </Button>
-       </div>
+      {/* === PRINT BUTTON (SCREEN ONLY) === */}
+      <div className="print-only-hidden mt-8 text-center">
+        <Button onClick={() => window.print()}>
+          <Printer className="mr-2 h-4 w-4" /> Cetak Ulang
+        </Button>
+      </div>
     </div>
   );
 }

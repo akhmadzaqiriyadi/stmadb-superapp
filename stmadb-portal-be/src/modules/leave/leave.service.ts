@@ -262,6 +262,7 @@ export const giveApproval = async (permitId: number, approver: any, data: any) =
   });
   if (!permit) throw new Error("Izin tidak ditemukan");
 
+  // Jika ada yang reject, langsung tolak
   if (status === ApprovalStatus.Rejected) {
     return prisma.leavePermit.update({
       where: { id: permitId },
@@ -269,11 +270,24 @@ export const giveApproval = async (permitId: number, approver: any, data: any) =
     });
   }
 
-  if (permit.approvals.every((a) => a.status === ApprovalStatus.Approved)) {
-    return prisma.leavePermit.update({
-      where: { id: permitId },
-      data: { status: LeavePermitStatus.Approved },
-    });
+  // Logika approval berbeda untuk Teacher vs Student
+  if (permit.requester_type === RequesterType.Teacher) {
+    // GURU: Cukup salah satu dari Waka atau KS yang approve
+    const hasApproval = permit.approvals.some((a) => a.status === ApprovalStatus.Approved);
+    if (hasApproval) {
+      return prisma.leavePermit.update({
+        where: { id: permitId },
+        data: { status: LeavePermitStatus.Approved },
+      });
+    }
+  } else {
+    // SISWA: Harus semua approver menyetujui
+    if (permit.approvals.every((a) => a.status === ApprovalStatus.Approved)) {
+      return prisma.leavePermit.update({
+        where: { id: permitId },
+        data: { status: LeavePermitStatus.Approved },
+      });
+    }
   }
 
   return permit;

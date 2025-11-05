@@ -109,6 +109,7 @@ export function TeacherLeavePermitForm() {
       });
       queryClient.invalidateQueries({ queryKey: ["leavePermitHistory"] });
       router.push("/dashboard/leave-permits");
+      router.refresh();
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Gagal membuat pengajuan.");
