@@ -136,15 +136,22 @@ const createStudentLeavePermit = async (requester: any, data: any) => {
   }
 
   const subjectTeacherId = relevantSchedule.assignment.teacher_user_id;
-  const wakaUser = await prisma.user.findFirst({
+  
+  // --- PERBAIKAN: Ambil SEMUA user dengan role Waka, bukan hanya satu ---
+  const wakaUsers = await prisma.user.findMany({
     where: { roles: { some: { role_name: "Waka" } } },
   });
-  if (!wakaUser) throw new Error("User dengan role 'Waka' tidak ditemukan.");
+  if (wakaUsers.length === 0) throw new Error("User dengan role 'Waka' tidak ditemukan.");
 
+  // Buat approval untuk SETIAP Waka yang ada
   const potentialApprovers = [
     { approver_user_id: homeroomTeacherId, approver_role: "WaliKelas" },
     { approver_user_id: subjectTeacherId, approver_role: "GuruMapel" },
-    { approver_user_id: wakaUser.id, approver_role: "WakaKesiswaan" },
+    // Tambahkan semua Waka sebagai approver
+    ...wakaUsers.map(waka => ({ 
+      approver_user_id: waka.id, 
+      approver_role: "WakaKesiswaan" 
+    })),
   ];
 
   // Gunakan kombinasi user_id + role sebagai key untuk menghindari role tertimpa
@@ -182,22 +189,29 @@ const createTeacherLeavePermit = async (requester: any, data: any) => {
   const { reason, start_time, estimated_return } = data;
   const leaveStartDate = new Date(start_time);
 
-  // Cari Waka
-  const wakaUser = await prisma.user.findFirst({
+  // --- PERBAIKAN: Ambil SEMUA Waka, bukan hanya satu ---
+  const wakaUsers = await prisma.user.findMany({
     where: { roles: { some: { role_name: "Waka" } } },
   });
-  if (!wakaUser) throw new Error("User dengan role 'Waka' tidak ditemukan.");
+  if (wakaUsers.length === 0) throw new Error("User dengan role 'Waka' tidak ditemukan.");
 
-  // Cari Kepala Sekolah
-  const kepalaSekolahUser = await prisma.user.findFirst({
+  // --- PERBAIKAN: Ambil SEMUA Kepala Sekolah, bukan hanya satu ---
+  const kepalaSekolahUsers = await prisma.user.findMany({
     where: { roles: { some: { role_name: "KepalaSekolah" } } },
   });
-  if (!kepalaSekolahUser) throw new Error("User dengan role 'KepalaSekolah' tidak ditemukan.");
+  if (kepalaSekolahUsers.length === 0) throw new Error("User dengan role 'KepalaSekolah' tidak ditemukan.");
 
   // Guru selalu Individual, tidak ada group
+  // Buat approval untuk SETIAP Waka dan KS yang ada
   const approvers = [
-    { approver_user_id: wakaUser.id, approver_role: "Waka" },
-    { approver_user_id: kepalaSekolahUser.id, approver_role: "KepalaSekolah" },
+    ...wakaUsers.map(waka => ({ 
+      approver_user_id: waka.id, 
+      approver_role: "Waka" 
+    })),
+    ...kepalaSekolahUsers.map(ks => ({ 
+      approver_user_id: ks.id, 
+      approver_role: "KepalaSekolah" 
+    })),
   ];
 
   // Deduplikasi jika Waka dan KS adalah orang yang sama

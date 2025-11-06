@@ -2,13 +2,15 @@
 
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from 'date-fns/locale';
-import { Loader2, AlertCircle, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, AlertCircle, Clock, CheckCircle, XCircle, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
-import { LeavePermit, LeavePermitStatus } from "@/types";
+import { LeavePermit, LeavePermitStatus, ApprovalStatus, RequesterType } from "@/types";
 import { cn } from "@/lib/utils";
+import { LeavePermitDetailDialog } from "./LeavePermitDetailDialog";
 
 const fetchMyLeavePermits = async (): Promise<LeavePermit[]> => {
   const { data } = await api.get('/leave-permits/me');
@@ -61,10 +63,18 @@ const statusConfig = {
 };
 
 export function LeavePermitHistory() {
+  const [selectedPermit, setSelectedPermit] = useState<LeavePermit | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  
   const { data: permits, isLoading, isError, error } = useQuery<LeavePermit[], Error>({
     queryKey: ['leavePermitHistory'],
     queryFn: fetchMyLeavePermits,
   });
+
+  const handleViewDetail = (permit: LeavePermit) => {
+    setSelectedPermit(permit);
+    setIsDetailOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -103,41 +113,82 @@ export function LeavePermitHistory() {
   }
 
   return (
-    <div className="space-y-3 p-4">
-      {permits.map(permit => {
-        const status = statusConfig[permit.status];
-        const StatusIcon = status.icon;
-        
-        return (
-          <div 
-            key={permit.id} 
-            className="bg-gradient-to-br from-white to-[#9CBEFE]/5 border-2 border-[#FFCD6A]/30 rounded-2xl p-4 hover:shadow-lg hover:border-[#FFCD6A]/50 transition-all duration-200 hover:scale-[1.01]"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-base font-bold text-[#44409D]">
-                    {format(new Date(permit.start_time), "EEEE, dd MMM yyyy", { locale: idLocale })}
+    <>
+      <div className="space-y-3 p-4">
+        {permits.map(permit => {
+          const status = statusConfig[permit.status];
+          const StatusIcon = status.icon;
+          const isTeacher = permit.requester_type === RequesterType.Teacher;
+          
+          // Get approval info for approved/rejected permits
+          const approvedBy = permit.approvals?.find(a => a.status === ApprovalStatus.Approved);
+          const rejectedBy = permit.approvals?.find(a => a.status === ApprovalStatus.Rejected);
+          
+          return (
+            <button 
+              key={permit.id}
+              onClick={() => handleViewDetail(permit)}
+              className="w-full text-left bg-gradient-to-br from-white to-[#9CBEFE]/5 border-2 border-[#FFCD6A]/30 rounded-2xl p-4 hover:shadow-lg hover:border-[#FFCD6A]/50 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-bold text-[#44409D]">
+                      {format(new Date(permit.start_time), "EEEE, dd MMM yyyy", { locale: idLocale })}
+                    </p>
+                    {isTeacher && (
+                      <span className="text-xs font-semibold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md">
+                        Guru
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
+                    {permit.reason}
                   </p>
+                  
+                  {/* Approval Info */}
+                  {permit.status === LeavePermitStatus.Approved && approvedBy && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                      <p className="text-xs text-green-700">
+                        Disetujui oleh <span className="font-semibold">{approvedBy.approver.profile.full_name}</span>
+                      </p>
+                    </div>
+                  )}
+                  
+                  {permit.status === LeavePermitStatus.Rejected && rejectedBy && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <XCircle className="h-3.5 w-3.5 text-red-600" />
+                      <p className="text-xs text-red-700">
+                        Ditolak oleh <span className="font-semibold">{rejectedBy.approver.profile.full_name}</span>
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">
-                  {permit.reason}
-                </p>
+                
+                <div className="flex items-center gap-2">
+                  <div className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap border-2 shadow-sm",
+                    status.bg,
+                    status.color,
+                    status.border
+                  )}>
+                    <StatusIcon className="h-4 w-4" strokeWidth={2.5} />
+                    <span>{status.label}</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
               </div>
-              
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap border-2 shadow-sm",
-                status.bg,
-                status.color,
-                status.border
-              )}>
-                <StatusIcon className="h-4 w-4" strokeWidth={2.5} />
-                <span>{status.label}</span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <LeavePermitDetailDialog
+        isOpen={isDetailOpen}
+        setIsOpen={setIsDetailOpen}
+        permit={selectedPermit}
+      />
+    </>
   );
 }

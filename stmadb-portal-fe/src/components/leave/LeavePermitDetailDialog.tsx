@@ -4,7 +4,9 @@
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { Loader2, CheckCircle2, XCircle, Clock, Check, Printer, Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
+import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { LeavePermit, LeavePermitStatus, ApprovalStatus, UserRole, RequesterType } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -39,6 +41,11 @@ interface LeavePermitDetailDialogProps {
   isPrinting?: boolean;
 }
 
+const fetchLeavePermitDetail = async (permitId: number): Promise<LeavePermit> => {
+  const { data } = await api.get(`/leave-permits/${permitId}`);
+  return data;
+};
+
 export function LeavePermitDetailDialog({
   permit,
   isOpen,
@@ -50,7 +57,17 @@ export function LeavePermitDetailDialog({
 }: LeavePermitDetailDialogProps) {
   const { user } = useAuthStore();
   const isPiket = user?.roles.some((role: UserRole) => role.role_name === "Piket" || role.role_name === "Admin");
-  const isTeacherPermit = permit?.requester_type === RequesterType.Teacher;
+  
+  // Fetch detailed permit data when dialog opens
+  const { data: detailedPermit, isLoading: isLoadingDetail } = useQuery<LeavePermit, Error>({
+    queryKey: ['leavePermitDetail', permit?.id],
+    queryFn: () => fetchLeavePermitDetail(permit!.id),
+    enabled: isOpen && !!permit?.id,
+  });
+  
+  // Use detailed permit if available, fallback to the passed permit
+  const displayPermit = detailedPermit || permit;
+  const isTeacherPermit = displayPermit?.requester_type === RequesterType.Teacher;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -62,14 +79,14 @@ export function LeavePermitDetailDialog({
           </DialogDescription>
         </DialogHeader>
         
-        {!permit ? (
+        {!displayPermit || isLoadingDetail ? (
             <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : (
           <div className="space-y-4 pt-2">
             <div className="flex justify-between items-start">
                 <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold">{permit.requester.profile.full_name}</p>
+                      <p className="font-semibold">{displayPermit.requester.profile.full_name}</p>
                       <Badge className={cn("font-semibold text-xs", 
                         isTeacherPermit 
                           ? "bg-purple-100 text-purple-800" 
@@ -79,11 +96,11 @@ export function LeavePermitDetailDialog({
                       </Badge>
                     </div>
                     <p className="text-sm text-gray-500">
-                        {format(new Date(permit.start_time), "EEEE, dd MMMM yyyy 'pukul' HH:mm", { locale: idLocale })}
+                        {format(new Date(displayPermit.start_time), "EEEE, dd MMMM yyyy 'pukul' HH:mm", { locale: idLocale })}
                     </p>
                 </div>
-                <Badge className={cn("font-semibold", statusConfig[permit.status]?.color || "bg-gray-100 text-gray-800")}>
-                    {statusConfig[permit.status]?.label || permit.status}
+                <Badge className={cn("font-semibold", statusConfig[displayPermit.status]?.color || "bg-gray-100 text-gray-800")}>
+                    {statusConfig[displayPermit.status]?.label || displayPermit.status}
                 </Badge>
             </div>
 
@@ -99,20 +116,20 @@ export function LeavePermitDetailDialog({
             
             <div className="border rounded-lg p-3 bg-gray-50/50">
                 <p className="text-sm font-medium">Alasan:</p>
-                <p className="text-sm text-gray-700">{permit.reason}</p>
+                <p className="text-sm text-gray-700">{displayPermit.reason}</p>
             </div>
 
             {/* Tampilkan anggota kelompok jika izin group untuk Guru/Admin/Piket/Waka/WaliKelas */}
-            {permit.leave_type === 'Group' && permit.group_members && permit.group_members.length > 0 && (
+            {displayPermit.leave_type === 'Group' && displayPermit.group_members && displayPermit.group_members.length > 0 && (
               <div className="border rounded-lg p-3 bg-blue-50/50 border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-blue-600" />
                   <p className="text-sm font-semibold text-blue-900">
-                    Anggota Kelompok ({permit.group_members.length} {isTeacherPermit ? 'guru' : 'siswa'})
+                    Anggota Kelompok ({displayPermit.group_members.length} {isTeacherPermit ? 'guru' : 'siswa'})
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {permit.group_members.map((member, index) => (
+                  {displayPermit.group_members.map((member, index) => (
                     <div key={index} className="text-xs bg-white rounded px-2 py-1.5 border border-blue-100">
                       <span className="text-gray-700">{index + 1}. {member}</span>
                     </div>
@@ -124,10 +141,10 @@ export function LeavePermitDetailDialog({
             <div>
               <p className="text-sm font-medium mb-2">Alur Persetujuan:</p>
               <ul className="space-y-3">
-                {permit.approvals.map((approval) => {
+                {displayPermit.approvals.map((approval, idx) => {
                   const Icon = approvalStatusConfig[approval.status].icon;
                   return (
-                    <li key={approval.approver_role} className="flex items-start justify-between p-2 border-l-4 rounded bg-white border-gray-200">
+                    <li key={`${approval.approver_role}-${idx}`} className="flex items-start justify-between p-2 border-l-4 rounded bg-white border-gray-200">
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{approval.approver_role}</p>
                         <p className="text-xs text-gray-500">{approval.approver.profile.full_name}</p>
@@ -156,23 +173,23 @@ export function LeavePermitDetailDialog({
         )}
         
         {/* Only show piket actions for STUDENT permits */}
-        {isPiket && permit && !isTeacherPermit && (
+        {isPiket && displayPermit && !isTeacherPermit && (
             <DialogFooter className="pt-4">
-                {permit.status === LeavePermitStatus.WaitingForPiket && onStartApproval && (
-                    <Button onClick={() => onStartApproval(permit.id)} disabled={isStartingApproval} className="w-full">
+                {displayPermit.status === LeavePermitStatus.WaitingForPiket && onStartApproval && (
+                    <Button onClick={() => onStartApproval(displayPermit.id)} disabled={isStartingApproval} className="w-full">
                         <Check className="mr-2 h-4 w-4" />
                         {isStartingApproval ? 'Memproses...' : 'Mulai Proses Persetujuan'}
                     </Button>
                 )}
-                {permit.status === LeavePermitStatus.Approved && onPrint && (
-                     <Button onClick={() => onPrint(permit.id)} disabled={isPrinting} className="w-full">
+                {displayPermit.status === LeavePermitStatus.Approved && onPrint && (
+                     <Button onClick={() => onPrint(displayPermit.id)} disabled={isPrinting} className="w-full">
                         <Printer className="mr-2 h-4 w-4" />
                         {isPrinting ? 'Memfinalisasi...' : 'Finalisasi & Cetak Izin'}
                     </Button>
                 )}
-                {(permit.status === LeavePermitStatus.Completed || permit.status === LeavePermitStatus.Printed) && (
+                {(displayPermit.status === LeavePermitStatus.Completed || displayPermit.status === LeavePermitStatus.Printed) && (
                      <Button 
-                        onClick={() => window.open(`/leave-permits/${permit.id}/print`, '_blank')}
+                        onClick={() => window.open(`/leave-permits/${displayPermit.id}/print`, '_blank')}
                         className="w-full"
                      >
                         <Printer className="mr-2 h-4 w-4" />
@@ -183,7 +200,7 @@ export function LeavePermitDetailDialog({
         )}
         
         {/* Info for teacher permits - show approved by whom */}
-        {permit && isTeacherPermit && permit.status === LeavePermitStatus.Approved && (
+        {displayPermit && isTeacherPermit && displayPermit.status === LeavePermitStatus.Approved && (
           <DialogFooter className="pt-4">
             <div className="w-full space-y-2">
               <div className="text-center py-2 bg-green-50 rounded-lg border-2 border-green-200">
@@ -191,7 +208,7 @@ export function LeavePermitDetailDialog({
               </div>
               {/* Show who approved and when */}
               {(() => {
-                const approvedBy = permit.approvals.find(a => a.status === ApprovalStatus.Approved);
+                const approvedBy = displayPermit.approvals.find(a => a.status === ApprovalStatus.Approved);
                 if (approvedBy) {
                   return (
                     <div className="text-center py-2 px-3 bg-blue-50 rounded-lg border border-blue-200">

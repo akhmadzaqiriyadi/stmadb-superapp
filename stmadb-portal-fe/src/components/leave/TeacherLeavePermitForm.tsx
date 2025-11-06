@@ -108,7 +108,8 @@ export function TeacherLeavePermitForm() {
         description: "Menunggu persetujuan dari Waka dan Kepala Sekolah.",
       });
       queryClient.invalidateQueries({ queryKey: ["leavePermitHistory"] });
-      router.push("/dashboard/leave-permits");
+      // Redirect ke halaman riwayat izin di portal, bukan dashboard
+      router.push("/leave-permits");
       router.refresh();
     },
     onError: (error: any) => {

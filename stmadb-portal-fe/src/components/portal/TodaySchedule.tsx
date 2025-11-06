@@ -49,6 +49,10 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     viewId = user.id;
     const { data: activeYear } = await api.get('/academics/academic-years/active');
     academicYearId = activeYear.id;
+    
+    // Untuk guru, kita perlu mengambil active week dari salah satu grade level
+    // Misalnya grade 10, karena biasanya settingan minggu A/B sama untuk semua grade
+    gradeLevel = 10;
   }
 
   if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null };
@@ -68,9 +72,9 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     } 
   });
 
-  // Fetch active schedule week untuk siswa
+  // Fetch active schedule week untuk siswa DAN guru
   let activeWeek: ActiveScheduleWeek | null = null;
-  if (isStudent && gradeLevel) {
+  if (gradeLevel) {
     try {
       const { data } = await api.get<ActiveScheduleWeek>(
         `/academics/active-schedule-week/${gradeLevel}`,
@@ -82,9 +86,9 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     }
   }
 
-  // Filter schedules berdasarkan active week type (untuk siswa)
+  // Filter schedules berdasarkan active week type (untuk siswa DAN guru)
   let filteredSchedules = allSchedules;
-  if (isStudent && activeWeek) {
+  if (activeWeek) {
     filteredSchedules = allSchedules.filter(schedule => 
       schedule.schedule_type === activeWeek.active_week_type || 
       schedule.schedule_type === ScheduleType.Umum
@@ -111,6 +115,7 @@ export function TodaySchedule() {
 
   const isLoadingOverall = isLoading || isLoadingProfile;
   const isStudent = profile?.roles.some(role => role.role_name === 'Student');
+  const isTeacher = profile?.roles.some(role => role.role_name === 'Teacher');
 
   if (isLoadingOverall) {
     return (
@@ -160,8 +165,8 @@ export function TodaySchedule() {
             </p>
           </div>
           
-          {/* Active Schedule Badge - Only for students */}
-          {isStudent && activeWeek && (
+          {/* Active Schedule Badge - For both students and teachers */}
+          {(isStudent || isTeacher) && activeWeek && (
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-gray-400" />
               <span className={`text-xs font-medium px-2 py-1 rounded-md ${getScheduleTypeDisplay(activeWeek.active_week_type).color}`}>
