@@ -86,7 +86,7 @@ export function LeavePermitDetailDialog({
             <div className="flex justify-between items-start">
                 <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold">{displayPermit.requester.profile.full_name}</p>
+                      <p className="font-semibold">{displayPermit.requester?.profile?.full_name || 'Nama tidak tersedia'}</p>
                       <Badge className={cn("font-semibold text-xs", 
                         isTeacherPermit 
                           ? "bg-purple-100 text-purple-800" 
@@ -120,7 +120,7 @@ export function LeavePermitDetailDialog({
             </div>
 
             {/* Tampilkan anggota kelompok jika izin group untuk Guru/Admin/Piket/Waka/WaliKelas */}
-            {displayPermit.leave_type === 'Group' && displayPermit.group_members && displayPermit.group_members.length > 0 && (
+            {displayPermit.leave_type === 'Group' && displayPermit.group_members && Array.isArray(displayPermit.group_members) && displayPermit.group_members.length > 0 && (
               <div className="border rounded-lg p-3 bg-blue-50/50 border-blue-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-blue-600" />
@@ -141,13 +141,14 @@ export function LeavePermitDetailDialog({
             <div>
               <p className="text-sm font-medium mb-2">Alur Persetujuan:</p>
               <ul className="space-y-3">
-                {displayPermit.approvals.map((approval, idx) => {
-                  const Icon = approvalStatusConfig[approval.status].icon;
+                {displayPermit.approvals?.map((approval, idx) => {
+                  const statusInfo = approvalStatusConfig[approval.status as ApprovalStatus] || approvalStatusConfig[ApprovalStatus.Pending];
+                  const Icon = statusInfo.icon;
                   return (
                     <li key={`${approval.approver_role}-${idx}`} className="flex items-start justify-between p-2 border-l-4 rounded bg-white border-gray-200">
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{approval.approver_role}</p>
-                        <p className="text-xs text-gray-500">{approval.approver.profile.full_name}</p>
+                        <p className="text-xs text-gray-500">{approval.approver?.profile?.full_name || 'Nama tidak tersedia'}</p>
                         {/* Show approval date/time for approved status */}
                         {approval.status === ApprovalStatus.Approved && approval.updatedAt && (
                           <p className="text-xs text-green-600 mt-1">
@@ -160,9 +161,9 @@ export function LeavePermitDetailDialog({
                           </p>
                         )}
                       </div>
-                      <div className={cn("flex items-center gap-2 text-sm font-medium flex-shrink-0", approvalStatusConfig[approval.status].color)}>
+                      <div className={cn("flex items-center gap-2 text-sm font-medium flex-shrink-0", statusInfo.color)}>
                         <Icon className="h-4 w-4" />
-                        <span>{approvalStatusConfig[approval.status].label}</span>
+                        <span>{statusInfo.label}</span>
                       </div>
                     </li>
                   )
@@ -208,8 +209,8 @@ export function LeavePermitDetailDialog({
               </div>
               {/* Show who approved and when */}
               {(() => {
-                const approvedBy = displayPermit.approvals.find(a => a.status === ApprovalStatus.Approved);
-                if (approvedBy) {
+                const approvedBy = displayPermit.approvals?.find(a => a.status === ApprovalStatus.Approved);
+                if (approvedBy && approvedBy.approver?.profile?.full_name) {
                   return (
                     <div className="text-center py-2 px-3 bg-blue-50 rounded-lg border border-blue-200">
                       <p className="text-xs text-gray-700">

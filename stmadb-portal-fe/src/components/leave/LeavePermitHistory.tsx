@@ -147,7 +147,7 @@ export function LeavePermitHistory() {
                   </p>
                   
                   {/* Approval Info */}
-                  {permit.status === LeavePermitStatus.Approved && approvedBy && (
+                  {permit.status === LeavePermitStatus.Approved && approvedBy && approvedBy.approver?.profile?.full_name && (
                     <div className="flex items-center gap-2 pt-1">
                       <CheckCircle className="h-3.5 w-3.5 text-green-600" />
                       <p className="text-xs text-green-700">
@@ -156,7 +156,7 @@ export function LeavePermitHistory() {
                     </div>
                   )}
                   
-                  {permit.status === LeavePermitStatus.Rejected && rejectedBy && (
+                  {permit.status === LeavePermitStatus.Rejected && rejectedBy && rejectedBy.approver?.profile?.full_name && (
                     <div className="flex items-center gap-2 pt-1">
                       <XCircle className="h-3.5 w-3.5 text-red-600" />
                       <p className="text-xs text-red-700">

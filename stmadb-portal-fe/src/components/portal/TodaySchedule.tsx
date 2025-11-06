@@ -50,8 +50,8 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     const { data: activeYear } = await api.get('/academics/academic-years/active');
     academicYearId = activeYear.id;
     
-    // Untuk guru, kita perlu mengambil active week dari salah satu grade level
-    // Misalnya grade 10, karena biasanya settingan minggu A/B sama untuk semua grade
+    // Untuk guru, coba ambil active week dari grade 10, 11, atau 12 (mana yang ada datanya)
+    // Karena biasanya settingan minggu A/B sama untuk semua grade
     gradeLevel = 10;
   }
 
@@ -75,18 +75,32 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
   // Fetch active schedule week untuk siswa DAN guru
   let activeWeek: ActiveScheduleWeek | null = null;
   if (gradeLevel) {
-    try {
-      const { data } = await api.get<ActiveScheduleWeek>(
-        `/academics/active-schedule-week/${gradeLevel}`,
-        { params: { academicYearId } }
-      );
-      activeWeek = data;
-    } catch (error) {
-      console.error('Failed to fetch active schedule week:', error);
+    // Untuk guru, coba beberapa grade level (10, 11, 12) sampai menemukan yang ada
+    const gradeLevelsToTry = isTeacher ? [10, 11, 12] : [gradeLevel];
+    
+    for (const gl of gradeLevelsToTry) {
+      try {
+        const { data } = await api.get<ActiveScheduleWeek>(
+          `/academics/active-schedule-week/${gl}`,
+          { params: { academicYearId } }
+        );
+        activeWeek = data;
+        break; // Jika berhasil, stop looping
+      } catch (error: any) {
+        // Jika 404 (data belum diset) dan masih ada grade level lain untuk dicoba, lanjut
+        if (error.response?.status === 404 && gl !== gradeLevelsToTry[gradeLevelsToTry.length - 1]) {
+          continue;
+        }
+        // Jika error lain atau sudah grade terakhir, abaikan
+        if (error.response?.status !== 404) {
+          console.error('Failed to fetch active schedule week:', error);
+        }
+      }
     }
   }
 
   // Filter schedules berdasarkan active week type (untuk siswa DAN guru)
+  // Jika activeWeek null (belum ada setting), tampilkan semua jadwal
   let filteredSchedules = allSchedules;
   if (activeWeek) {
     filteredSchedules = allSchedules.filter(schedule => 
