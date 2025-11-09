@@ -6,6 +6,7 @@ import authRoutes from './modules/auth/auth.route.js';
 import userRoutes from './modules/users/users.route.js';
 import academicRoutes from './modules/academics/academics.route.js';
 import leaveRoutes from './modules/leave/leave.route.js';
+import counselingRoutes from './modules/counseling/counseling.route.js';
 
 // Impor swagger
 import swaggerUi from 'swagger-ui-express';
@@ -50,6 +51,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/academics', academicRoutes);
 app.use('/api/v1/leave-permits', leaveRoutes);
+app.use('/api/v1/counseling', counselingRoutes);
 
 
 export default app;

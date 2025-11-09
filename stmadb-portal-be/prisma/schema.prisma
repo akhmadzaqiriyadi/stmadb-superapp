@@ -42,6 +42,9 @@ model User {
   leave_permits_approved  LeaveApproval[] @relation("Approver")
   leave_permits_printed   LeavePermit[] @relation("PrintedBy")
 
+  counseling_tickets_as_student    CounselingTicket[] @relation("StudentCounseling")
+  counseling_tickets_as_counselor  CounselingTicket[] @relation("CounselorTickets")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -363,4 +366,36 @@ model LeaveApproval {
 
   @@unique([leave_permit_id, approver_user_id])
   @@index([approver_user_id])
+}
+
+// ============== MODUL 4: E-COUNSELING ==============
+
+enum CounselingTicketStatus {
+  OPEN
+  PROSES
+  DITOLAK
+  CLOSE
+}
+
+model CounselingTicket {
+  id                    Int                     @id @default(autoincrement())
+  ticket_number         String                  @unique // Format: EC-2025-0001
+  student_user_id       Int
+  student               User                    @relation("StudentCounseling", fields: [student_user_id], references: [id])
+  counselor_user_id     Int
+  counselor             User                    @relation("CounselorTickets", fields: [counselor_user_id], references: [id])
+  preferred_date        DateTime                @db.Date
+  preferred_time        DateTime                @db.Time
+  problem_description   String                  @db.Text
+  status                CounselingTicketStatus  @default(OPEN)
+  confirmed_schedule    DateTime?               @db.Timestamp()
+  rejection_reason      String?                 @db.Text
+  counseling_notes      String?                 @db.Text
+  completion_notes      String?                 @db.Text
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@index([student_user_id])
+  @@index([counselor_user_id])
+  @@index([status])
 }

@@ -4,7 +4,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, User, BookOpenText, CheckSquare } from "lucide-react";
+import { Home, Calendar, User, BookOpenText, CheckSquare, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
@@ -14,6 +14,7 @@ const navigationMenuItems = [
   { href: "/schedule", label: "Jadwal", icon: Calendar },
   { href: "/approvals", label: "Persetujuan", icon: CheckSquare, roles: ["Teacher", "WaliKelas", "Waka", "KepalaSekolah"] },
   { href: "/portal/journal", label: "Jurnal", icon: BookOpenText, roles: ["Teacher"] },
+  { href: "/counseling", label: "Konseling", icon: MessageCircle, roles: ["Siswa", "Student", "BK", "Guru BK", "Konselor"] },
   { href: "/home", label: "Beranda", icon: Home, isCentral: true },
   { href: "/profile", label: "Profil", icon: User },
 ];

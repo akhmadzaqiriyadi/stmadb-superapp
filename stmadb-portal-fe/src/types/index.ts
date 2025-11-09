@@ -348,3 +348,72 @@ export interface LeavePermitsApiResponse {
   page: number;
   totalPages: number;
 }
+
+// ============== TIPE UNTUK FITUR E-COUNSELING ==============
+
+export enum CounselingTicketStatus {
+  OPEN = "OPEN",
+  PROSES = "PROSES",
+  DITOLAK = "DITOLAK",
+  CLOSE = "CLOSE",
+}
+
+export interface CounselingTicket {
+  id: number;
+  ticket_number: string; // Format: EC-2025-0001
+  student_user_id: number;
+  student: {
+    id: number;
+    profile: {
+      full_name: string;
+    };
+    student_extension?: {
+      nisn?: string | null;
+      slim_id?: string | null;
+    } | null;
+  };
+  counselor_user_id: number;
+  counselor: {
+    id: number;
+    profile: {
+      full_name: string;
+    };
+  };
+  preferred_date: string;
+  preferred_time: string;
+  problem_description: string;
+  status: CounselingTicketStatus;
+  confirmed_schedule?: string | null;
+  rejection_reason?: string | null;
+  counseling_notes?: string | null;
+  completion_notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CounselingTicketsApiResponse {
+  data: CounselingTicket[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface CounselingStatistics {
+  total: number;
+  open: number;
+  inProgress: number;
+  closed: number;
+  rejected: number;
+}
+
+export interface Counselor {
+  id: number;
+  email: string;
+  profile: {
+    full_name: string;
+    photo_url?: string | null;
+  };
+}

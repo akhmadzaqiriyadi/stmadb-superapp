@@ -329,7 +329,10 @@ export function UserForm({ initialData, onSubmit, isPending, availableRoles }: U
           selectedRoleNames.includes('Piket') ||
           selectedRoleNames.includes('Waka') ||
           selectedRoleNames.includes('WaliKelas') ||
-          selectedRoleNames.includes('KepalaSekolah')
+          selectedRoleNames.includes('KepalaSekolah') ||
+          selectedRoleNames.includes('BK') ||
+          selectedRoleNames.includes('Guru BK') ||
+          selectedRoleNames.includes('Konselor')
         ) && (
             <div className="p-3 border rounded-md space-y-4 bg-gray-50/70">
                 {/* Ganti judulnya agar lebih umum */}

@@ -12,7 +12,7 @@ async function main() {
   console.log('Memastikan semua role tersedia...');
   const rolesToCreate = [
     'Admin', 'Teacher', 'Student', 'Staff', 'KepalaSekolah',
-    'Waka', 'TU', 'Piket', 'WaliKelas', 'Guardian'
+    'Waka', 'TU', 'Piket', 'WaliKelas', 'Guardian', 'BK', 'Guru BK', 'Konselor'
   ];
   for (const roleName of rolesToCreate) {
     await prisma.role.upsert({ where: { role_name: roleName }, update: {}, create: { role_name: roleName } });
@@ -299,6 +299,37 @@ async function main() {
   //   }
   //   console.log('Data aktivitas rutin berhasil dibuat.');
   // }
+
+  // 9. Buat User Guru BK (Konselor) untuk Testing
+  console.log('Membuat user Guru BK untuk testing...');
+  const bkRole = await prisma.role.findUnique({ where: { role_name: 'BK' } });
+  if (bkRole) {
+    const hashedPasswordBK = await bcrypt.hash('password123', 10);
+    await prisma.user.upsert({
+      where: { email: 'bk@portal.com' },
+      update: {},
+      create: {
+        email: 'bk@portal.com',
+        password: hashedPasswordBK,
+        roles: { connect: { id: bkRole.id } },
+        profile: {
+          create: {
+            full_name: 'Drs. Ahmad Konselor, S.Pd',
+            identity_number: 'BK001',
+            gender: Gender.Laki_laki,
+            phone_number: '081234567890',
+          },
+        },
+        teacher_extension: {
+          create: {
+            nip: '197501012000121001',
+            status: 'PNS',
+          },
+        },
+      },
+    });
+    console.log('User Guru BK berhasil dibuat: bk@portal.com / password123');
+  }
 
   console.log('Seeding selesai. ✅');
 }

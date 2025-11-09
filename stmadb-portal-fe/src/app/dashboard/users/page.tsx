@@ -170,6 +170,12 @@ function UsersPage() {
                 <SelectItem value="Admin">Admin</SelectItem>
                 <SelectItem value="Teacher">Teacher</SelectItem>
                 <SelectItem value="Student">Student</SelectItem>
+                <SelectItem value="BK">BK / Guru BK</SelectItem>
+                <SelectItem value="Guardian">Guardian</SelectItem>
+                <SelectItem value="Piket">Piket</SelectItem>
+                <SelectItem value="Waka">Waka</SelectItem>
+                <SelectItem value="WaliKelas">Wali Kelas</SelectItem>
+                <SelectItem value="KepalaSekolah">Kepala Sekolah</SelectItem>
               </SelectContent>
             </Select>
           </div>
