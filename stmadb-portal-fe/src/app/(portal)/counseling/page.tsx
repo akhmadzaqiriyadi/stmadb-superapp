@@ -11,6 +11,7 @@ import { MessageCircle } from 'lucide-react';
 export default function CounselingPage() {
   const { user } = useAuthStore();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState('create');
 
   // Check if user is counselor
   const isCounselor = user?.roles?.some((role) =>
@@ -25,6 +26,10 @@ export default function CounselingPage() {
   const handleTicketCreated = () => {
     // Refresh ticket list after creating new ticket
     setRefreshKey((prev) => prev + 1);
+  };
+
+  const handleSwitchToHistory = () => {
+    setActiveTab('history');
   };
 
   if (isCounselor) {
@@ -61,14 +66,17 @@ export default function CounselingPage() {
 
         {/* Content */}
         <div className="p-4">
-          <Tabs defaultValue="create" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="create">Ajukan Konseling</TabsTrigger>
               <TabsTrigger value="history">Riwayat Tiket</TabsTrigger>
             </TabsList>
 
             <TabsContent value="create" className="space-y-4">
-              <CreateTicketForm onSuccess={handleTicketCreated} />
+              <CreateTicketForm 
+                onSuccess={handleTicketCreated} 
+                onSwitchToHistory={handleSwitchToHistory}
+              />
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">

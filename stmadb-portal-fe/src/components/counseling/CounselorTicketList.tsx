@@ -31,7 +31,8 @@ import type {
 } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { CheckCircle, XCircle, Loader2, FileText, Calendar, Clock, User } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, FileText, Calendar, Clock, User, School } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const statusConfig = {
   OPEN: { label: 'Menunggu Konfirmasi', variant: 'default' as const },
@@ -63,6 +64,7 @@ export default function CounselorTicketList() {
 
   // Form states
   const [confirmedSchedule, setConfirmedSchedule] = useState('');
+  const [wantsToChangeSchedule, setWantsToChangeSchedule] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [completionNotes, setCompletionNotes] = useState('');
 
@@ -108,6 +110,12 @@ export default function CounselorTicketList() {
     return format(time, 'HH:mm');
   };
 
+  const formatDateTime = (dateTimeString: string) => {
+    return format(new Date(dateTimeString), 'dd MMMM yyyy, HH:mm', {
+      locale: idLocale,
+    });
+  };
+
   const openDialog = (
     ticket: CounselingTicket,
     type: 'approve' | 'reject' | 'complete' | 'detail'
@@ -119,6 +127,7 @@ export default function CounselorTicketList() {
     if (type === 'approve') {
       const defaultSchedule = `${ticket.preferred_date}T${ticket.preferred_time}`;
       setConfirmedSchedule(defaultSchedule);
+      setWantsToChangeSchedule(false); // Reset checkbox
     }
   };
 
@@ -126,21 +135,32 @@ export default function CounselorTicketList() {
     setSelectedTicket(null);
     setDialogType(null);
     setConfirmedSchedule('');
+    setWantsToChangeSchedule(false);
     setRejectionReason('');
     setCompletionNotes('');
   };
 
   const handleApprove = async () => {
-    if (!selectedTicket || !confirmedSchedule) return;
+    if (!selectedTicket) return;
 
     setIsProcessing(true);
     try {
-      await api.patch(`/counseling/tickets/${selectedTicket.id}/status`, {
+      const payload: any = {
         status: 'PROSES',
-        confirmed_schedule: confirmedSchedule,
-      });
+      };
 
-      toast.success('Tiket berhasil dikonfirmasi');
+      // Hanya kirim confirmed_schedule jika BK ingin mengubah jadwal
+      if (wantsToChangeSchedule && confirmedSchedule) {
+        payload.confirmed_schedule = confirmedSchedule;
+      }
+
+      await api.patch(`/counseling/tickets/${selectedTicket.id}/status`, payload);
+
+      toast.success('Tiket berhasil dikonfirmasi', {
+        description: wantsToChangeSchedule 
+          ? 'Jadwal baru telah dikonfirmasi'
+          : 'Menggunakan jadwal yang diminta siswa'
+      });
       closeDialog();
       fetchTickets();
     } catch (error: any) {
@@ -252,6 +272,13 @@ export default function CounselorTicketList() {
                             <p className="text-xs text-muted-foreground">
                               NISN: {ticket.student.student_extension.nisn}
                             </p>
+                          )}
+                          {/* Tampilkan kelas siswa */}
+                          {ticket.student.class_memberships && ticket.student.class_memberships.length > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <School className="h-3 w-3" />
+                              {ticket.student.class_memberships[0].class.class_name}
+                            </div>
                           )}
                         </div>
                         <Badge variant={statusConfig[ticket.status].variant} className="text-xs">
@@ -371,47 +398,144 @@ export default function CounselorTicketList() {
             <DialogTitle>Detail Tiket Konseling</DialogTitle>
           </DialogHeader>
           {selectedTicket && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              {/* Header Info */}
+              <div className="grid grid-cols-2 gap-4 p-3 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 rounded-lg border border-[#FFCD6A]/30">
                 <div>
-                  <Label>Nomor Tiket</Label>
-                  <p className="text-sm font-medium">
+                  <Label className="text-xs text-muted-foreground">Nomor Tiket</Label>
+                  <p className="text-sm font-semibold">
                     {selectedTicket.ticket_number}
                   </p>
                 </div>
                 <div>
-                  <Label>Status</Label>
-                  <Badge variant={statusConfig[selectedTicket.status].variant}>
-                    {statusConfig[selectedTicket.status].label}
-                  </Badge>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <div className="mt-1">
+                    <Badge variant={statusConfig[selectedTicket.status].variant}>
+                      {statusConfig[selectedTicket.status].label}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label>Siswa</Label>
-                <p className="text-sm">{selectedTicket.student.profile.full_name}</p>
+
+              {/* Info Siswa */}
+              <div className="p-3 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 rounded-lg border border-[#FFCD6A]/30">
+                <Label className="text-sm font-semibold text-[#44409D] flex items-center gap-2 mb-3">
+                  <User className="h-4 w-4" />
+                  Informasi Siswa
+                </Label>
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Nama Lengkap</Label>
+                    <p className="text-sm font-medium">{selectedTicket.student.profile.full_name}</p>
+                  </div>
+                  {selectedTicket.student.student_extension?.nisn && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">NISN</Label>
+                      <p className="text-sm">{selectedTicket.student.student_extension.nisn}</p>
+                    </div>
+                  )}
+                  {selectedTicket.student.class_memberships && selectedTicket.student.class_memberships.length > 0 && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                        <School className="h-3 w-3" />
+                        Kelas
+                      </Label>
+                      <p className="text-sm font-medium">
+                        {selectedTicket.student.class_memberships[0].class.class_name}
+                        {' - '}
+                        {selectedTicket.student.class_memberships[0].class.major.major_name}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <Label>Deskripsi Permasalahan</Label>
-                <p className="text-sm whitespace-pre-wrap">
-                  {selectedTicket.problem_description}
-                </p>
+
+              {/* Jadwal Konseling */}
+              <div className="p-3 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 rounded-lg border border-[#FFCD6A]/30">
+                <Label className="text-sm font-semibold text-[#44409D] flex items-center gap-2 mb-3">
+                  <Calendar className="h-4 w-4" />
+                  Jadwal Konseling
+                </Label>
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Jadwal yang Diinginkan</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Calendar className="h-3 w-3 text-[#44409D]" />
+                      <p className="text-sm">{formatDate(selectedTicket.preferred_date)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="h-3 w-3 text-[#44409D]" />
+                      <p className="text-sm">{formatTime(selectedTicket.preferred_time)}</p>
+                    </div>
+                  </div>
+                  {selectedTicket.confirmed_schedule && (
+                    <div className="bg-green-50 p-2 rounded border border-green-200 mt-2">
+                      <Label className="text-xs text-green-700 font-semibold">✅ Jadwal Dikonfirmasi</Label>
+                      <p className="text-sm text-green-800 mt-1">
+                        {formatDateTime(selectedTicket.confirmed_schedule)}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Deskripsi Permasalahan */}
+              <div className="p-3 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 rounded-lg border border-[#FFCD6A]/30">
+                <Label className="text-sm font-semibold text-[#44409D] flex items-center gap-2 mb-3">
+                  <FileText className="h-4 w-4" />
+                  Deskripsi Permasalahan
+                </Label>
+                <div className="bg-white p-3 rounded border border-[#FFCD6A]/20">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                    {selectedTicket.problem_description}
+                  </p>
+                </div>
+              </div>
+
+              {/* Alasan Penolakan */}
               {selectedTicket.status === 'DITOLAK' && selectedTicket.rejection_reason && (
-                <div>
-                  <Label>Alasan Penolakan</Label>
-                  <p className="text-sm whitespace-pre-wrap">
-                    {selectedTicket.rejection_reason}
-                  </p>
+                <div className="p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                  <Label className="text-sm font-semibold text-red-600 flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4" />
+                    Alasan Penolakan
+                  </Label>
+                  <div className="bg-white p-3 rounded border border-red-200">
+                    <p className="text-sm whitespace-pre-wrap text-red-800">
+                      {selectedTicket.rejection_reason}
+                    </p>
+                  </div>
                 </div>
               )}
+
+              {/* Catatan Penyelesaian */}
               {selectedTicket.status === 'CLOSE' && selectedTicket.completion_notes && (
-                <div>
-                  <Label>Catatan Penyelesaian</Label>
-                  <p className="text-sm whitespace-pre-wrap">
-                    {selectedTicket.completion_notes}
-                  </p>
+                <div className="p-3 bg-green-50 rounded-lg border-2 border-green-200">
+                  <Label className="text-sm font-semibold text-green-600 flex items-center gap-2 mb-2">
+                    <FileText className="h-4 w-4" />
+                    Catatan Penyelesaian
+                  </Label>
+                  <div className="bg-white p-3 rounded border border-green-200">
+                    <p className="text-sm whitespace-pre-wrap text-green-800">
+                      {selectedTicket.completion_notes}
+                    </p>
+                  </div>
                 </div>
               )}
+
+              {/* Timeline */}
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <Label className="text-sm font-semibold text-gray-700 mb-3 block">Timeline</Label>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Dibuat:</span>
+                    <span className="font-medium">{formatDateTime(selectedTicket.createdAt)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Update Terakhir:</span>
+                    <span className="font-medium">{formatDateTime(selectedTicket.updatedAt)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -421,30 +545,85 @@ export default function CounselorTicketList() {
       <Dialog open={dialogType === 'approve'} onOpenChange={closeDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Konfirmasi Jadwal Konseling</DialogTitle>
+            <DialogTitle>Konfirmasi Tiket Konseling</DialogTitle>
             <DialogDescription>
-              Konfirmasi jadwal konseling untuk tiket{' '}
-              {selectedTicket?.ticket_number}
+              Setujui pengajuan konseling untuk tiket {selectedTicket?.ticket_number}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="confirmed-schedule">Jadwal Konfirmasi *</Label>
-              <Input
-                id="confirmed-schedule"
-                type="datetime-local"
-                value={confirmedSchedule}
-                onChange={(e) => setConfirmedSchedule(e.target.value)}
-              />
+          {selectedTicket && (
+            <div className="space-y-4">
+              {/* Info Jadwal yang Diminta Siswa */}
+              <div className="p-4 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 rounded-lg border border-[#FFCD6A]/30">
+                <Label className="text-sm font-semibold text-[#44409D] mb-2 block">
+                  Jadwal yang Diminta Siswa:
+                </Label>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-[#44409D]" />
+                    <span className="font-medium">{formatDate(selectedTicket.preferred_date)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-[#44409D]" />
+                    <span className="font-medium">{formatTime(selectedTicket.preferred_time)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Checkbox untuk mengubah jadwal */}
+              <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <Checkbox
+                  id="change-schedule"
+                  checked={wantsToChangeSchedule}
+                  onCheckedChange={(checked) => setWantsToChangeSchedule(checked as boolean)}
+                />
+                <label
+                  htmlFor="change-schedule"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Saya ingin mengubah jadwal konseling
+                </label>
+              </div>
+
+              {/* Input Jadwal Baru (conditional) */}
+              {wantsToChangeSchedule && (
+                <div className="space-y-2 animate-in slide-in-from-top-2">
+                  <Label htmlFor="confirmed-schedule" className="text-sm font-semibold text-[#44409D]">
+                    Jadwal Baru *
+                  </Label>
+                  <Input
+                    id="confirmed-schedule"
+                    type="datetime-local"
+                    value={confirmedSchedule}
+                    onChange={(e) => setConfirmedSchedule(e.target.value)}
+                    className="border-2 border-[#FFCD6A]/30 focus:border-[#44409D]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    💡 Jadwal default sudah diisi sesuai permintaan siswa
+                  </p>
+                </div>
+              )}
+
+              {/* Info Message */}
+              {!wantsToChangeSchedule && (
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                  <p className="text-sm text-green-800">
+                    ✅ Jadwal konseling akan menggunakan waktu yang diminta siswa
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog}>
               Batal
             </Button>
-            <Button onClick={handleApprove} disabled={isProcessing}>
+            <Button 
+              onClick={handleApprove} 
+              disabled={isProcessing || (wantsToChangeSchedule && !confirmedSchedule)}
+              className="bg-green-600 hover:bg-green-700"
+            >
               {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Konfirmasi
+              {wantsToChangeSchedule ? 'Konfirmasi dengan Jadwal Baru' : 'Setujui'}
             </Button>
           </DialogFooter>
         </DialogContent>

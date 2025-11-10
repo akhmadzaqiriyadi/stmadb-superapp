@@ -2,17 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
 import type { CounselingTicket } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { ArrowLeft, Loader2, Calendar, Clock, User, FileText } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { 
+  ArrowLeft, 
+  Loader2, 
+  Calendar, 
+  Clock, 
+  User, 
+  FileText,
+  School,
+  MessageCircle,
+  Phone,
+  MessageSquare
+} from 'lucide-react';
 
 const statusConfig = {
   OPEN: { 
@@ -135,10 +146,10 @@ export default function CounselingDetailPage() {
       {/* Content */}
       <div className="p-4 space-y-4">
         {/* Info Siswa Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <User className="h-5 w-5 text-blue-600" />
+        <Card className="border-2 border-[#FFCD6A]/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-[#44409D]">
+              <User className="h-5 w-5" />
               Informasi Siswa
             </CardTitle>
           </CardHeader>
@@ -155,46 +166,102 @@ export default function CounselingDetailPage() {
                 </p>
               </div>
             )}
+            {/* Tampilkan Kelas Siswa */}
+            {ticket.student.class_memberships && ticket.student.class_memberships.length > 0 && (
+              <div>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <School className="h-3 w-3" />
+                  Kelas
+                </Label>
+                <p className="text-sm font-medium">
+                  {ticket.student.class_memberships[0].class.class_name}
+                  {' - '}
+                  {ticket.student.class_memberships[0].class.major.major_name}
+                </p>
+              </div>
+            )}
+            {/* Tombol WhatsApp */}
+            {ticket.student.profile.phone_number && (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-green-500 text-green-600 hover:bg-green-50"
+                  onClick={() => {
+                    const phone = ticket.student.profile.phone_number!.replace(/^0/, '62');
+                    const message = encodeURIComponent(
+                      `Halo ${ticket.student.profile.full_name}, saya menghubungi terkait tiket konseling ${ticket.ticket_number}.`
+                    );
+                    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+                  }}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Hubungi via WhatsApp
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Info Guru BK Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <User className="h-5 w-5 text-purple-600" />
+        <Card className="border-2 border-[#FFCD6A]/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-[#44409D]">
+              <User className="h-5 w-5" />
               Guru BK
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Label className="text-xs text-muted-foreground">Nama Guru BK</Label>
-            <p className="text-sm font-medium">{ticket.counselor.profile.full_name}</p>
-          </CardContent>
-        </Card>
-
-        {/* Jadwal Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-green-600" />
-              Jadwal Konseling
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
+              <Label className="text-xs text-muted-foreground">Nama Guru BK</Label>
+              <p className="text-sm font-medium">{ticket.counselor.profile.full_name}</p>
+            </div>
+            {/* Tombol WhatsApp Guru BK */}
+            {ticket.counselor.profile.phone_number && (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-green-500 text-green-600 hover:bg-green-50"
+                  onClick={() => {
+                    const phone = ticket.counselor.profile.phone_number!.replace(/^0/, '62');
+                    const message = encodeURIComponent(
+                      `Halo Pak/Bu ${ticket.counselor.profile.full_name}, saya ingin bertanya terkait tiket konseling ${ticket.ticket_number}.`
+                    );
+                    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+                  }}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Hubungi Guru BK via WhatsApp
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Jadwal Card */}
+        <Card className="border-2 border-[#FFCD6A]/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-[#44409D]">
+              <Calendar className="h-5 w-5" />
+              Jadwal Konseling
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 p-3 rounded-lg border border-[#FFCD6A]/30">
               <Label className="text-xs text-muted-foreground">Jadwal yang Diinginkan</Label>
               <div className="flex items-center gap-2 mt-1">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm">{formatDate(ticket.preferred_date)}</p>
+                <Calendar className="h-4 w-4 text-[#44409D]" />
+                <p className="text-sm font-medium">{formatDate(ticket.preferred_date)}</p>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm">{formatTime(ticket.preferred_time)}</p>
+                <Clock className="h-4 w-4 text-[#44409D]" />
+                <p className="text-sm font-medium">{formatTime(ticket.preferred_time)}</p>
               </div>
             </div>
             {ticket.confirmed_schedule && (
-              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                <Label className="text-xs text-green-700 font-semibold">Jadwal Dikonfirmasi</Label>
+              <div className="bg-green-50 p-3 rounded-lg border-2 border-green-200">
+                <Label className="text-xs text-green-700 font-semibold">✅ Jadwal Dikonfirmasi</Label>
                 <p className="text-sm font-medium text-green-800 mt-1">
                   {formatDateTime(ticket.confirmed_schedule)}
                 </p>
@@ -204,15 +271,15 @@ export default function CounselingDetailPage() {
         </Card>
 
         {/* Deskripsi Masalah Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-5 w-5 text-orange-600" />
+        <Card className="border-2 border-[#FFCD6A]/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-[#44409D]">
+              <FileText className="h-5 w-5" />
               Deskripsi Permasalahan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-gray-100 p-4 rounded-lg">
+            <div className="bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 p-4 rounded-lg border border-[#FFCD6A]/30">
               <p className="text-sm whitespace-pre-wrap leading-relaxed">
                 {ticket.problem_description}
               </p>
@@ -222,14 +289,15 @@ export default function CounselingDetailPage() {
 
         {/* Alasan Penolakan (jika ada) */}
         {ticket.status === 'DITOLAK' && ticket.rejection_reason && (
-          <Card className="border-red-200">
-            <CardHeader>
-              <CardTitle className="text-base text-red-600">
+          <Card className="border-2 border-red-300 bg-red-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-red-600 flex items-center gap-2">
+                <FileText className="h-5 w-5" />
                 Alasan Penolakan
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+              <div className="bg-white p-4 rounded-lg border border-red-200">
                 <p className="text-sm whitespace-pre-wrap leading-relaxed text-red-800">
                   {ticket.rejection_reason}
                 </p>
@@ -240,14 +308,15 @@ export default function CounselingDetailPage() {
 
         {/* Catatan Penyelesaian (jika ada) */}
         {ticket.status === 'CLOSE' && ticket.completion_notes && (
-          <Card className="border-green-200">
-            <CardHeader>
-              <CardTitle className="text-base text-green-600">
+          <Card className="border-2 border-green-300 bg-green-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base text-green-600 flex items-center gap-2">
+                <FileText className="h-5 w-5" />
                 Catatan Penyelesaian
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="bg-white p-4 rounded-lg border border-green-200">
                 <p className="text-sm whitespace-pre-wrap leading-relaxed text-green-800">
                   {ticket.completion_notes}
                 </p>
@@ -257,9 +326,9 @@ export default function CounselingDetailPage() {
         )}
 
         {/* Timeline Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Timeline</CardTitle>
+        <Card className="border-2 border-[#FFCD6A]/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-[#44409D]">Timeline</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>

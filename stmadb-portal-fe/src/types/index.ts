@@ -366,17 +366,27 @@ export interface CounselingTicket {
     id: number;
     profile: {
       full_name: string;
+      phone_number?: string | null;
     };
     student_extension?: {
       nisn?: string | null;
       slim_id?: string | null;
     } | null;
+    class_memberships?: Array<{
+      class: {
+        class_name: string;
+        major: {
+          major_name: string;
+        };
+      };
+    }>;
   };
   counselor_user_id: number;
   counselor: {
     id: number;
     profile: {
       full_name: string;
+      phone_number?: string | null;
     };
   };
   preferred_date: string;
@@ -415,5 +425,6 @@ export interface Counselor {
   profile: {
     full_name: string;
     photo_url?: string | null;
+    phone_number?: string | null;
   };
 }

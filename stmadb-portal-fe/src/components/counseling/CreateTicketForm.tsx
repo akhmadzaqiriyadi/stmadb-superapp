@@ -84,9 +84,10 @@ type CreateTicketFormValues = z.infer<typeof createTicketSchema>;
 
 interface CreateTicketFormProps {
   onSuccess?: () => void;
+  onSwitchToHistory?: () => void;
 }
 
-export default function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
+export default function CreateTicketForm({ onSuccess, onSwitchToHistory }: CreateTicketFormProps) {
   const [counselors, setCounselors] = useState<Counselor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingCounselors, setIsFetchingCounselors] = useState(true);
@@ -126,10 +127,43 @@ export default function CreateTicketForm({ onSuccess }: CreateTicketFormProps) {
         preferred_date: data.preferred_date.toISOString().split('T')[0],
       };
       
-      await api.post('/counseling/tickets', formattedData);
-      toast.success('Tiket konseling berhasil dibuat');
+      const response = await api.post('/counseling/tickets', formattedData);
+      const ticketData = response.data.data;
+      
+      // Cari counselor yang dipilih untuk mendapatkan nomor WA
+      const selectedCounselor = counselors.find(c => c.id === data.counselor_user_id);
+      
+      toast.success('Tiket konseling berhasil dibuat', {
+        description: 'Guru BK akan segera meninjau pengajuan Anda',
+      });
+      
+      // Tampilkan dialog konfirmasi untuk menghubungi guru via WhatsApp
+      if (selectedCounselor?.profile.phone_number) {
+        const formattedDate = format(data.preferred_date, 'EEEE, dd MMMM yyyy', { locale: idLocale });
+        const timeLabel = timeSlots.find(t => t.value === data.preferred_time)?.label || data.preferred_time;
+        
+        const whatsappMessage = `Assalamualaikum Pak/Bu ${selectedCounselor.profile.full_name},%0A%0ASaya telah mengajukan tiket konseling dengan detail:%0A%0ANomor Tiket: ${ticketData.ticket_number}%0ATanggal: ${formattedDate}%0AWaktu: ${timeLabel}%0A%0AMohon untuk meninjau pengajuan saya. Terima kasih.`;
+        
+        const counselorPhone = selectedCounselor.profile.phone_number.replace(/^0/, '62');
+        const whatsappUrl = `https://wa.me/${counselorPhone}?text=${whatsappMessage}`;
+        
+        toast.success('Hubungi Guru BK via WhatsApp?', {
+          description: 'Klik untuk mengirim notifikasi ke guru BK',
+          action: {
+            label: 'Buka WhatsApp',
+            onClick: () => window.open(whatsappUrl, '_blank'),
+          },
+          duration: 8000,
+        });
+      }
+      
       form.reset();
       onSuccess?.();
+      
+      // Redirect ke tab riwayat tiket
+      setTimeout(() => {
+        onSwitchToHistory?.();
+      }, 500);
     } catch (error: any) {
       toast.error(
         error.response?.data?.message || 'Gagal membuat tiket konseling'

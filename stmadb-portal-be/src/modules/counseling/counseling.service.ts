@@ -46,11 +46,6 @@ export class CounselingService {
   ) {
     const ticketNumber = await this.generateTicketNumber();
 
-    // Gabungkan tanggal dan waktu
-    const preferredDateTime = new Date(
-      `${data.preferred_date}T${data.preferred_time}`
-    );
-
     const ticket = await prisma.counselingTicket.create({
       data: {
         ticket_number: ticketNumber,
@@ -65,6 +60,21 @@ export class CounselingService {
         student: {
           include: {
             profile: true,
+            class_memberships: {
+              include: {
+                class: {
+                  include: {
+                    major: true,
+                  },
+                },
+                academic_year: true,
+              },
+              where: {
+                academic_year: {
+                  is_active: true,
+                },
+              },
+            },
           },
         },
         counselor: {
@@ -75,8 +85,11 @@ export class CounselingService {
       },
     });
 
-    // TODO: Kirim notifikasi ke guru BK
-    // await this.sendNotification(data.counselor_user_id, 'new_ticket', ticket);
+    // TODO: Kirim notifikasi ke guru BK via WhatsApp
+    // const counselorPhone = ticket.counselor.profile.phone_number;
+    // if (counselorPhone) {
+    //   await this.sendWhatsAppNotification(counselorPhone, ticket);
+    // }
 
     return ticket;
   }
@@ -111,6 +124,26 @@ export class CounselingService {
           counselor: {
             include: {
               profile: true,
+            },
+          },
+          student: {
+            include: {
+              profile: true,
+              class_memberships: {
+                include: {
+                  class: {
+                    include: {
+                      major: true,
+                    },
+                  },
+                  academic_year: true,
+                },
+                where: {
+                  academic_year: {
+                    is_active: true,
+                  },
+                },
+              },
             },
           },
         },
@@ -160,6 +193,21 @@ export class CounselingService {
             include: {
               profile: true,
               student_extension: true,
+              class_memberships: {
+                include: {
+                  class: {
+                    include: {
+                      major: true,
+                    },
+                  },
+                  academic_year: true,
+                },
+                where: {
+                  academic_year: {
+                    is_active: true,
+                  },
+                },
+              },
             },
           },
         },
@@ -189,6 +237,21 @@ export class CounselingService {
           include: {
             profile: true,
             student_extension: true,
+            class_memberships: {
+              include: {
+                class: {
+                  include: {
+                    major: true,
+                  },
+                },
+                academic_year: true,
+              },
+              where: {
+                academic_year: {
+                  is_active: true,
+                },
+              },
+            },
           },
         },
         counselor: {
