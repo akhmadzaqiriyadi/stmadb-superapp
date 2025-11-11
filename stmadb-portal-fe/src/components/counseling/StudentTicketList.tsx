@@ -79,11 +79,16 @@ export default function StudentTicketList() {
   };
 
   const formatTime = (timeString: string) => {
-    // timeString format: "HH:mm:ss" or full datetime
-    const time = timeString.includes('T')
-      ? new Date(timeString)
-      : new Date(`1970-01-01T${timeString}`);
-    return format(time, 'HH:mm');
+    // Extract time dari ISO string tanpa timezone conversion
+    if (timeString.includes('T')) {
+      // Format: "1970-01-01T14:10:00.000Z" -> ambil jam:menit saja
+      const timePart = timeString.split('T')[1]; // "14:10:00.000Z"
+      const [hours, minutes] = timePart.split(':');
+      return `${hours}:${minutes}`;
+    }
+    // Format: "HH:mm:ss" -> ambil jam:menit
+    const [hours, minutes] = timeString.split(':');
+    return `${hours}:${minutes}`;
   };
 
   return (

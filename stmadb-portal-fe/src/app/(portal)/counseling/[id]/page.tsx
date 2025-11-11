@@ -81,14 +81,31 @@ export default function CounselingDetailPage() {
   };
 
   const formatTime = (timeString: string) => {
-    const time = timeString.includes('T')
-      ? new Date(timeString)
-      : new Date(`1970-01-01T${timeString}`);
-    return format(time, 'HH:mm');
+    // Extract time dari ISO string tanpa timezone conversion
+    if (timeString.includes('T')) {
+      // Format: "1970-01-01T14:10:00.000Z" -> ambil jam:menit saja
+      const timePart = timeString.split('T')[1]; // "14:10:00.000Z"
+      const [hours, minutes] = timePart.split(':');
+      return `${hours}:${minutes}`;
+    }
+    // Format: "HH:mm:ss" -> ambil jam:menit
+    const [hours, minutes] = timeString.split(':');
+    return `${hours}:${minutes}`;
   };
 
   const formatDateTime = (dateTimeString: string) => {
-    return format(new Date(dateTimeString), 'dd MMMM yyyy, HH:mm', {
+    // Parse datetime tanpa timezone conversion untuk display
+    const date = new Date(dateTimeString);
+    // Format dengan UTC agar tidak terpengaruh timezone lokal
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    const hours = date.getUTCHours();
+    const minutes = date.getUTCMinutes();
+    
+    // Buat date object dengan nilai UTC sebagai local time
+    const localDate = new Date(year, month, day, hours, minutes);
+    return format(localDate, 'dd MMMM yyyy, HH:mm', {
       locale: idLocale,
     });
   };
