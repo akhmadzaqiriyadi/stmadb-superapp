@@ -5,7 +5,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Loader2, Clock, User, MapPin, Calendar } from "lucide-react";
+import { Loader2, Clock, User, MapPin, Calendar, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 import api from "@/lib/axios";
 import { ProfileData, Schedule, DayOfWeek, ActiveScheduleWeek, ScheduleType } from "@/types";
@@ -164,6 +165,48 @@ export function TodaySchedule() {
     }
   };
 
+  // Helper function to get schedule status based on current time
+  const getScheduleStatus = (startTime: string, endTime: string) => {
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+
+    // Parse start and end time
+    const startDate = new Date(startTime);
+    const startHours = startDate.getUTCHours();
+    const startMinutes = startDate.getUTCMinutes();
+    const startTimeInMinutes = startHours * 60 + startMinutes;
+
+    const endDate = new Date(endTime);
+    const endHours = endDate.getUTCHours();
+    const endMinutes = endDate.getUTCMinutes();
+    const endTimeInMinutes = endHours * 60 + endMinutes;
+
+    if (currentTimeInMinutes < startTimeInMinutes) {
+      return {
+        status: 'upcoming',
+        label: 'Belum Dimulai',
+        color: 'bg-gray-100 text-gray-600 border-gray-200',
+        dotColor: 'bg-gray-400'
+      };
+    } else if (currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes <= endTimeInMinutes) {
+      return {
+        status: 'ongoing',
+        label: 'Sedang Berlangsung',
+        color: 'bg-green-50 text-green-700 border-green-200',
+        dotColor: 'bg-green-500'
+      };
+    } else {
+      return {
+        status: 'finished',
+        label: 'Telah Selesai',
+        color: 'bg-blue-50 text-blue-600 border-blue-200',
+        dotColor: 'bg-blue-400'
+      };
+    }
+  };
+
   const schedules = result === 'WEEKEND' ? 'WEEKEND' : result?.schedules || [];
   const activeWeek = result !== 'WEEKEND' ? result?.activeWeek : null;
 
@@ -199,47 +242,74 @@ export function TodaySchedule() {
           renderEmptyState("Tidak ada jadwal")
         ) : (
           <div className="space-y-3">
-            {schedules.map((item) => (
-              <div 
-                key={item.id} 
-                className="bg-gray-50 rounded-lg p-3 border border-gray-200"
-              >
-                {/* Waktu */}
-                <div className="flex items-center gap-1.5 text-[#44409D] mb-2">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span className="text-xs font-semibold">
-                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
-                  </span>
-                </div>
-
-                {/* Mata Pelajaran */}
-                <p className="font-semibold text-gray-900 text-sm mb-1.5">
-                  {item.assignment.subject.subject_name}
-                </p>
-
-                {/* Detail */}
-                <div className="flex items-center gap-3 text-xs text-gray-600">
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5" />
-                    <span>
-                      {isStudent 
-                        ? item.assignment.teacher.profile.full_name 
-                        : item.assignment.class.class_name}
-                    </span>
+            {schedules.map((item) => {
+              const scheduleStatus = getScheduleStatus(item.start_time, item.end_time);
+              
+              return (
+                <div 
+                  key={item.id} 
+                  className={`rounded-lg p-3 border-2 transition-all ${scheduleStatus.color}`}
+                >
+                  {/* Header: Waktu + Status Badge */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5 text-[#44409D]">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="text-xs font-semibold">
+                        {formatTime(item.start_time)} - {formatTime(item.end_time)}
+                      </span>
+                    </div>
+                    
+                    {/* Status Badge */}
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full ${scheduleStatus.dotColor} ${scheduleStatus.status === 'ongoing' ? 'animate-pulse' : ''}`}></div>
+                      <span className="text-xs font-medium">
+                        {scheduleStatus.label}
+                      </span>
+                    </div>
                   </div>
-                  
-                  {item.room && (
-                    <>
-                      <span className="text-gray-300">•</span>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5" />
-                        <span>{item.room.room_code}</span>
-                      </div>
-                    </>
-                  )}
+
+                  {/* Mata Pelajaran */}
+                  <p className="font-semibold text-gray-900 text-sm mb-1.5">
+                    {item.assignment.subject.subject_name}
+                  </p>
+
+                  {/* Detail */}
+                  <div className="flex items-center gap-3 text-xs text-gray-600">
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      <span>
+                        {isStudent 
+                          ? item.assignment.teacher.profile.full_name 
+                          : item.assignment.class.class_name}
+                      </span>
+                    </div>
+                    
+                    {item.room && (
+                      <>
+                        <span className="text-gray-300">•</span>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5" />
+                          <span>{item.room.room_code}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tombol Lihat Semua Jadwal */}
+        {schedules && schedules.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <Link 
+              href="/schedule"
+              className="flex items-center justify-center gap-2 text-sm font-medium text-[#44409D] hover:text-[#44409D]/80 transition-colors"
+            >
+              <span>Lihat Jadwal Lengkap</span>
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         )}
       </div>
