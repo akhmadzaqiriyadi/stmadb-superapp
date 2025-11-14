@@ -135,9 +135,14 @@ export default function SchedulePage() {
       } else if (isTeacher) {
         viewMode = 'teacher';
         viewId = profile.id;
-        const { data: teacherData } = await api.get(`/users/${profile.id}`);
-        if (teacherData.teacher_extension?.assignments?.[0]) {
-          academicYearId = teacherData.teacher_extension.assignments[0].academic_year_id;
+        
+        // Ambil academic year aktif
+        try {
+          const { data: activeYearData } = await api.get('/academics/academic-years/active');
+          academicYearId = activeYearData.id;
+        } catch (error) {
+          console.error('Failed to get active academic year:', error);
+          return { schedules: [], activeWeek: null };
         }
       }
 

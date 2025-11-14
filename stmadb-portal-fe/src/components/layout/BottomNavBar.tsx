@@ -4,19 +4,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, User, BookOpenText, CheckSquare, MessageCircle } from "lucide-react";
+import { Home, Calendar, User, BookOpenText, ScanQrCode, CheckSquare, MessageCircle, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
 // Definisikan item menu dengan properti `isCentral`
 // Urutan item di sini menentukan posisi mereka di layar
 const navigationMenuItems = [
-  { href: "/schedule", label: "Jadwal", icon: Calendar },
-  { href: "/approvals", label: "Persetujuan", icon: CheckSquare, roles: ["Teacher", "WaliKelas", "Waka", "KepalaSekolah"] },
-  { href: "/portal/journal", label: "Jurnal", icon: BookOpenText, roles: ["Teacher"] },
+  // Student Navigation (5 items: Home | Konseling | [SCAN] | Jadwal | Profil)
+  { href: "/home", label: "Home", icon: Home, roles: ["Student", "Siswa"] },
   { href: "/counseling", label: "Konseling", icon: MessageCircle, roles: ["Siswa", "Student", "BK", "Guru BK", "Konselor"] },
-  { href: "/home", label: "Beranda", icon: Home, isCentral: true },
-  { href: "/profile", label: "Profil", icon: User },
+  { href: "/attendance/scan", label: "Scan", icon: ScanQrCode, isCentral: true, roles: ["Student", "Siswa"] },
+  { href: "/schedule", label: "Jadwal", icon: Calendar, roles: ["Student", "Siswa"] },
+  { href: "/profile", label: "Profil", icon: User, roles: ["Student", "Siswa"] },
+  
+  // Teacher Navigation (5 items: Home | Jadwal | [QR ABSEN] | Jurnal | Profil)
+  { href: "/home", label: "Home", icon: Home, roles: ["Teacher", "WaliKelas", "Waka", "KepalaSekolah", "Admin", "Piket"] },
+  { href: "/schedule", label: "Jadwal", icon: Calendar, roles: ["Teacher", "WaliKelas", "Waka", "KepalaSekolah", "Admin", "Piket"] },
+  { href: "/attendance/teacher", label: "QR Absen", icon: QrCode, isCentral: true, roles: ["Teacher", "WaliKelas", "Admin", "Piket"] },
+  { href: "/teaching-journals", label: "Jurnal", icon: BookOpenText, roles: ["Teacher"] },
+  { href: "/profile", label: "Profil", icon: User, roles: ["Teacher", "WaliKelas", "Waka", "KepalaSekolah", "Admin", "Piket"] },
 ];
 
 export function BottomNavBar() {

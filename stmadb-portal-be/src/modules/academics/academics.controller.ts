@@ -474,7 +474,25 @@ export const getSchedulesByTeacher = async (req: Request, res: Response) => {
     const { academicYearId, day } = req.query; // Ambil 'day' dari query
     if (!teacherId || !academicYearId) return res.status(400).json({ message: 'ID Guru dan ID Tahun Ajaran dibutuhkan' });
 
-    const schedules = await academicService.getSchedulesByTeacher(parseInt(teacherId), Number(academicYearId), day as DayOfWeek);
+    // Validasi akses: Teacher hanya bisa lihat jadwal sendiri
+    const user = (req as any).user;
+    const requestedTeacherId = parseInt(teacherId);
+    
+    // JWT payload structure: { userId: number, roles: string[] }
+    const userRoles = Array.isArray(user.roles) ? user.roles : [];
+    const hasTeacherRole = userRoles.includes('Teacher');
+    const hasAdminRole = userRoles.includes('Admin') || userRoles.includes('WaliKelas') || userRoles.includes('Waka') || userRoles.includes('KepalaSekolah');
+    
+    // Jika user adalah Teacher (tapi bukan Admin/WaliKelas/etc), pastikan hanya bisa akses jadwal sendiri
+    if (hasTeacherRole && !hasAdminRole) {
+      if (user.userId !== requestedTeacherId) {
+        return res.status(403).json({ 
+          message: 'Forbidden: Anda hanya dapat melihat jadwal Anda sendiri' 
+        });
+      }
+    }
+
+    const schedules = await academicService.getSchedulesByTeacher(requestedTeacherId, Number(academicYearId), day as DayOfWeek);
     res.status(200).json(schedules);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });

@@ -36,7 +36,13 @@ model User {
   teacher_assignments TeacherAssignment[]
   teaching_journals   TeachingJournal[]
   class_memberships   ClassMember[]
-  student_attendances Attendance[]
+  
+  // --- PERUBAHAN DI SINI ---
+  // Relasi ke absensi harian (sebagai siswa)
+  student_attendances StudentAttendance[]
+  // Relasi untuk guru/staf yang membuat QR harian
+  generated_daily_sessions DailyAttendanceSession[] @relation("GeneratedBy")
+  // --- AKHIR PERUBAHAN ---
 
   leave_permits_requested LeavePermit[] @relation("Requester")
   leave_permits_approved  LeaveApproval[] @relation("Approver")
@@ -117,7 +123,9 @@ model AcademicYear {
   academic_weeks       AcademicWeek[]
   special_events       SpecialEvent[]
   active_schedule_week ActiveScheduleWeek[]
-  // routine_activities   RoutineActivity[] // DIHAPUS
+
+  // Relasi baru ke absensi harian
+  daily_attendance_sessions DailyAttendanceSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,6 +151,7 @@ model Classes {
   homeroom_teacher    User?               @relation("HomeroomTeacher", fields: [homeroom_teacher_id], references: [id])
   class_members       ClassMember[]
   teacher_assignments TeacherAssignment[]
+  daily_attendance_sessions DailyAttendanceSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -177,19 +186,23 @@ enum WeekType {
 }
 
 model Schedule {
-  id                  Int               @id @default(autoincrement())
+  id                  Int                     @id @default(autoincrement())
   day_of_week         DayOfWeek
-  start_time          DateTime          @db.Time
-  end_time            DateTime          @db.Time
-  schedule_type       ScheduleType      @default(Umum)
+  start_time          DateTime                @db.Time
+  end_time            DateTime                @db.Time
+  schedule_type       ScheduleType            @default(Umum)
   assignment_id       Int
-  assignment          TeacherAssignment @relation(fields: [assignment_id], references: [id])
+  assignment          TeacherAssignment       @relation(fields: [assignment_id], references: [id])
   academic_year_id    Int
-  academic_year       AcademicYear      @relation(fields: [academic_year_id], references: [id])
+  academic_year       AcademicYear            @relation(fields: [academic_year_id], references: [id])
   journals            TeachingJournal[]
   leave_permits       LeavePermit[]
   room_id             Int?
-  room                Room?             @relation(fields: [room_id], references: [id])
+  room                Room?                   @relation(fields: [room_id], references: [id])
+  
+  // --- PERUBAHAN DI SINI ---
+  // qr_sessions         AttendanceQRSession[] // <-- DIHAPUS
+  // --- AKHIR PERUBAHAN ---
 }
 
 enum DayOfWeek {
@@ -261,35 +274,140 @@ model TeacherAssignment {
   schedules        Schedule[]
 }
 
+// ============== MODUL 3: ABSENSI HARIAN (BARU) ==============
+
+// Model ini menggantikan AttendanceQRSession
+// Ini adalah sesi harian yang unik per KELAS per hari
+model DailyAttendanceSession {
+  id            String   @id @default(uuid())
+  session_date  DateTime @db.Date
+  qr_code       String   @unique
+  
+  // QR code dibuat per KELAS
+  class_id      Int
+  class         Classes  @relation(fields: [class_id], references: [id])
+  
+  // Waktu kedaluwarsa QR
+  expires_at    DateTime 
+  
+  // ID Guru Piket/Admin/Guru yang generate QR
+  created_by_id Int      
+  creator       User     @relation("GeneratedBy", fields: [created_by_id], references: [id])
+
+  // Terikat ke tahun ajaran aktif
+  academic_year_id Int
+  academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+
+  // Semua absensi siswa untuk hari ini (di kelas ini) akan merujuk ke sini
+  student_attendances StudentAttendance[]
+  
+  createdAt     DateTime @default(now())
+  
+  // Kunci unik: 1 sesi per kelas per hari
+  @@unique([session_date, class_id])
+  @@index([created_by_id])
+  @@index([academic_year_id])
+  @@index([class_id])
+}
+
+// Model ini dimodifikasi untuk absensi harian
+model StudentAttendance {
+  id                Int                  @id @default(autoincrement())
+  
+  // Link ke Sesi Harian (menggantikan qr_session_id)
+  daily_session_id  String
+  daily_session     DailyAttendanceSession @relation(fields: [daily_session_id], references: [id], onDelete: Cascade)
+  
+  student_user_id   Int
+  student           User                 @relation(fields: [student_user_id], references: [id])
+  
+  status            AttendanceStatus     @default(Hadir)
+  scan_method       String               // "QR" atau "Manual" (sesuai permintaan Anda)
+  
+  // Waktu kapan siswa scan atau guru input manual
+  marked_at         DateTime             @default(now())
+  
+  // Untuk fitur 'validasi guru lain' (WaliKelas/BK)
+  is_verified       Boolean              @default(false)
+  verified_by_id    Int?                 // ID guru yang memvalidasi
+  
+  notes             String?
+
+  // Kunci unik baru: Siswa hanya bisa absen 1x per sesi harian
+  @@unique([daily_session_id, student_user_id])
+  @@index([student_user_id])
+}
+
+// Model `AttendanceQRSession` (lama) telah dihapus
+
+// ============== MODUL 4: JURNAL MENGAJAR ==============
+
 model TeachingJournal {
-  id               Int        @id @default(autoincrement())
-  journal_date     DateTime   @db.Date
-  material_summary String     @db.Text
-  teacher_notes    String?    @db.Text
-  schedule_id      Int
-  schedule         Schedule   @relation(fields: [schedule_id], references: [id])
-  teacher_user_id  Int
-  teacher          User       @relation(fields: [teacher_user_id], references: [id])
-  attendances      Attendance[]
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  id                    Int                     @id @default(autoincrement())
+  journal_date          DateTime                @db.Date
+  schedule_id           Int
+  schedule              Schedule                @relation(fields: [schedule_id], references: [id])
+  teacher_user_id       Int
+  teacher               User                    @relation(fields: [teacher_user_id], references: [id])
+  
+  // Konten Jurnal
+  material_topic        String                  // Topik materi pembelajaran
+  material_description  String?                 @db.Text // Deskripsi detail materi
+  learning_method       String                  // Ceramah, Diskusi, Praktik, dll
+  learning_media        String?                 // Slides, Video, Modul, dll
+  learning_achievement  String?                 @db.Text // Capaian pembelajaran siswa
+  teacher_notes         String?                 @db.Text // Catatan tambahan guru
+  
+  // Status Guru
+  teacher_status        String                  @default("Hadir") // Hadir, Sakit, Izin, Alpa
+  teacher_status_notes  String?                 // Alasan jika tidak hadir
+  
+  // Relations
+  photos                JournalPhoto[]
+  
+  // --- PERUBAHAN DI SINI ---
+  // student_attendances   StudentAttendance[] // <-- DIHAPUS (Absensi harian terpisah dari jurnal)
+  // --- AKHIR PERUBAHAN ---
+  
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  
+  @@unique([schedule_id, journal_date])
+  @@index([teacher_user_id])
+  @@index([schedule_id])
+  @@index([journal_date])
 }
 
-model Attendance {
-  id              Int              @id @default(autoincrement())
-  status          AttendanceStatus @default(Hadir)
-  notes           String?
-  journal_id      Int
-  journal         TeachingJournal  @relation(fields: [journal_id], references: [id])
-  student_user_id Int
-  student         User             @relation(fields: [student_user_id], references: [id])
+model JournalPhoto {
+  id                Int               @id @default(autoincrement())
+  journal_id        Int
+  journal           TeachingJournal   @relation(fields: [journal_id], references: [id], onDelete: Cascade)
+  
+  photo_url         String            // URL foto (bisa dari storage/S3)
+  photo_name        String?           // Nama asli file
+  uploaded_at       DateTime          @default(now())
+  
+  @@index([journal_id])
 }
 
+// Enum ini dipakai oleh StudentAttendance dan Attendance (legacy)
 enum AttendanceStatus {
   Hadir
   Izin
   Sakit
   Alfa
+}
+
+// Model legacy (dibiarkan sesuai permintaan)
+model Attendance {
+  id              Int              @id @default(autoincrement())
+  status          AttendanceStatus @default(Hadir)
+  notes           String?
+  journal_id      Int
+  // Note: This uses journal_id but TeachingJournal now uses StudentAttendance instead
+  // Kept for backward compatibility
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Room {
@@ -302,7 +420,8 @@ model Room {
   updatedAt DateTime @updatedAt
 }
 
-// ============== MODUL 3: IZIN KELUAR SEKOLAH ==============
+// ============== MODUL 5: IZIN KELUAR SEKOLAH ==============
+// (Tidak ada perubahan di modul ini)
 
 enum RequesterType {
   Student
@@ -368,7 +487,8 @@ model LeaveApproval {
   @@index([approver_user_id])
 }
 
-// ============== MODUL 4: E-COUNSELING ==============
+// ============== MODUL 6: E-COUNSELING ==============
+// (Tidak ada perubahan di modul ini)
 
 enum CounselingTicketStatus {
   OPEN

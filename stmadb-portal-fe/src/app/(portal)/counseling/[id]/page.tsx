@@ -183,7 +183,6 @@ export default function CounselingDetailPage() {
                 </p>
               </div>
             )}
-            {/* Tampilkan Kelas Siswa */}
             {ticket.student.class_memberships && ticket.student.class_memberships.length > 0 && (
               <div>
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">

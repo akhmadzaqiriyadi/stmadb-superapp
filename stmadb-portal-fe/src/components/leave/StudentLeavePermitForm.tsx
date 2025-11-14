@@ -135,11 +135,9 @@ const fetchMyClassmates = async (): Promise<ClassMember[]> => {
     return [];
   }
 
-  // ✅ Solusi 1: Type assertion jika yakin data ada
-  const classData = profile.currentClass as any;
-  const { data } = await api.get(`/academics/classes/${classData.id}/members`, {
+  const { data } = await api.get(`/academics/classes/${profile.currentClass.id}/members`, {
     params: {
-      academicYearId: classData.academic_year_id,
+      academicYearId: profile.currentClass.academic_year_id,
       limit: 100,
     },
   });

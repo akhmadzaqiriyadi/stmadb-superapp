@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
+import { toast } from "sonner";
+
 interface ActiveScheduleToggleProps {
   academicYearId: number;
 }
@@ -78,10 +80,14 @@ export function ActiveScheduleToggle({ academicYearId }: ActiveScheduleTogglePro
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['activeScheduleWeeks', academicYearId] });
-      alert(`Berhasil! Jadwal aktif ${gradeLabels[variables.gradeLevel as keyof typeof gradeLabels]} berhasil diubah ke ${weekTypeLabels[variables.weekType]}`);
+      toast.success("Jadwal Aktif Diperbarui", {
+        description: `Jadwal ${gradeLabels[variables.gradeLevel as keyof typeof gradeLabels]} sekarang menggunakan ${weekTypeLabels[variables.weekType]}.`,
+      });
     },
     onError: (error: any) => {
-      alert(`Gagal memperbarui: ${error.response?.data?.message || "Terjadi kesalahan saat memperbarui jadwal aktif"}`);
+      toast.error("Gagal Memperbarui", {
+        description: error.response?.data?.message || "Terjadi kesalahan saat memperbarui jadwal aktif.",
+      });
     },
   });
 

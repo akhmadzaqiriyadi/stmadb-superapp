@@ -18,6 +18,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   // 4. Definisikan daftar path di mana PortalHeader harus disembunyikan
   const pathsWithoutHeader = [
     "/leave-permits/new",
+    "/attendance/scan",
     // Anda bisa menambahkan path lain di sini di kemudian hari, contoh:
     // "/profile/edit", 
   ];

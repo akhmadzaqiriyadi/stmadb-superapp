@@ -290,7 +290,6 @@ export default function CounselorTicketList() {
                               NISN: {ticket.student.student_extension.nisn}
                             </p>
                           )}
-                          {/* Tampilkan kelas siswa */}
                           {ticket.student.class_memberships && ticket.student.class_memberships.length > 0 && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <School className="h-3 w-3" />
