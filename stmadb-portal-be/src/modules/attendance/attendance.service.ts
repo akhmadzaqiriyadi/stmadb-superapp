@@ -80,13 +80,12 @@ export const createOrGetDailySession = async (
 
   // Buat sesi baru untuk kelas ini
   // QR berlaku sampai jam 09:00 di timezone lokal (02:00 UTC jika server di WIB)
-  const now = new Date();
   
-  // Set expires_at ke jam 09:00 hari ini di timezone lokal
+  // Gunakan komponen tanggal yang sama dengan 'today' untuk konsistensi
   const expiresAt = new Date(Date.UTC(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
     2, 0, 0, 0 // 09:00 WIB = 02:00 UTC
   ));
   
