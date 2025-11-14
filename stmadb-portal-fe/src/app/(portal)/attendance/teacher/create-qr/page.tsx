@@ -14,9 +14,11 @@ import {
   Loader2,
   ArrowLeft,
   Users,
-  PenLine
+  PenLine,
+  Trash2,
+  RefreshCw
 } from "lucide-react";
-import { createDailySession, type DailyAttendanceSession } from "@/lib/api/attendance";
+import { createDailySession, deleteDailySession, type DailyAttendanceSession } from "@/lib/api/attendance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +34,7 @@ function CreateQRContent() {
 
   const [session, setSession] = useState<DailyAttendanceSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -107,6 +110,49 @@ function CreateQRContent() {
       }
     } else {
       toast.info("Browser tidak support share");
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!session) return;
+
+    if (!confirm('Yakin ingin menghapus sesi absensi ini? Data kehadiran yang sudah tercatat akan tetap tersimpan.')) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await deleteDailySession(session.id);
+      toast.success("Sesi absensi berhasil dihapus");
+      router.push('/attendance/teacher');
+    } catch (error: any) {
+      toast.error("Gagal menghapus sesi", {
+        description: error.response?.data?.message || error.message,
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleRegenerateQR = async () => {
+    if (!confirm('Buat QR code baru? QR lama akan dihapus.')) {
+      return;
+    }
+
+    if (session) {
+      try {
+        setDeleting(true);
+        await deleteDailySession(session.id);
+        await generateQR();
+        toast.success("QR Code berhasil dibuat ulang!");
+      } catch (error: any) {
+        toast.error("Gagal membuat ulang QR", {
+          description: error.response?.data?.message || error.message,
+        });
+        setDeleting(false);
+      }
+    } else {
+      await generateQR();
     }
   };
 
@@ -216,7 +262,7 @@ function CreateQRContent() {
           <Button
             variant="outline"
             onClick={handleDownloadQR}
-            disabled={isExpired}
+            disabled={isExpired || deleting}
             className="h-9 text-xs"
           >
             <Download className="w-3 h-3 mr-1" />
@@ -225,11 +271,41 @@ function CreateQRContent() {
           <Button
             variant="outline"
             onClick={handleShare}
-            disabled={isExpired}
+            disabled={isExpired || deleting}
             className="h-9 text-xs"
           >
             <Share2 className="w-3 h-3 mr-1" />
             Bagikan
+          </Button>
+        </div>
+
+        {/* Management Buttons */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <Button
+            variant="outline"
+            onClick={handleRegenerateQR}
+            disabled={deleting}
+            className="h-9 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+          >
+            {deleting ? (
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3 h-3 mr-1" />
+            )}
+            Buat Ulang
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDeleteSession}
+            disabled={deleting}
+            className="h-9 text-xs border-red-300 text-red-700 hover:bg-red-50"
+          >
+            {deleting ? (
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            ) : (
+              <Trash2 className="w-3 h-3 mr-1" />
+            )}
+            Hapus Sesi
           </Button>
         </div>
 

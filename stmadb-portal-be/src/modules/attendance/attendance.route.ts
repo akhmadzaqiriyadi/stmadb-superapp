@@ -203,4 +203,30 @@ router.get(
   attendanceController.getTeacherClasses,
 );
 
+/**
+ * @openapi
+ * /attendance/daily-session/{sessionId}:
+ *   delete:
+ *     tags: [Attendance]
+ *     summary: (Guru/Piket/Admin) Menghapus Sesi Absensi Harian
+ *     description: Menghapus sesi absensi harian. Data kehadiran siswa tetap tersimpan.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID dari sesi yang akan dihapus
+ *     responses:
+ *       '200':
+ *         description: Sesi absensi berhasil dihapus.
+ */
+router.delete(
+  '/daily-session/:sessionId',
+  authorize(['Teacher', 'WaliKelas', 'Piket', 'Admin']),
+  attendanceController.deleteDailySession,
+);
+
 export default router;

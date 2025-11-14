@@ -13,18 +13,22 @@ import { v4 as uuidv4 } from 'uuid';
 const prisma = new PrismaClient();
 
 /**
- * Helper: Mendapatkan tanggal hari ini di timezone lokal server
- * Returns date at 00:00:00 UTC for today's date in server timezone
+ * Helper: Mendapatkan tanggal hari ini di timezone WIB (UTC+7)
+ * Returns date at 00:00:00 UTC for today's date in WIB
  */
 const getTodayDate = () => {
-  // Get current date in server's local timezone
+  // Get current date/time in UTC
   const now = new Date();
   
-  // Create date at midnight UTC for today's local date
+  // Convert to WIB (UTC+7) by adding 7 hours in milliseconds
+  const wibOffset = 7 * 60 * 60 * 1000;
+  const wibTime = new Date(now.getTime() + wibOffset);
+  
+  // Create date at midnight UTC for today's WIB date
   const today = new Date(Date.UTC(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
+    wibTime.getUTCFullYear(),
+    wibTime.getUTCMonth(),
+    wibTime.getUTCDate(),
     0, 0, 0, 0
   ));
   
@@ -503,5 +507,25 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
       session_date: session?.session_date || null,
       qr_expires_at: session?.expires_at || null,
     };
+  });
+};
+
+/**
+ * FLOW 7: Menghapus Sesi Absensi Harian
+ * Note: Data kehadiran siswa (StudentAttendance) akan tetap tersimpan
+ */
+export const deleteDailySession = async (sessionId: string): Promise<void> => {
+  // Cek apakah session exists
+  const session = await prisma.dailyAttendanceSession.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) {
+    throw new Error('Sesi absensi tidak ditemukan.');
+  }
+
+  // Hapus session (data StudentAttendance akan tetap ada karena tidak cascade delete)
+  await prisma.dailyAttendanceSession.delete({
+    where: { id: sessionId },
   });
 };

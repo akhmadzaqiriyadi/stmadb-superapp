@@ -116,3 +116,11 @@ export async function getTeacherClasses(): Promise<TeacherClassWithStatus[]> {
   );
   return response.data.data;
 }
+
+// Teacher: Delete Daily Session
+export async function deleteDailySession(sessionId: string): Promise<{ message: string }> {
+  const response = await api.delete<{ message: string }>(
+    `/attendance/daily-session/${sessionId}`
+  );
+  return response.data;
+}

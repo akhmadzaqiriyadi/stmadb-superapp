@@ -149,3 +149,23 @@ export const getTeacherClasses = async (req: Request, res: Response) => {
     res.status(400).json({ message: (error as Error).message });
   }
 };
+
+/**
+ * FLOW 7: DELETE /api/v1/attendance/daily-session/:sessionId
+ * (Guru) Menghapus Sesi Absensi Harian
+ */
+export const deleteDailySession = async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    
+    if (!sessionId) {
+      return res.status(400).json({ message: 'ID Sesi dibutuhkan' });
+    }
+
+    await attendanceService.deleteDailySession(sessionId);
+
+    res.status(200).json({ message: 'Sesi absensi berhasil dihapus' });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
