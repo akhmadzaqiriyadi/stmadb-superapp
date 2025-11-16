@@ -169,3 +169,76 @@ export const deleteDailySession = async (req: Request, res: Response) => {
     res.status(400).json({ message: (error as Error).message });
   }
 };
+
+// ====== ADMIN/PIKET ENDPOINTS ======
+
+/**
+ * GET /api/v1/attendance/admin/sessions
+ * (Admin/Piket) Mendapatkan Semua Sesi Absensi dengan Filter
+ */
+export const getAllSessions = async (req: Request, res: Response) => {
+  try {
+    const result = await attendanceService.getAllSessions(req.query);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+/**
+ * GET /api/v1/attendance/admin/statistics
+ * (Admin/Piket) Mendapatkan Statistik Absensi
+ */
+export const getAdminStatistics = async (req: Request, res: Response) => {
+  try {
+    const statistics = await attendanceService.getAdminStatistics();
+    res.status(200).json({ data: statistics });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+/**
+ * GET /api/v1/attendance/admin/session/:sessionId/details
+ * (Admin/Piket) Mendapatkan Detail Sesi dengan Daftar Siswa
+ */
+export const getSessionDetails = async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    
+    if (!sessionId) {
+      return res.status(400).json({ message: 'ID Sesi dibutuhkan' });
+    }
+
+    const details = await attendanceService.getSessionDetails(sessionId);
+    res.status(200).json({ data: details });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+/**
+ * GET /api/v1/attendance/admin/export
+ * (Admin/Piket) Export Data Absensi
+ */
+export const exportAttendanceData = async (req: Request, res: Response) => {
+  try {
+    const data = await attendanceService.exportAttendanceData(req.query);
+    res.status(200).json({ data });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+/**
+ * GET /api/v1/attendance/admin/classes
+ * (Admin/Piket) Mendapatkan Semua Kelas untuk Create Session
+ */
+export const getAllClassesForAttendance = async (req: Request, res: Response) => {
+  try {
+    const classes = await attendanceService.getAllClassesForAttendance();
+    res.status(200).json({ data: classes });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};

@@ -7,6 +7,7 @@ import {
   createCounselingTicketSchema,
   updateTicketStatusSchema,
   getTicketsQuerySchema,
+  getAdminTicketsQuerySchema,
 } from './counseling.validation.js';
 
 const router = Router();
@@ -24,6 +25,27 @@ router.get(
 router.get(
   '/statistics',
   counselingController.getStatistics
+);
+
+// Route khusus Admin/Piket (Dashboard Pengelola)
+router.get(
+  '/admin/tickets',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  validate(getAdminTicketsQuerySchema),
+  counselingController.getAllTicketsForAdmin
+);
+
+router.get(
+  '/admin/statistics',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  counselingController.getAdminStatistics
+);
+
+router.get(
+  '/admin/export',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  validate(getAdminTicketsQuerySchema),
+  counselingController.exportTickets
 );
 
 // Route khusus siswa (HARUS sebelum route dengan :id parameter)

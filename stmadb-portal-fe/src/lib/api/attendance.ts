@@ -124,3 +124,139 @@ export async function deleteDailySession(sessionId: string): Promise<{ message: 
   );
   return response.data;
 }
+
+// ====== ADMIN/PIKET APIs ======
+
+export interface AdminDailyAttendanceSession {
+  id: string;
+  session_date: string;
+  qr_code: string;
+  expires_at: string;
+  class: {
+    id: number;
+    class_name: string;
+    grade_level: number;
+  };
+  created_by: {
+    id: number;
+    profile: {
+      full_name: string;
+    } | null;
+  };
+  status: 'active' | 'expired';
+  total_students: number;
+  attendance_count: number;
+  attendance_rate: number;
+}
+
+export interface AdminAttendanceStatistics {
+  totalSessionsToday: number;
+  totalStudents: number;
+  totalAttendanceToday: number;
+  attendanceRate: number;
+  highestAttendanceClass: {
+    class_id: number;
+    class_name: string;
+    total_students: number;
+    attendance_count: number;
+    rate: number;
+  } | null;
+  lowestAttendanceClass: {
+    class_id: number;
+    class_name: string;
+    total_students: number;
+    attendance_count: number;
+    rate: number;
+  } | null;
+  classRates: Array<{
+    class_id: number;
+    class_name: string;
+    total_students: number;
+    attendance_count: number;
+    rate: number;
+  }>;
+}
+
+export interface SessionDetails {
+  session: {
+    id: string;
+    session_date: string;
+    qr_code: string;
+    expires_at: string;
+    status: 'active' | 'expired';
+    class: {
+      id: number;
+      class_name: string;
+      grade_level: number;
+    };
+    created_by: string;
+    academic_year: string;
+  };
+  statistics: {
+    total_students: number;
+    present_count: number;
+    absent_count: number;
+    attendance_rate: number;
+  };
+  students: Array<{
+    student_user_id: number;
+    full_name: string;
+    nisn: string;
+    status: string | null;
+    scan_method: string | null;
+    marked_at: string | null;
+    notes: string | null;
+  }>;
+}
+
+export interface ClassForAttendance {
+  id: number;
+  class_name: string;
+  grade_level: number;
+  major_name: string;
+  total_students: number;
+}
+
+export interface GetSessionsQuery {
+  date?: string;
+  class_id?: number;
+  status?: 'active' | 'expired' | 'all';
+  page?: number;
+  limit?: number;
+}
+
+// Admin: Get All Sessions with Filters
+export async function getAllSessions(params: GetSessionsQuery = {}) {
+  const response = await api.get('/attendance/admin/sessions', { params });
+  return response.data;
+}
+
+// Admin: Get Statistics
+export async function getAdminStatistics(): Promise<AdminAttendanceStatistics> {
+  const response = await api.get<{ data: AdminAttendanceStatistics }>(
+    '/attendance/admin/statistics'
+  );
+  return response.data.data;
+}
+
+// Admin: Get Session Details
+export async function getAdminSessionDetails(sessionId: string): Promise<SessionDetails> {
+  const response = await api.get<{ data: SessionDetails }>(
+    `/attendance/admin/session/${sessionId}/details`
+  );
+  return response.data.data;
+}
+
+// Admin: Export Attendance Data
+export async function exportAttendanceData(params: GetSessionsQuery = {}) {
+  const response = await api.get('/attendance/admin/export', { params });
+  return response.data.data;
+}
+
+// Admin: Get All Classes for Creating Sessions
+export async function getAllClassesForAttendance(): Promise<ClassForAttendance[]> {
+  const response = await api.get<{ data: ClassForAttendance[] }>(
+    '/attendance/admin/classes'
+  );
+  return response.data.data;
+}

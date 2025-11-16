@@ -3,6 +3,7 @@ import type {
   CreateCounselingTicketInput,
   UpdateTicketStatusInput,
   GetTicketsQuery,
+  GetAdminTicketsQuery,
 } from './counseling.validation.js';
 
 const prisma = new PrismaClient();
@@ -411,5 +412,278 @@ export class CounselingService {
       closed,
       rejected,
     };
+  }
+
+  /**
+   * Dapatkan semua tiket untuk Admin/Piket (Dashboard Pengelola)
+   */
+  async getAllTicketsForAdmin(query: GetAdminTicketsQuery = {}) {
+    const { 
+      status, 
+      page = '1', 
+      limit = '10',
+      counselor_id,
+      student_id,
+      search,
+      start_date,
+      end_date
+    } = query;
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const where: Prisma.CounselingTicketWhereInput = {};
+
+    // Filter by status
+    if (status) {
+      where.status = status as CounselingTicketStatus;
+    }
+
+    // Filter by counselor
+    if (counselor_id) {
+      where.counselor_user_id = parseInt(counselor_id);
+    }
+
+    // Filter by student
+    if (student_id) {
+      where.student_user_id = parseInt(student_id);
+    }
+
+    // Filter by date range
+    if (start_date || end_date) {
+      where.createdAt = {};
+      if (start_date) {
+        where.createdAt.gte = new Date(start_date);
+      }
+      if (end_date) {
+        where.createdAt.lte = new Date(end_date);
+      }
+    }
+
+    // Search by ticket number, student name, or problem description
+    if (search) {
+      where.OR = [
+        {
+          ticket_number: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          problem_description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          student: {
+            profile: {
+              full_name: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      ];
+    }
+
+    const [tickets, total] = await Promise.all([
+      prisma.counselingTicket.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          student: {
+            include: {
+              profile: true,
+              student_extension: true,
+              class_memberships: {
+                include: {
+                  class: {
+                    include: {
+                      major: true,
+                    },
+                  },
+                  academic_year: true,
+                },
+                where: {
+                  academic_year: {
+                    is_active: true,
+                  },
+                },
+              },
+            },
+          },
+          counselor: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      }),
+      prisma.counselingTicket.count({ where }),
+    ]);
+
+    return {
+      data: tickets,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+  }
+
+  /**
+   * Dapatkan statistik keseluruhan untuk Admin/Piket
+   */
+  async getAdminStatistics() {
+    const [total, open, inProgress, closed, rejected, recentTickets] = await Promise.all([
+      prisma.counselingTicket.count(),
+      prisma.counselingTicket.count({
+        where: { status: CounselingTicketStatus.OPEN },
+      }),
+      prisma.counselingTicket.count({
+        where: { status: CounselingTicketStatus.PROSES },
+      }),
+      prisma.counselingTicket.count({
+        where: { status: CounselingTicketStatus.CLOSE },
+      }),
+      prisma.counselingTicket.count({
+        where: { status: CounselingTicketStatus.DITOLAK },
+      }),
+      // 7 hari terakhir
+      prisma.counselingTicket.count({
+        where: {
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+    ]);
+
+    // Statistik per counselor
+    const counselorStats = await prisma.counselingTicket.groupBy({
+      by: ['counselor_user_id'],
+      _count: {
+        id: true,
+      },
+      orderBy: {
+        _count: {
+          id: 'desc',
+        },
+      },
+      take: 5,
+    });
+
+    // Ambil detail counselor
+    const counselorIds = counselorStats.map(stat => stat.counselor_user_id);
+    const counselors = await prisma.user.findMany({
+      where: {
+        id: {
+          in: counselorIds,
+        },
+      },
+      include: {
+        profile: true,
+      },
+    });
+
+    const counselorStatsWithDetails = counselorStats.map(stat => {
+      const counselor = counselors.find(c => c.id === stat.counselor_user_id);
+      return {
+        counselor_id: stat.counselor_user_id,
+        counselor_name: counselor?.profile?.full_name || 'Unknown',
+        total_tickets: stat._count.id,
+      };
+    });
+
+    return {
+      total,
+      open,
+      inProgress,
+      closed,
+      rejected,
+      recentTickets,
+      topCounselors: counselorStatsWithDetails,
+    };
+  }
+
+  /**
+   * Export data tiket untuk laporan (Admin/Piket)
+   */
+  async exportTickets(query: GetAdminTicketsQuery = {}) {
+    const { 
+      status, 
+      counselor_id,
+      student_id,
+      start_date,
+      end_date
+    } = query;
+
+    const where: Prisma.CounselingTicketWhereInput = {};
+
+    if (status) {
+      where.status = status as CounselingTicketStatus;
+    }
+
+    if (counselor_id) {
+      where.counselor_user_id = parseInt(counselor_id);
+    }
+
+    if (student_id) {
+      where.student_user_id = parseInt(student_id);
+    }
+
+    if (start_date || end_date) {
+      where.createdAt = {};
+      if (start_date) {
+        where.createdAt.gte = new Date(start_date);
+      }
+      if (end_date) {
+        where.createdAt.lte = new Date(end_date);
+      }
+    }
+
+    const tickets = await prisma.counselingTicket.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        student: {
+          include: {
+            profile: true,
+            student_extension: true,
+            class_memberships: {
+              include: {
+                class: {
+                  include: {
+                    major: true,
+                  },
+                },
+                academic_year: true,
+              },
+              where: {
+                academic_year: {
+                  is_active: true,
+                },
+              },
+            },
+          },
+        },
+        counselor: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    return tickets;
   }
 }

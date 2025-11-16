@@ -42,6 +42,19 @@ export const getTicketsQuerySchema = z.object({
   }),
 });
 
+export const getAdminTicketsQuerySchema = z.object({
+  query: z.object({
+    status: z.enum(['OPEN', 'PROSES', 'DITOLAK', 'CLOSE']).optional(),
+    page: z.string().optional(),
+    limit: z.string().optional(),
+    counselor_id: z.string().optional(),
+    student_id: z.string().optional(),
+    search: z.string().optional(),
+    start_date: z.string().optional(),
+    end_date: z.string().optional(),
+  }),
+});
+
 export type CreateCounselingTicketInput = z.infer<
   typeof createCounselingTicketSchema
 >['body'];
@@ -49,3 +62,4 @@ export type UpdateTicketStatusInput = z.infer<
   typeof updateTicketStatusSchema
 >['body'];
 export type GetTicketsQuery = z.infer<typeof getTicketsQuerySchema>['query'];
+export type GetAdminTicketsQuery = z.infer<typeof getAdminTicketsQuerySchema>['query'];

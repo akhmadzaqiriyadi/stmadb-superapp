@@ -229,4 +229,76 @@ router.delete(
   attendanceController.deleteDailySession,
 );
 
+// ====== ADMIN/PIKET ROUTES ======
+
+/**
+ * @openapi
+ * /attendance/admin/sessions:
+ *   get:
+ *     tags: [Attendance - Admin]
+ *     summary: (Admin/Piket) Mendapatkan Semua Sesi Absensi dengan Filter
+ *     description: Mengambil semua sesi absensi dengan filter tanggal, kelas, dan status.
+ */
+router.get(
+  '/admin/sessions',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  attendanceController.getAllSessions,
+);
+
+/**
+ * @openapi
+ * /attendance/admin/statistics:
+ *   get:
+ *     tags: [Attendance - Admin]
+ *     summary: (Admin/Piket) Mendapatkan Statistik Absensi
+ *     description: Mengambil statistik absensi keseluruhan untuk hari ini.
+ */
+router.get(
+  '/admin/statistics',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  attendanceController.getAdminStatistics,
+);
+
+/**
+ * @openapi
+ * /attendance/admin/session/:sessionId/details:
+ *   get:
+ *     tags: [Attendance - Admin]
+ *     summary: (Admin/Piket) Mendapatkan Detail Sesi dengan Daftar Siswa
+ *     description: Mengambil detail lengkap sesi absensi termasuk daftar semua siswa dan status kehadiran mereka.
+ */
+router.get(
+  '/admin/session/:sessionId/details',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  attendanceController.getSessionDetails,
+);
+
+/**
+ * @openapi
+ * /attendance/admin/export:
+ *   get:
+ *     tags: [Attendance - Admin]
+ *     summary: (Admin/Piket) Export Data Absensi
+ *     description: Export data absensi dalam format yang siap untuk CSV/Excel.
+ */
+router.get(
+  '/admin/export',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  attendanceController.exportAttendanceData,
+);
+
+/**
+ * @openapi
+ * /attendance/admin/classes:
+ *   get:
+ *     tags: [Attendance - Admin]
+ *     summary: (Admin/Piket) Mendapatkan Semua Kelas untuk Create Session
+ *     description: Mengambil daftar semua kelas yang bisa dibuatkan sesi absensi.
+ */
+router.get(
+  '/admin/classes',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  attendanceController.getAllClassesForAttendance,
+);
+
 export default router;

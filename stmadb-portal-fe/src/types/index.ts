@@ -419,6 +419,20 @@ export interface CounselingStatistics {
   rejected: number;
 }
 
+export interface AdminCounselingStatistics {
+  total: number;
+  open: number;
+  inProgress: number;
+  closed: number;
+  rejected: number;
+  recentTickets: number;
+  topCounselors: Array<{
+    counselor_id: number;
+    counselor_name: string;
+    total_tickets: number;
+  }>;
+}
+
 export interface Counselor {
   id: number;
   email: string;

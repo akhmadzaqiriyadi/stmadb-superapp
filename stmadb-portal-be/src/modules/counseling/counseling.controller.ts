@@ -4,6 +4,7 @@ import type {
   CreateCounselingTicketInput,
   UpdateTicketStatusInput,
   GetTicketsQuery,
+  GetAdminTicketsQuery,
 } from './counseling.validation.js';
 
 const counselingService = new CounselingService();
@@ -174,6 +175,62 @@ export class CounselingController {
       res.status(200).json({
         success: true,
         data: statistics,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/counseling/admin/tickets
+   * Dapatkan semua tiket untuk Admin/Piket (Dashboard Pengelola)
+   */
+  async getAllTicketsForAdmin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query: GetAdminTicketsQuery = req.query;
+
+      const result = await counselingService.getAllTicketsForAdmin(query);
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/counseling/admin/statistics
+   * Dapatkan statistik keseluruhan untuk Admin/Piket
+   */
+  async getAdminStatistics(req: Request, res: Response, next: NextFunction) {
+    try {
+      const statistics = await counselingService.getAdminStatistics();
+
+      res.status(200).json({
+        success: true,
+        data: statistics,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/counseling/admin/export
+   * Export data tiket untuk laporan
+   */
+  async exportTickets(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query: GetAdminTicketsQuery = req.query;
+
+      const tickets = await counselingService.exportTickets(query);
+
+      res.status(200).json({
+        success: true,
+        data: tickets,
       });
     } catch (error) {
       next(error);
