@@ -19,8 +19,9 @@ interface TimeValidationResult {
 export class TeachingJournalService {
   
   // Grace period dalam menit
-  private readonly GRACE_BEFORE = 15; // 15 menit sebelum
-  private readonly GRACE_AFTER = 30;  // 30 menit setelah
+  // Untuk jadwal panjang (misal 07:00-15:30), guru bisa isi jurnal selama jam pelajaran berlangsung
+  private readonly GRACE_BEFORE = 30; // 30 menit sebelum mulai
+  private readonly GRACE_AFTER = 120; // 2 jam setelah selesai (untuk antisipasi keterlambatan isi jurnal)
   
   /**
    * Validasi apakah guru bisa mengisi jurnal saat ini
@@ -67,9 +68,21 @@ export class TeachingJournalService {
       };
     }
     
-    // 2. Get current time
+    // 2. Get current time and day
     const now = new Date();
-    const currentDay = format(now, 'EEEE', { locale: localeId });
+    
+    // Mapping hari dalam bahasa Indonesia (case-insensitive compare)
+    const dayMap: Record<number, string> = {
+      0: 'Minggu',
+      1: 'Senin', 
+      2: 'Selasa',
+      3: 'Rabu',
+      4: 'Kamis',
+      5: 'Jumat',
+      6: 'Sabtu'
+    };
+    
+    const currentDay = dayMap[now.getDay()];
     const currentTime = format(now, 'HH:mm');
     
     // 3. Validate day of week
