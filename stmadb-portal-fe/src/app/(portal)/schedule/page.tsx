@@ -177,18 +177,10 @@ export default function SchedulePage() {
         }
       }
 
-      // Filter schedules berdasarkan active week type
-      let filteredSchedules = allSchedules;
-      if (activeWeek) {
-        filteredSchedules = allSchedules.filter(
-          (schedule) =>
-            schedule.schedule_type === activeWeek.active_week_type ||
-            schedule.schedule_type === ScheduleType.Umum
-        );
-      }
-
+      // Tidak filter schedules, tampilkan semua untuk visual feedback
+      // Nanti di UI akan dibedakan dengan grayscale untuk non-active week
       return {
-        schedules: filteredSchedules.sort((a, b) =>
+        schedules: allSchedules.sort((a, b) =>
           a.start_time.localeCompare(b.start_time)
         ),
         activeWeek,
@@ -202,12 +194,26 @@ export default function SchedulePage() {
   const activeWeek = schedulesData?.activeWeek;
 
   // Get schedule status based on current time
-  const getScheduleStatus = (startTime: string, endTime: string) => {
+  const getScheduleStatus = (
+    startTime: string,
+    endTime: string,
+    scheduleType: ScheduleType,
+    activeWeekType?: ScheduleType
+  ) => {
     const now = new Date();
     const currentDay = format(now, 'EEEE', { locale: idLocale }) as DayOfWeek;
     
     // Only show status for today's schedules
     if (currentDay !== selectedDay) {
+      return null;
+    }
+
+    // Only show status if schedule matches active week or is Umum
+    if (
+      activeWeekType &&
+      scheduleType !== ScheduleType.Umum &&
+      scheduleType !== activeWeekType
+    ) {
       return null;
     }
 
@@ -323,14 +329,24 @@ export default function SchedulePage() {
                       {schedules.map((schedule) => {
                         const status = getScheduleStatus(
                           schedule.start_time,
-                          schedule.end_time
+                          schedule.end_time,
+                          schedule.schedule_type,
+                          activeWeek?.active_week_type
                         );
+
+                        // Check if schedule is active (matches active week or is Umum)
+                        const isActiveSchedule =
+                          !activeWeek ||
+                          schedule.schedule_type === ScheduleType.Umum ||
+                          schedule.schedule_type === activeWeek.active_week_type;
 
                         return (
                           <div
                             key={schedule.id}
                             className={`rounded-lg p-4 border-2 transition-all ${
-                              status
+                              !isActiveSchedule
+                                ? 'grayscale opacity-50 bg-gray-50 border-gray-200'
+                                : status
                                 ? status.color
                                 : 'bg-white border-gray-200'
                             }`}
@@ -345,8 +361,8 @@ export default function SchedulePage() {
                                 </span>
                               </div>
 
-                              {/* Status Badge - only for today */}
-                              {status && (
+                              {/* Status Badge - only for today and active schedules */}
+                              {status && isActiveSchedule && (
                                 <div className="flex items-center gap-2">
                                   <div
                                     className={`w-2 h-2 rounded-full ${status.dotColor} ${
@@ -359,6 +375,13 @@ export default function SchedulePage() {
                                     {status.label}
                                   </span>
                                 </div>
+                              )}
+
+                              {/* Badge untuk jadwal non-aktif */}
+                              {!isActiveSchedule && (
+                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-500 border-gray-300">
+                                  Tidak Aktif
+                                </Badge>
                               )}
                             </div>
 

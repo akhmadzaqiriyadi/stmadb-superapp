@@ -225,7 +225,7 @@ function CreateQRContent() {
         <Card className="overflow-hidden shadow-lg mb-3">
           <CardContent className="p-0">
             <div className={cn(
-              "bg-white flex items-center justify-center p-6",
+              "bg-white flex items-center justify-center p-8",
               isExpired && "opacity-40 grayscale"
             )}>
               <div className="relative">
@@ -234,7 +234,7 @@ function CreateQRContent() {
                   value={session.qr_code}
                   size={240}
                   level="H"
-                  includeMargin={false}
+                  includeMargin={true}
                   className="w-full h-full"
                 />
                 {isExpired && (

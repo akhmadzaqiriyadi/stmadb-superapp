@@ -42,12 +42,17 @@ export const createOrGetDailySession = async (
   creatorUserId: number,
   classId: number,
 ): Promise<DailyAttendanceSession> => {
-  // Validasi: Cek apakah kelas ada
-  const classExists = await prisma.classes.findUnique({
+  // Validasi: Cek apakah kelas ada dan ambil grade level
+  const classData = await prisma.classes.findUnique({
     where: { id: classId },
+    select: {
+      id: true,
+      class_name: true,
+      grade_level: true,
+    },
   });
 
-  if (!classExists) {
+  if (!classData) {
     throw new Error('Kelas tidak ditemukan.');
   }
 
@@ -60,6 +65,48 @@ export const createOrGetDailySession = async (
   }
 
   const today = getTodayDate();
+  const now = new Date();
+  
+  // Validasi 1: Cek apakah hari ini Sabtu atau Minggu
+  const dayOfWeek = now.getDay(); // 0 = Minggu, 6 = Sabtu
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    throw new Error('Tidak dapat membuat sesi absensi di hari Sabtu atau Minggu.');
+  }
+
+  // Validasi 2: Cek minggu aktif untuk grade level ini
+  const activeScheduleWeek = await prisma.activeScheduleWeek.findUnique({
+    where: {
+      grade_level_academic_year_id: {
+        grade_level: classData.grade_level,
+        academic_year_id: activeAcademicYear.id,
+      },
+    },
+  });
+
+  // Jika ada pengaturan minggu aktif dan bukan "Umum", validasi lebih lanjut
+  if (activeScheduleWeek && activeScheduleWeek.active_week_type !== 'Umum') {
+    // Cek apakah ada jadwal untuk kelas ini pada hari ini dengan tipe minggu yang aktif
+    const currentDayName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][dayOfWeek];
+    
+    const todaySchedule = await prisma.schedule.findFirst({
+      where: {
+        assignment: {
+          class_id: classId,
+        },
+        day_of_week: currentDayName as any,
+        schedule_type: activeScheduleWeek.active_week_type,
+        academic_year_id: activeAcademicYear.id,
+      },
+    });
+
+    // Jika tidak ada jadwal yang cocok, berarti kelas ini sedang tidak aktif (misal: PKL)
+    if (!todaySchedule) {
+      throw new Error(
+        `Kelas ${classData.class_name} tidak memiliki jadwal aktif untuk hari ini (Minggu ${activeScheduleWeek.active_week_type}). ` +
+        `Kemungkinan kelas sedang PKL atau tidak ada jadwal.`
+      );
+    }
+  }
 
   // Cek apakah sudah ada sesi untuk kelas ini hari ini
   const existingSession = await prisma.dailyAttendanceSession.findUnique({
@@ -84,7 +131,6 @@ export const createOrGetDailySession = async (
 
   // Buat sesi baru untuk kelas ini
   // QR berlaku 3 jam dari sekarang (bukan fixed jam 9 pagi)
-  const now = new Date();
   const expiresAt = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // 3 jam dari sekarang
   
   const qrCode = uuidv4();
@@ -532,6 +578,8 @@ interface GetAllSessionsQuery {
   status?: 'active' | 'expired' | 'all';
   page?: string;
   limit?: string;
+  month?: string; // Format: YYYY-MM
+  year?: string;  // Format: YYYY
 }
 
 /**
@@ -544,12 +592,14 @@ export const getAllSessions = async (query: GetAllSessionsQuery) => {
     status = 'all',
     page = '1',
     limit = '10',
+    month,
+    year,
   } = query;
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const where: Prisma.DailyAttendanceSessionWhereInput = {};
 
-  // Filter by date
+  // Filter by specific date
   if (date) {
     const filterDate = new Date(date);
     const startOfDay = new Date(Date.UTC(
@@ -559,6 +609,27 @@ export const getAllSessions = async (query: GetAllSessionsQuery) => {
       0, 0, 0, 0
     ));
     where.session_date = startOfDay;
+  } 
+  // Filter by month (YYYY-MM format)
+  else if (month && month.includes('-')) {
+    const [yearStr = '', monthStr = ''] = month.split('-');
+    const startOfMonth = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, 1, 0, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr), 0, 23, 59, 59, 999));
+    
+    where.session_date = {
+      gte: startOfMonth,
+      lte: endOfMonth,
+    };
+  }
+  // Filter by year (YYYY format)
+  else if (year) {
+    const startOfYear = new Date(Date.UTC(parseInt(year), 0, 1, 0, 0, 0, 0));
+    const endOfYear = new Date(Date.UTC(parseInt(year), 11, 31, 23, 59, 59, 999));
+    
+    where.session_date = {
+      gte: startOfYear,
+      lte: endOfYear,
+    };
   }
 
   // Filter by class
@@ -608,35 +679,35 @@ export const getAllSessions = async (query: GetAllSessionsQuery) => {
     prisma.dailyAttendanceSession.count({ where }),
   ]);
 
-  // Get total students per class
-  const classIds = sessions.map((s) => s.class_id);
-  const activeAcademicYear = await prisma.academicYear.findFirst({
-    where: { is_active: true },
-    select: { id: true },
-  });
+  // Get total students per class per academic year
+  // Group by both class_id and academic_year_id to ensure accurate count
+  const classAcademicYearPairs = sessions.map((s) => ({
+    class_id: s.class_id,
+    academic_year_id: s.academic_year_id,
+  }));
 
-  let studentCounts = new Map<number, number>();
-  if (activeAcademicYear) {
-    const counts = await prisma.classMember.groupBy({
-      by: ['class_id'],
-      where: {
-        class_id: { in: classIds },
-        academic_year_id: activeAcademicYear.id,
-      },
-      _count: {
-        student_user_id: true,
-      },
-    });
-    studentCounts = new Map(
-      counts.map((c) => [c.class_id, c._count.student_user_id])
-    );
+  // Build a unique key for each class-academic year combination
+  const studentCounts = new Map<string, number>();
+  
+  for (const session of sessions) {
+    const key = `${session.class_id}-${session.academic_year_id}`;
+    if (!studentCounts.has(key)) {
+      const count = await prisma.classMember.count({
+        where: {
+          class_id: session.class_id,
+          academic_year_id: session.academic_year_id,
+        },
+      });
+      studentCounts.set(key, count);
+    }
   }
 
   // Process sessions with status
   const now = new Date();
   let processedSessions = sessions.map((session) => {
     const isExpired = now > session.expires_at;
-    const totalStudents = studentCounts.get(session.class_id) || 0;
+    const key = `${session.class_id}-${session.academic_year_id}`;
+    const totalStudents = studentCounts.get(key) || 0;
     const attendanceCount = session._count.student_attendances;
     const attendanceRate = totalStudents > 0 
       ? Math.round((attendanceCount / totalStudents) * 100) 
@@ -886,7 +957,7 @@ export const getSessionDetails = async (sessionId: string) => {
 
   const now = new Date();
   const totalStudents = studentList.length;
-  const presentCount = studentList.filter((s) => s.status === 'Hadir').length;
+  const presentCount = studentList.filter((s) => s.status === AttendanceStatus.Hadir).length;
   const attendanceRate = totalStudents > 0
     ? Math.round((presentCount / totalStudents) * 100)
     : 0;
@@ -916,9 +987,10 @@ export const getSessionDetails = async (sessionId: string) => {
  * Admin: Export Attendance Data
  */
 export const exportAttendanceData = async (query: GetAllSessionsQuery) => {
-  const { date, class_id } = query;
+  const { date, class_id, month, year } = query;
   const where: Prisma.DailyAttendanceSessionWhereInput = {};
 
+  // Filter by specific date
   if (date) {
     const filterDate = new Date(date);
     const startOfDay = new Date(Date.UTC(
@@ -928,6 +1000,27 @@ export const exportAttendanceData = async (query: GetAllSessionsQuery) => {
       0, 0, 0, 0
     ));
     where.session_date = startOfDay;
+  }
+  // Filter by month (YYYY-MM format)
+  else if (month && month.includes('-')) {
+    const [yearStr = '', monthStr = ''] = month.split('-');
+    const startOfMonth = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr) - 1, 1, 0, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(parseInt(yearStr), parseInt(monthStr), 0, 23, 59, 59, 999));
+    
+    where.session_date = {
+      gte: startOfMonth,
+      lte: endOfMonth,
+    };
+  }
+  // Filter by year (YYYY format)
+  else if (year) {
+    const startOfYear = new Date(Date.UTC(parseInt(year), 0, 1, 0, 0, 0, 0));
+    const endOfYear = new Date(Date.UTC(parseInt(year), 11, 31, 23, 59, 59, 999));
+    
+    where.session_date = {
+      gte: startOfYear,
+      lte: endOfYear,
+    };
   }
 
   if (class_id) {

@@ -442,3 +442,135 @@ export interface Counselor {
     phone_number?: string | null;
   };
 }
+
+// ===== TEACHING JOURNAL TYPES =====
+
+export enum TeacherStatus {
+  Hadir = "Hadir",
+  Sakit = "Sakit",
+  Izin = "Izin",
+  Alpa = "Alpa"
+}
+
+export enum LearningMethod {
+  Ceramah = "Ceramah",
+  Diskusi = "Diskusi",
+  Praktik = "Praktik",
+  Demonstrasi = "Demonstrasi",
+  Eksperimen = "Eksperimen",
+  PresentasiSiswa = "PresentasiSiswa",
+  TanyaJawab = "TanyaJawab",
+  PembelajaranKelompok = "PembelajaranKelompok",
+  Proyek = "Proyek",
+  ProblemSolving = "ProblemSolving"
+}
+
+export enum AttendanceStatus {
+  Hadir = "Hadir",
+  Sakit = "Sakit",
+  Izin = "Izin",
+  Alfa = "Alfa"
+}
+
+export interface JournalPhoto {
+  id: number;
+  photo_url: string;
+  filename: string;
+}
+
+export interface StudentAttendance {
+  id: number;
+  student_user_id: number;
+  status: AttendanceStatus;
+  notes?: string | null;
+  scan_method: string;
+  marked_at: string;
+  student: {
+    id: number;
+    profile: {
+      full_name: string;
+    };
+  };
+}
+
+export interface DailyAttendanceSession {
+  id: string;
+  session_date: string;
+  student_attendances: StudentAttendance[];
+}
+
+export interface TeachingJournal {
+  id: number;
+  schedule_id: number;
+  teacher_user_id: number;
+  journal_date: string;
+  teacher_status: TeacherStatus;
+  teacher_notes?: string | null;
+  material_topic?: string | null;
+  material_description?: string | null;
+  learning_method?: LearningMethod | null;
+  learning_media?: string | null;
+  learning_achievement?: string | null;
+  daily_session_id?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Relations
+  schedule: {
+    id: number;
+    day_of_week: string;
+    start_time: string;
+    end_time: string;
+    assignment: {
+      subject: Subject;
+      class: Class;
+      teacher: {
+        profile: {
+          full_name: string;
+        };
+      };
+    };
+  };
+  photos: JournalPhoto[];
+  daily_session?: DailyAttendanceSession | null;
+  attendance_stats?: {
+    total: number;
+    hadir: number;
+    sakit: number;
+    izin: number;
+    alfa: number;
+    rate: string;
+  };
+}
+
+export interface TeachingJournalsApiResponse {
+  data: TeachingJournal[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface TeachingJournalTimingCheck {
+  isValid: boolean;
+  message?: string;
+  schedule?: {
+    start_time: string;
+    end_time: string;
+    day_of_week: string;
+  };
+}
+
+export interface CreateTeachingJournalDto {
+  schedule_id: number;
+  journal_date: string;
+  teacher_status: TeacherStatus;
+  teacher_notes?: string;
+  material_topic?: string;
+  material_description?: string;
+  learning_method?: LearningMethod;
+  learning_media?: string;
+  learning_achievement?: string;
+}

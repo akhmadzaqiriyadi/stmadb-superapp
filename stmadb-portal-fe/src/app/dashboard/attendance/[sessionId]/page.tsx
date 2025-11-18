@@ -64,7 +64,7 @@ export default function SessionDetailPage() {
       index + 1,
       student.full_name,
       student.nisn,
-      student.status === 'present' ? 'Hadir' : 'Belum Absen',
+      student.status === 'Hadir' ? 'Hadir' : 'Belum Absen',
       student.marked_at
         ? format(new Date(student.marked_at), 'HH:mm:ss', { locale: id })
         : '-',
@@ -233,8 +233,12 @@ export default function SessionDetailPage() {
               <CardTitle>QR Code Absensi</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center space-y-4">
-              <div className="bg-white p-6 rounded-lg border">
-                <QRCode value={sessionDetail.session.qr_code} size={256} />
+              <div className="bg-white p-10 rounded-lg border">
+                <QRCode 
+                  value={sessionDetail.session.qr_code} 
+                  size={256}
+                  level="H"
+                />
               </div>
               <p className="text-sm text-muted-foreground text-center">
                 Scan QR Code di atas untuk absensi
@@ -279,9 +283,9 @@ export default function SessionDetailPage() {
                     <TableCell>{student.nisn}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={student.status === 'present' ? 'default' : 'secondary'}
+                        variant={student.status === 'Hadir' ? 'default' : 'secondary'}
                       >
-                        {student.status === 'present' ? 'Hadir' : 'Belum Absen'}
+                        {student.status === 'Hadir' ? 'Hadir' : 'Belum Absen'}
                       </Badge>
                     </TableCell>
                     <TableCell>

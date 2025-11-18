@@ -77,6 +77,7 @@ export default function AdminAttendanceDashboard() {
   const [dateFilter, setDateFilter] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [classFilter, setClassFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'active' | 'expired' | 'all'>('all');
+  const [monthFilter, setMonthFilter] = useState(format(new Date(), 'yyyy-MM')); // New: month filter for export
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -155,7 +156,8 @@ export default function AdminAttendanceDashboard() {
     setExporting(true);
     try {
       const params: any = {};
-      if (dateFilter) params.date = dateFilter;
+      // Use month filter for export instead of single date
+      if (monthFilter) params.month = monthFilter;
       if (classFilter !== 'all') params.class_id = classFilter;
 
       const data = await exportAttendanceData(params);
@@ -191,7 +193,7 @@ export default function AdminAttendanceDashboard() {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `absensi-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      link.download = `absensi-${monthFilter || format(new Date(), 'yyyy-MM')}.csv`;
       link.click();
 
       toast.success('Data berhasil diexport');
@@ -204,6 +206,7 @@ export default function AdminAttendanceDashboard() {
 
   const resetFilters = () => {
     setDateFilter(format(new Date(), 'yyyy-MM-dd'));
+    setMonthFilter(format(new Date(), 'yyyy-MM'));
     setClassFilter('all');
     setStatusFilter('all');
     setPage(1);
@@ -338,8 +341,12 @@ export default function AdminAttendanceDashboard() {
                   </div>
 
                   <div className="flex flex-col items-center space-y-4">
-                    <div className="bg-white p-4 rounded-lg border">
-                      <QRCode value={createdSession.qr_code} size={256} />
+                    <div className="bg-white p-8 rounded-lg border">
+                      <QRCode 
+                        value={createdSession.qr_code} 
+                        size={256}
+                        level="H"
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Scan QR Code di atas untuk absensi
@@ -455,11 +462,20 @@ export default function AdminAttendanceDashboard() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
             <div>
-              <label className="text-sm font-medium">Tanggal</label>
+              <label className="text-sm font-medium">Tanggal (untuk tabel)</label>
               <Input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Bulan (untuk export)</label>
+              <Input
+                type="month"
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
               />
             </div>
 
@@ -493,12 +509,16 @@ export default function AdminAttendanceDashboard() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="flex items-end">
-              <Button variant="outline" onClick={resetFilters} className="w-full">
-                Reset Filter
-              </Button>
-            </div>
+          <div className="flex items-end gap-2 mt-4">
+            <Button variant="outline" onClick={resetFilters} className="flex-1">
+              Reset Filter
+            </Button>
+            <Button onClick={handleExport} disabled={exporting} className="flex-1">
+              <Download className="mr-2 h-4 w-4" />
+              {exporting ? 'Mengexport...' : `Export Bulan ${monthFilter}`}
+            </Button>
           </div>
         </CardContent>
       </Card>

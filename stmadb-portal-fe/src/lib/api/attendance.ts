@@ -223,6 +223,8 @@ export interface GetSessionsQuery {
   status?: 'active' | 'expired' | 'all';
   page?: number;
   limit?: number;
+  month?: string; // Format: YYYY-MM
+  year?: string;  // Format: YYYY
 }
 
 // Admin: Get All Sessions with Filters

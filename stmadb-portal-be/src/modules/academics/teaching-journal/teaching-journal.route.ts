@@ -1,0 +1,540 @@
+import { Router } from 'express';
+import { protect } from '../../../core/middlewares/auth.middleware.js';
+import { authorize } from '../../../core/middlewares/authorize.middleware.js';
+import { uploadJournalPhotos } from '../../../core/config/multer.config.js';
+import * as teachingJournalController from './teaching-journal.controller.js';
+
+const router = Router();
+
+// All routes require authentication
+router.use(protect);
+
+// ===== TEACHER ROUTES =====
+
+/**
+ * @openapi
+ * /academics/teaching-journals/check-timing/{scheduleId}:
+ *   get:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Cek validasi waktu untuk mengisi jurnal
+ *     description: Validasi apakah guru dapat mengisi jurnal pada waktu sekarang (15 menit sebelum - 30 menit setelah jadwal mengajar)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: scheduleId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jadwal mengajar
+ *     responses:
+ *       200:
+ *         description: Validasi berhasil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     isValid:
+ *                       type: boolean
+ *                     message:
+ *                       type: string
+ *                     schedule:
+ *                       type: object
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/check-timing/:scheduleId',
+  authorize(['Guru', 'Teacher']),
+  teachingJournalController.checkJournalTiming
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals:
+ *   post:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Buat jurnal mengajar baru
+ *     description: Guru membuat jurnal pembelajaran dengan validasi waktu dan status kehadiran
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - schedule_id
+ *               - journal_date
+ *               - teacher_status
+ *             properties:
+ *               schedule_id:
+ *                 type: integer
+ *                 description: ID jadwal mengajar
+ *               journal_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Tanggal jurnal (YYYY-MM-DD)
+ *               teacher_status:
+ *                 type: string
+ *                 enum: [Hadir, Sakit, Izin, Alpa]
+ *                 description: Status kehadiran guru
+ *               teacher_notes:
+ *                 type: string
+ *                 description: Catatan tambahan guru
+ *               material_topic:
+ *                 type: string
+ *                 description: Topik materi (required jika Hadir)
+ *               material_description:
+ *                 type: string
+ *                 description: Deskripsi materi pembelajaran
+ *               learning_method:
+ *                 type: string
+ *                 description: Metode pembelajaran (Ceramah, Diskusi, Praktik, dll)
+ *               learning_media:
+ *                 type: string
+ *                 description: Media pembelajaran (Slides, Video, Modul, dll)
+ *               learning_achievement:
+ *                 type: string
+ *                 description: Capaian pembelajaran siswa
+ *     responses:
+ *       201:
+ *         description: Jurnal berhasil dibuat
+ *       400:
+ *         description: Validasi gagal atau waktu tidak sesuai
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  '/',
+  authorize(['Guru', 'Teacher']),
+  uploadJournalPhotos.array('photos', 4),
+  teachingJournalController.createJournal
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}/photos:
+ *   post:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Upload foto ke jurnal
+ *     description: Upload maksimal 5 foto (JPG/PNG/WEBP, max 5MB per file) ke jurnal yang sudah ada
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               photos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array foto (max 5 files, 5MB each)
+ *     responses:
+ *       201:
+ *         description: Foto berhasil diupload
+ *       400:
+ *         description: File tidak valid atau melebihi limit
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Jurnal tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  '/:journalId/photos',
+  authorize(['Guru', 'Teacher']),
+  uploadJournalPhotos.array('photos', 5),
+  teachingJournalController.uploadPhotos
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}/photos/{photoId}:
+ *   delete:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Hapus foto dari jurnal
+ *     description: Menghapus foto dari jurnal (dari database dan filesystem)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *       - in: path
+ *         name: photoId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID foto
+ *     responses:
+ *       200:
+ *         description: Foto berhasil dihapus
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Tidak memiliki akses
+ *       404:
+ *         description: Foto tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.delete(
+  '/:journalId/photos/:photoId',
+  authorize(['Guru', 'Teacher']),
+  teachingJournalController.deletePhoto
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/my-journals:
+ *   get:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Dapatkan daftar jurnal saya
+ *     description: Mengambil daftar jurnal milik guru yang sedang login dengan pagination dan filter
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Nomor halaman
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Jumlah data per halaman
+ *       - in: query
+ *         name: date_from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tanggal mulai
+ *       - in: query
+ *         name: date_to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tanggal selesai
+ *       - in: query
+ *         name: class_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan kelas
+ *       - in: query
+ *         name: teacher_status
+ *         schema:
+ *           type: string
+ *           enum: [Hadir, Sakit, Izin, Alpa]
+ *         description: Filter berdasarkan status kehadiran
+ *     responses:
+ *       200:
+ *         description: Daftar jurnal berhasil diambil
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/my-journals',
+  authorize(['Guru', 'Teacher']),
+  teachingJournalController.getMyJournals
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}:
+ *   get:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Dapatkan detail jurnal
+ *     description: Mengambil detail lengkap jurnal termasuk absensi siswa dan foto
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *     responses:
+ *       200:
+ *         description: Detail jurnal berhasil diambil
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Tidak memiliki akses
+ *       404:
+ *         description: Jurnal tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/:journalId',
+  authorize(['Guru', 'Teacher', 'Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.getJournalDetail
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}:
+ *   delete:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Hapus jurnal
+ *     description: Menghapus jurnal beserta foto (cascade delete). Absensi siswa tetap tersimpan di sesi harian.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *     responses:
+ *       200:
+ *         description: Jurnal berhasil dihapus
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Tidak memiliki akses
+ *       404:
+ *         description: Jurnal tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.delete(
+  '/:journalId',
+  authorize(['Guru', 'Teacher']),
+  teachingJournalController.deleteJournal
+);
+
+// ===== ADMIN ROUTES =====
+
+/**
+ * @openapi
+ * /academics/teaching-journals/admin/statistics:
+ *   get:
+ *     tags:
+ *       - Teaching Journal (Admin)
+ *     summary: Dapatkan statistik jurnal (Admin)
+ *     description: Dashboard statistik untuk monitoring pengisian jurnal mengajar
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistik berhasil diambil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total_journals:
+ *                       type: integer
+ *                       description: Total jurnal yang sudah dibuat
+ *                     total_today:
+ *                       type: integer
+ *                       description: Jurnal hari ini
+ *                     total_this_week:
+ *                       type: integer
+ *                       description: Jurnal minggu ini
+ *                     total_this_month:
+ *                       type: integer
+ *                       description: Jurnal bulan ini
+ *                     by_status:
+ *                       type: object
+ *                       description: Breakdown berdasarkan status guru
+ *                     attendance_rate:
+ *                       type: number
+ *                       description: Rata-rata kehadiran siswa (%)
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/admin/statistics',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.getAdminStatistics
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/admin/all:
+ *   get:
+ *     tags:
+ *       - Teaching Journal (Admin)
+ *     summary: Dapatkan semua jurnal (Admin)
+ *     description: Mengambil semua jurnal dengan filter lengkap untuk monitoring admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Nomor halaman
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Jumlah data per halaman
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Pencarian (nama guru, mata pelajaran, kelas)
+ *       - in: query
+ *         name: date_from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tanggal mulai
+ *       - in: query
+ *         name: date_to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tanggal selesai
+ *       - in: query
+ *         name: teacher_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan guru
+ *       - in: query
+ *         name: subject_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan mata pelajaran
+ *       - in: query
+ *         name: class_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan kelas
+ *       - in: query
+ *         name: teacher_status
+ *         schema:
+ *           type: string
+ *           enum: [Hadir, Sakit, Izin, Alpa]
+ *         description: Filter berdasarkan status kehadiran guru
+ *     responses:
+ *       200:
+ *         description: Daftar jurnal berhasil diambil
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/admin/all',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.getAllJournals
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/admin/missing:
+ *   get:
+ *     tags:
+ *       - Teaching Journal (Admin)
+ *     summary: Dapatkan jurnal yang belum diisi (Admin)
+ *     description: Monitoring jurnal yang belum diisi berdasarkan periode tertentu
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [today, this_week, this_month]
+ *           default: today
+ *         description: Periode monitoring
+ *     responses:
+ *       200:
+ *         description: Daftar jurnal yang belum diisi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       teacher:
+ *                         type: object
+ *                         description: Data guru
+ *                       schedule:
+ *                         type: object
+ *                         description: Jadwal mengajar
+ *                       days_overdue:
+ *                         type: integer
+ *                         description: Jumlah hari keterlambatan
+ *                       journal_date:
+ *                         type: string
+ *                         format: date
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/admin/missing',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.getMissingJournals
+);
+
+export default router;

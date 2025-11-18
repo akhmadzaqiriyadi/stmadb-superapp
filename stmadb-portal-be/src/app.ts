@@ -2,6 +2,7 @@
 import express from 'express';
 import type { Express, Request, Response } from 'express';
 import cors from 'cors';
+import path from 'path';
 import authRoutes from './modules/auth/auth.route.js';
 import userRoutes from './modules/users/users.route.js';
 import academicRoutes from './modules/academics/academics.route.js';
@@ -38,6 +39,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Serve static files (uploads)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Daftarkan route untuk Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

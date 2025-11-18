@@ -32,24 +32,24 @@ model User {
   student_extension   StudentExtension?
   guardian_extension  GuardianExtension?
   duties              DutySchedule[]
-  homeroom_class      Classes?          @relation("HomeroomTeacher")
+  homeroom_class      Classes?            @relation("HomeroomTeacher")
   teacher_assignments TeacherAssignment[]
   teaching_journals   TeachingJournal[]
   class_memberships   ClassMember[]
-  
+
   // --- PERUBAHAN DI SINI ---
   // Relasi ke absensi harian (sebagai siswa)
-  student_attendances StudentAttendance[]
+  student_attendances      StudentAttendance[]
   // Relasi untuk guru/staf yang membuat QR harian
   generated_daily_sessions DailyAttendanceSession[] @relation("GeneratedBy")
   // --- AKHIR PERUBAHAN ---
 
-  leave_permits_requested LeavePermit[] @relation("Requester")
+  leave_permits_requested LeavePermit[]   @relation("Requester")
   leave_permits_approved  LeaveApproval[] @relation("Approver")
-  leave_permits_printed   LeavePermit[] @relation("PrintedBy")
+  leave_permits_printed   LeavePermit[]   @relation("PrintedBy")
 
-  counseling_tickets_as_student    CounselingTicket[] @relation("StudentCounseling")
-  counseling_tickets_as_counselor  CounselingTicket[] @relation("CounselorTickets")
+  counseling_tickets_as_student   CounselingTicket[] @relation("StudentCounseling")
+  counseling_tickets_as_counselor CounselingTicket[] @relation("CounselorTickets")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -112,11 +112,11 @@ model GuardianExtension {
 // ============== MODUL 2: STRUKTUR AKADEMIK & JADWAL ==============
 
 model AcademicYear {
-  id                   Int                    @id @default(autoincrement())
-  year                 String                 @unique
+  id                   Int                  @id @default(autoincrement())
+  year                 String               @unique
   start_date           DateTime
   end_date             DateTime
-  is_active            Boolean                @default(false)
+  is_active            Boolean              @default(false)
   class_memberships    ClassMember[]
   teacher_assignments  TeacherAssignment[]
   schedules            Schedule[]
@@ -142,15 +142,15 @@ model Major {
 }
 
 model Classes {
-  id                  Int                 @id @default(autoincrement())
-  class_name          String              @unique
-  grade_level         Int
-  major_id            Int
-  major               Major               @relation(fields: [major_id], references: [id])
-  homeroom_teacher_id Int?                @unique
-  homeroom_teacher    User?               @relation("HomeroomTeacher", fields: [homeroom_teacher_id], references: [id])
-  class_members       ClassMember[]
-  teacher_assignments TeacherAssignment[]
+  id                        Int                      @id @default(autoincrement())
+  class_name                String                   @unique
+  grade_level               Int
+  major_id                  Int
+  major                     Major                    @relation(fields: [major_id], references: [id])
+  homeroom_teacher_id       Int?                     @unique
+  homeroom_teacher          User?                    @relation("HomeroomTeacher", fields: [homeroom_teacher_id], references: [id])
+  class_members             ClassMember[]
+  teacher_assignments       TeacherAssignment[]
   daily_attendance_sessions DailyAttendanceSession[]
 
   createdAt DateTime @default(now())
@@ -186,20 +186,20 @@ enum WeekType {
 }
 
 model Schedule {
-  id                  Int                     @id @default(autoincrement())
-  day_of_week         DayOfWeek
-  start_time          DateTime                @db.Time
-  end_time            DateTime                @db.Time
-  schedule_type       ScheduleType            @default(Umum)
-  assignment_id       Int
-  assignment          TeacherAssignment       @relation(fields: [assignment_id], references: [id])
-  academic_year_id    Int
-  academic_year       AcademicYear            @relation(fields: [academic_year_id], references: [id])
-  journals            TeachingJournal[]
-  leave_permits       LeavePermit[]
-  room_id             Int?
-  room                Room?                   @relation(fields: [room_id], references: [id])
-  
+  id               Int               @id @default(autoincrement())
+  day_of_week      DayOfWeek
+  start_time       DateTime          @db.Time
+  end_time         DateTime          @db.Time
+  schedule_type    ScheduleType      @default(Umum)
+  assignment_id    Int
+  assignment       TeacherAssignment @relation(fields: [assignment_id], references: [id])
+  academic_year_id Int
+  academic_year    AcademicYear      @relation(fields: [academic_year_id], references: [id])
+  journals         TeachingJournal[]
+  leave_permits    LeavePermit[]
+  room_id          Int?
+  room             Room?             @relation(fields: [room_id], references: [id])
+
   // --- PERUBAHAN DI SINI ---
   // qr_sessions         AttendanceQRSession[] // <-- DIHAPUS
   // --- AKHIR PERUBAHAN ---
@@ -231,12 +231,12 @@ model SpecialEvent {
 
 model ActiveScheduleWeek {
   id               Int          @id @default(autoincrement())
-  grade_level      Int          // 10, 11, 12 (untuk X, XI, XII)
+  grade_level      Int // 10, 11, 12 (untuk X, XI, XII)
   active_week_type ScheduleType @default(Umum) // A, B, atau Umum
   academic_year_id Int
   academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
   updated_at       DateTime     @updatedAt
-  
+
   @@unique([grade_level, academic_year_id])
 }
 
@@ -247,6 +247,7 @@ model DutySchedule {
   duty_date DateTime @db.Date
   duty_type String
   notes     String?
+
   @@unique([user_id, duty_date, duty_type])
 }
 
@@ -258,6 +259,7 @@ model ClassMember {
   class            Classes      @relation(fields: [class_id], references: [id])
   academic_year_id Int
   academic_year    AcademicYear @relation(fields: [academic_year_id], references: [id])
+
   @@unique([student_user_id, academic_year_id])
 }
 
@@ -279,20 +281,20 @@ model TeacherAssignment {
 // Model ini menggantikan AttendanceQRSession
 // Ini adalah sesi harian yang unik per KELAS per hari
 model DailyAttendanceSession {
-  id            String   @id @default(uuid())
-  session_date  DateTime @db.Date
-  qr_code       String   @unique
-  
+  id           String   @id @default(uuid())
+  session_date DateTime @db.Date
+  qr_code      String   @unique
+
   // QR code dibuat per KELAS
-  class_id      Int
-  class         Classes  @relation(fields: [class_id], references: [id])
-  
+  class_id Int
+  class    Classes @relation(fields: [class_id], references: [id])
+
   // Waktu kedaluwarsa QR
-  expires_at    DateTime 
-  
+  expires_at DateTime
+
   // ID Guru Piket/Admin/Guru yang generate QR
-  created_by_id Int      
-  creator       User     @relation("GeneratedBy", fields: [created_by_id], references: [id])
+  created_by_id Int
+  creator       User @relation("GeneratedBy", fields: [created_by_id], references: [id])
 
   // Terikat ke tahun ajaran aktif
   academic_year_id Int
@@ -300,9 +302,12 @@ model DailyAttendanceSession {
 
   // Semua absensi siswa untuk hari ini (di kelas ini) akan merujuk ke sini
   student_attendances StudentAttendance[]
-  
-  createdAt     DateTime @default(now())
-  
+
+  // Relasi ke jurnal KBM yang merujuk ke sesi harian ini
+  teaching_journals TeachingJournal[]
+
+  createdAt DateTime @default(now())
+
   // Kunci unik: 1 sesi per kelas per hari
   @@unique([session_date, class_id])
   @@index([created_by_id])
@@ -312,26 +317,26 @@ model DailyAttendanceSession {
 
 // Model ini dimodifikasi untuk absensi harian
 model StudentAttendance {
-  id                Int                  @id @default(autoincrement())
-  
+  id Int @id @default(autoincrement())
+
   // Link ke Sesi Harian (menggantikan qr_session_id)
-  daily_session_id  String
-  daily_session     DailyAttendanceSession @relation(fields: [daily_session_id], references: [id], onDelete: Cascade)
-  
-  student_user_id   Int
-  student           User                 @relation(fields: [student_user_id], references: [id])
-  
-  status            AttendanceStatus     @default(Hadir)
-  scan_method       String               // "QR" atau "Manual" (sesuai permintaan Anda)
-  
+  daily_session_id String
+  daily_session    DailyAttendanceSession @relation(fields: [daily_session_id], references: [id], onDelete: Cascade)
+
+  student_user_id Int
+  student         User @relation(fields: [student_user_id], references: [id])
+
+  status      AttendanceStatus @default(Hadir)
+  scan_method String // "QR" atau "Manual" (sesuai permintaan Anda)
+
   // Waktu kapan siswa scan atau guru input manual
-  marked_at         DateTime             @default(now())
-  
+  marked_at DateTime @default(now())
+
   // Untuk fitur 'validasi guru lain' (WaliKelas/BK)
-  is_verified       Boolean              @default(false)
-  verified_by_id    Int?                 // ID guru yang memvalidasi
-  
-  notes             String?
+  is_verified    Boolean @default(false)
+  verified_by_id Int? // ID guru yang memvalidasi
+
+  notes String?
 
   // Kunci unik baru: Siswa hanya bisa absen 1x per sesi harian
   @@unique([daily_session_id, student_user_id])
@@ -343,52 +348,59 @@ model StudentAttendance {
 // ============== MODUL 4: JURNAL MENGAJAR ==============
 
 model TeachingJournal {
-  id                    Int                     @id @default(autoincrement())
-  journal_date          DateTime                @db.Date
-  schedule_id           Int
-  schedule              Schedule                @relation(fields: [schedule_id], references: [id])
-  teacher_user_id       Int
-  teacher               User                    @relation(fields: [teacher_user_id], references: [id])
-  
-  // Konten Jurnal
-  material_topic        String                  // Topik materi pembelajaran
-  material_description  String?                 @db.Text // Deskripsi detail materi
-  learning_method       String                  // Ceramah, Diskusi, Praktik, dll
-  learning_media        String?                 // Slides, Video, Modul, dll
-  learning_achievement  String?                 @db.Text // Capaian pembelajaran siswa
-  teacher_notes         String?                 @db.Text // Catatan tambahan guru
-  
+  id              Int      @id @default(autoincrement())
+  journal_date    DateTime @db.Date
+  schedule_id     Int
+  schedule        Schedule @relation(fields: [schedule_id], references: [id])
+  teacher_user_id Int
+  teacher         User     @relation(fields: [teacher_user_id], references: [id])
+
   // Status Guru
-  teacher_status        String                  @default("Hadir") // Hadir, Sakit, Izin, Alpa
-  teacher_status_notes  String?                 // Alasan jika tidak hadir
-  
+  teacher_status       String  @default("Hadir") // Hadir, Sakit, Izin, Alpa
+  teacher_status_notes String? @db.Text // Alasan jika tidak hadir
+
+  // Konten Jurnal (Jika Hadir)
+  material_topic       String? // Topik materi pembelajaran
+  material_description String? @db.Text // Deskripsi detail materi
+  learning_method      String? // Ceramah, Diskusi, Praktik, dll
+  learning_media       String? // Slides, Video, Modul, dll
+  learning_achievement String? @db.Text // Capaian pembelajaran siswa
+  teacher_notes        String? @db.Text // Catatan tambahan guru
+
+  // Link ke Daily Attendance Session (read-only dari sistem absensi harian yang sudah ada)
+  // Jurnal akan fetch data absensi dari DailyAttendanceSession berdasarkan kelas & tanggal
+  daily_session_id String? // Optional: Link ke sesi absensi harian
+  daily_session    DailyAttendanceSession? @relation(fields: [daily_session_id], references: [id])
+
   // Relations
-  photos                JournalPhoto[]
-  
-  // --- PERUBAHAN DI SINI ---
-  // student_attendances   StudentAttendance[] // <-- DIHAPUS (Absensi harian terpisah dari jurnal)
-  // --- AKHIR PERUBAHAN ---
-  
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  
+  photos JournalPhoto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([schedule_id, journal_date])
   @@index([teacher_user_id])
   @@index([schedule_id])
   @@index([journal_date])
+  @@index([daily_session_id])
 }
 
 model JournalPhoto {
-  id                Int               @id @default(autoincrement())
-  journal_id        Int
-  journal           TeachingJournal   @relation(fields: [journal_id], references: [id], onDelete: Cascade)
-  
-  photo_url         String            // URL foto (bisa dari storage/S3)
-  photo_name        String?           // Nama asli file
-  uploaded_at       DateTime          @default(now())
-  
+  id         Int             @id @default(autoincrement())
+  journal_id Int
+  journal    TeachingJournal @relation(fields: [journal_id], references: [id], onDelete: Cascade)
+
+  photo_url String // URL foto
+  filename  String // Nama asli file
+  file_size Int? // Ukuran file dalam bytes
+
+  createdAt DateTime @default(now())
+
   @@index([journal_id])
 }
+
+// JournalStudentAttendance DIHAPUS - Jurnal hanya READ data dari DailyAttendanceSession
+// Tidak ada duplikasi data absensi
 
 // Enum ini dipakai oleh StudentAttendance dan Attendance (legacy)
 enum AttendanceStatus {
@@ -400,20 +412,20 @@ enum AttendanceStatus {
 
 // Model legacy (dibiarkan sesuai permintaan)
 model Attendance {
-  id              Int              @id @default(autoincrement())
-  status          AttendanceStatus @default(Hadir)
-  notes           String?
-  journal_id      Int
+  id         Int              @id @default(autoincrement())
+  status     AttendanceStatus @default(Hadir)
+  notes      String?
+  journal_id Int
   // Note: This uses journal_id but TeachingJournal now uses StudentAttendance instead
   // Kept for backward compatibility
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
 
 model Room {
-  id        Int      @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   room_name String
-  room_code String   @unique
+  room_code String     @unique
   schedules Schedule[]
 
   createdAt DateTime @default(now())
@@ -498,22 +510,22 @@ enum CounselingTicketStatus {
 }
 
 model CounselingTicket {
-  id                    Int                     @id @default(autoincrement())
-  ticket_number         String                  @unique // Format: EC-2025-0001
-  student_user_id       Int
-  student               User                    @relation("StudentCounseling", fields: [student_user_id], references: [id])
-  counselor_user_id     Int
-  counselor             User                    @relation("CounselorTickets", fields: [counselor_user_id], references: [id])
-  preferred_date        DateTime                @db.Date
-  preferred_time        DateTime                @db.Time
-  problem_description   String                  @db.Text
-  status                CounselingTicketStatus  @default(OPEN)
-  confirmed_schedule    DateTime?               @db.Timestamp()
-  rejection_reason      String?                 @db.Text
-  counseling_notes      String?                 @db.Text
-  completion_notes      String?                 @db.Text
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  id                  Int                    @id @default(autoincrement())
+  ticket_number       String                 @unique // Format: EC-2025-0001
+  student_user_id     Int
+  student             User                   @relation("StudentCounseling", fields: [student_user_id], references: [id])
+  counselor_user_id   Int
+  counselor           User                   @relation("CounselorTickets", fields: [counselor_user_id], references: [id])
+  preferred_date      DateTime               @db.Date
+  preferred_time      DateTime               @db.Time
+  problem_description String                 @db.Text
+  status              CounselingTicketStatus @default(OPEN)
+  confirmed_schedule  DateTime?              @db.Timestamp()
+  rejection_reason    String?                @db.Text
+  counseling_notes    String?                @db.Text
+  completion_notes    String?                @db.Text
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@index([student_user_id])
   @@index([counselor_user_id])

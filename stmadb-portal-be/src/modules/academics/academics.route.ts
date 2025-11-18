@@ -5,8 +5,12 @@ import { protect } from '../../core/middlewares/auth.middleware.js';
 import { authorize } from '../../core/middlewares/authorize.middleware.js';
 import { validate } from '../../core/middlewares/validate.middleware.js';
 import { academicYearSchema, majorSchema, subjectSchema, getSubjectsSchema, classSchema, addClassMemberSchema, getPaginatedDataSchema, teacherAssignmentSchema, roomSchema, getRoomsSchema, scheduleSchema } from './academics.validation.js';
+import teachingJournalRoutes from './teaching-journal/teaching-journal.route.js';
 
 const router = Router();
+
+// Teaching Journal routes (sudah include auth & authorization di dalamnya)
+router.use('/teaching-journals', teachingJournalRoutes);
 
 router.get(
     '/classes/:id/members',

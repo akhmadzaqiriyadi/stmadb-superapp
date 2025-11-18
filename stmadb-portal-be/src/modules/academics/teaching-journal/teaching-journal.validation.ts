@@ -1,0 +1,93 @@
+import { z } from 'zod';
+
+// Enum schemas
+export const teacherStatusSchema = z.enum(['Hadir', 'Sakit', 'Izin', 'Alpa']);
+
+export const learningMethodSchema = z.enum([
+  'Ceramah',
+  'Diskusi',
+  'Praktik',
+  'Demonstrasi',
+  'Eksperimen',
+  'PresentasiSiswa',
+  'TanyaJawab',
+  'PembelajaranKelompok',
+  'Proyek',
+  'ProblemSolving'
+]);
+
+// Create Teaching Journal Schema
+export const createTeachingJournalSchema = z.object({
+  schedule_id: z.number().int().positive(),
+  journal_date: z.string().datetime().or(z.date()),
+  
+  // Teacher status
+  teacher_status: teacherStatusSchema,
+  teacher_notes: z.string().optional(),
+  
+  // Material (required if teacher_status = 'Hadir')
+  material_topic: z.string().min(1).optional(),
+  material_description: z.string().optional(),
+  learning_method: learningMethodSchema.optional(),
+  learning_media: z.string().optional(),
+  learning_achievement: z.string().optional(),
+}).refine(
+  (data) => {
+    // If teacher is present, material_topic and learning_method are required
+    if (data.teacher_status === 'Hadir') {
+      return !!data.material_topic && !!data.learning_method;
+    }
+    return true;
+  },
+  {
+    message: 'Material topic and learning method are required when teacher is present',
+    path: ['material_topic']
+  }
+).refine(
+  (data) => {
+    // If teacher is not present, teacher_notes is required
+    if (data.teacher_status !== 'Hadir') {
+      return !!data.teacher_notes;
+    }
+    return true;
+  },
+  {
+    message: 'Teacher notes are required when not present',
+    path: ['teacher_notes']
+  }
+);
+
+// Query schema for my journals
+export const getMyJournalsQuerySchema = z.object({
+  page: z.string().optional().transform(val => val ? parseInt(val) : 1),
+  limit: z.string().optional().transform(val => val ? parseInt(val) : 10),
+  search: z.string().optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+  class_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  teacher_status: teacherStatusSchema.optional()
+});
+
+// Query schema for admin
+export const getAdminJournalsQuerySchema = z.object({
+  page: z.string().optional().transform(val => val ? parseInt(val) : 1),
+  limit: z.string().optional().transform(val => val ? parseInt(val) : 20),
+  search: z.string().optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+  teacher_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  subject_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  class_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  teacher_status: teacherStatusSchema.optional()
+});
+
+// Missing journals query
+export const getMissingJournalsQuerySchema = z.object({
+  period: z.enum(['today', 'this_week', 'this_month']).default('today')
+});
+
+// Export types
+export type CreateTeachingJournalDto = z.infer<typeof createTeachingJournalSchema>;
+export type GetMyJournalsQuery = z.infer<typeof getMyJournalsQuerySchema>;
+export type GetAdminJournalsQuery = z.infer<typeof getAdminJournalsQuerySchema>;
+export type GetMissingJournalsQuery = z.infer<typeof getMissingJournalsQuerySchema>;
