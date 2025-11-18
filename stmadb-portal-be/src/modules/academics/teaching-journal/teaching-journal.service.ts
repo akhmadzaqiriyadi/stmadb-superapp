@@ -23,6 +23,9 @@ export class TeachingJournalService {
   private readonly GRACE_BEFORE = 30; // 30 menit sebelum mulai
   private readonly GRACE_AFTER = 120; // 2 jam setelah selesai (untuk antisipasi keterlambatan isi jurnal)
   
+  // Testing mode: disable time validation (set DISABLE_TIME_VALIDATION=true di .env)
+  private readonly DISABLE_TIME_VALIDATION = process.env.DISABLE_TIME_VALIDATION === 'true';
+  
   /**
    * Validasi apakah guru bisa mengisi jurnal saat ini
    */
@@ -68,8 +71,25 @@ export class TeachingJournalService {
       };
     }
     
-    // 2. Get current time and day
+    // TESTING MODE: Skip time validation
+    if (this.DISABLE_TIME_VALIDATION) {
+      return {
+        isValid: true,
+        message: '✅ [TESTING MODE] Validasi waktu dinonaktifkan - bisa isi kapan saja',
+        schedule: {
+          start_time: format(schedule.start_time, 'HH:mm'),
+          end_time: format(schedule.end_time, 'HH:mm'),
+          day_of_week: schedule.day_of_week
+        }
+      };
+    }
+    
+    // 2. Get current time and day in Jakarta timezone
+    // Server timezone might be UTC, so we need to convert to WIB (UTC+7)
     const now = new Date();
+    
+    // Convert to Jakarta timezone (WIB/UTC+7)
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
     
     // Mapping hari dalam bahasa Indonesia (case-insensitive compare)
     const dayMap: Record<number, string> = {
@@ -82,8 +102,14 @@ export class TeachingJournalService {
       6: 'Sabtu'
     };
     
-    const currentDay = dayMap[now.getDay()];
-    const currentTime = format(now, 'HH:mm');
+    const currentDay = dayMap[jakartaTime.getDay()];
+    const currentTime = format(jakartaTime, 'HH:mm');
+    
+    console.log('🕐 Timezone Debug:');
+    console.log('  - Server time:', now.toISOString());
+    console.log('  - Jakarta time:', jakartaTime.toISOString());
+    console.log('  - Detected day:', currentDay);
+    console.log('  - Schedule day:', schedule.day_of_week);
     
     // 3. Validate day of week
     if (schedule.day_of_week !== currentDay) {
