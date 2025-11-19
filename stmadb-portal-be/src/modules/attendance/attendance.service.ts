@@ -573,6 +573,49 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
 };
 
 /**
+ * FLOW 6B: Regenerate QR Code (tanpa hapus data absensi)
+ * Hanya update QR code dan extends waktu expiry
+ */
+export const regenerateQRCode = async (sessionId: string) => {
+  // Cek apakah session exists
+  const session = await prisma.dailyAttendanceSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      class: {
+        select: {
+          class_name: true,
+        }
+      }
+    }
+  });
+
+  if (!session) {
+    throw new Error('Sesi absensi tidak ditemukan.');
+  }
+
+  // Generate QR code baru dan extend waktu expiry (3 jam dari sekarang)
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // 3 jam dari sekarang
+  const newQrCode = uuidv4();
+
+  // Update session dengan QR baru
+  return prisma.dailyAttendanceSession.update({
+    where: { id: sessionId },
+    data: {
+      qr_code: newQrCode,
+      expires_at: expiresAt,
+    },
+    include: {
+      class: {
+        select: {
+          class_name: true,
+        }
+      }
+    }
+  });
+};
+
+/**
  * FLOW 7: Menghapus Sesi Absensi Harian
  * Note: Data kehadiran siswa (StudentAttendance) akan tetap tersimpan
  */

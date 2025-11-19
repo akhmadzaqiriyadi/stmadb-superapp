@@ -21,6 +21,14 @@ import { TeachingJournal, TeacherStatus, AttendanceStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import withAuth from "@/components/auth/withAuth";
 
+// Helper: Convert UTC time to WIB (UTC+7)
+const formatTimeWIB = (utcTimeString: string): string => {
+  const date = new Date(utcTimeString);
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
 const fetchJournalDetail = async (id: string): Promise<TeachingJournal> => {
   const { data } = await api.get(`/academics/teaching-journals/${id}`);
   return data.data;
@@ -178,8 +186,7 @@ function TeachingJournalDetailPage({ params }: { params: Promise<{ id: string }>
             <div className="flex items-center gap-2 text-gray-700">
               <Clock className="h-4 w-4 text-[#44409D]" />
               <span>
-                {format(new Date(journal.schedule.start_time), 'HH:mm')} - 
-                {format(new Date(journal.schedule.end_time), 'HH:mm')}
+                {formatTimeWIB(journal.schedule.start_time)} - {formatTimeWIB(journal.schedule.end_time)}
               </span>
             </div>
           </div>

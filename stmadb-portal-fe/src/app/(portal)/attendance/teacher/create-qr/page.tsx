@@ -18,7 +18,7 @@ import {
   Trash2,
   RefreshCw
 } from "lucide-react";
-import { createDailySession, deleteDailySession, type DailyAttendanceSession } from "@/lib/api/attendance";
+import { createDailySession, deleteDailySession, regenerateQRCode, type DailyAttendanceSession } from "@/lib/api/attendance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,10 +63,15 @@ function CreateQRContent() {
       
       toast.success("QR Code siap digunakan!");
     } catch (error: any) {
-      toast.error("Gagal membuat QR", {
-        description: error.response?.data?.message || error.message,
+      const errorMessage = error.response?.data?.message || error.message || "Terjadi kesalahan";
+      
+      toast.error("Gagal Membuat QR Code", {
+        description: errorMessage,
+        duration: 5000,
       });
-      setTimeout(() => router.push('/attendance/teacher'), 2000);
+      
+      // Delay redirect agar user bisa baca error
+      setTimeout(() => router.push('/attendance/teacher'), 3000);
     } finally {
       setLoading(false);
     }
@@ -126,8 +131,11 @@ function CreateQRContent() {
       toast.success("Sesi absensi berhasil dihapus");
       router.push('/attendance/teacher');
     } catch (error: any) {
-      toast.error("Gagal menghapus sesi", {
-        description: error.response?.data?.message || error.message,
+      const errorMessage = error.response?.data?.message || error.message || "Terjadi kesalahan";
+      
+      toast.error("Gagal Menghapus Sesi", {
+        description: errorMessage,
+        duration: 5000,
       });
     } finally {
       setDeleting(false);
@@ -135,24 +143,29 @@ function CreateQRContent() {
   };
 
   const handleRegenerateQR = async () => {
-    if (!confirm('Buat QR code baru? QR lama akan dihapus.')) {
+    if (!confirm('Buat QR code baru? Data absensi akan tetap tersimpan, hanya QR yang akan diganti.')) {
       return;
     }
 
     if (session) {
       try {
         setDeleting(true);
-        await deleteDailySession(session.id);
-        await generateQR();
-        toast.success("QR Code berhasil dibuat ulang!");
-      } catch (error: any) {
-        toast.error("Gagal membuat ulang QR", {
-          description: error.response?.data?.message || error.message,
+        // Regenerate QR tanpa hapus session atau data absensi
+        const newSession = await regenerateQRCode(session.id);
+        setSession(newSession);
+        toast.success("QR Code berhasil dibuat ulang!", {
+          description: "Data absensi tetap tersimpan",
         });
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || "Terjadi kesalahan";
+        
+        toast.error("Gagal Membuat Ulang QR", {
+          description: errorMessage,
+          duration: 5000,
+        });
+      } finally {
         setDeleting(false);
       }
-    } else {
-      await generateQR();
     }
   };
 
@@ -224,6 +237,12 @@ function CreateQRContent() {
         {/* QR Code Display - Compact */}
         <Card className="overflow-hidden shadow-lg mb-3">
           <CardContent className="p-0">
+            {/* Header - Nama Kelas */}
+            <div className="px-4 py-3 bg-gradient-to-r from-[#9CBEFE] to-[#44409D] text-center">
+              <h3 className="text-white font-bold text-lg">{className}</h3>
+              <p className="text-blue-100 text-xs mt-0.5">QR Code Absensi Harian</p>
+            </div>
+
             <div className={cn(
               "bg-white flex items-center justify-center p-8",
               isExpired && "opacity-40 grayscale"
@@ -247,9 +266,13 @@ function CreateQRContent() {
               </div>
             </div>
 
-            {/* Compact Info */}
-            <div className="px-3 py-2 bg-gray-50 border-t">
-              <div className="flex items-center justify-between text-xs">
+            {/* Footer - Info Sesi */}
+            <div className="px-4 py-3 bg-gray-50 border-t space-y-2">
+              <div className="text-center">
+                <p className="text-xs text-gray-500">Scan QR di atas untuk absensi</p>
+                <p className="text-lg font-bold text-gray-900 mt-1">{className}</p>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-2 border-t">
                 <span className="text-gray-600">Kode Sesi:</span>
                 <span className="font-mono text-gray-900">{session.qr_code.slice(0, 8)}...</span>
               </div>

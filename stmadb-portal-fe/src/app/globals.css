@@ -120,3 +120,55 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Sonner Toast Custom Styling untuk Dark Mode */
+@layer components {
+  [data-sonner-toast][data-type="error"] {
+    @apply !bg-red-600 !text-white !border-red-700;
+  }
+  
+  [data-sonner-toast][data-type="error"] [data-description] {
+    @apply !text-red-50;
+  }
+  
+  [data-sonner-toast][data-type="success"] {
+    @apply !bg-green-600 !text-white !border-green-700;
+  }
+  
+  [data-sonner-toast][data-type="success"] [data-description] {
+    @apply !text-green-50;
+  }
+  
+  [data-sonner-toast][data-type="warning"] {
+    @apply !bg-orange-600 !text-white !border-orange-700;
+  }
+  
+  [data-sonner-toast][data-type="warning"] [data-description] {
+    @apply !text-orange-50;
+  }
+  
+  [data-sonner-toast][data-type="info"] {
+    @apply !bg-blue-600 !text-white !border-blue-700;
+  }
+  
+  [data-sonner-toast][data-type="info"] [data-description] {
+    @apply !text-blue-50;
+  }
+
+  /* Dark mode adjustments */
+  .dark [data-sonner-toast][data-type="error"] {
+    @apply !bg-red-500 !text-white !border-red-600;
+  }
+  
+  .dark [data-sonner-toast][data-type="success"] {
+    @apply !bg-green-500 !text-white !border-green-600;
+  }
+  
+  .dark [data-sonner-toast][data-type="warning"] {
+    @apply !bg-orange-500 !text-white !border-orange-600;
+  }
+  
+  .dark [data-sonner-toast][data-type="info"] {
+    @apply !bg-blue-500 !text-white !border-blue-600;
+  }
+}

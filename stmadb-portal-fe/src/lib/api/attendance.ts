@@ -125,6 +125,14 @@ export async function deleteDailySession(sessionId: string): Promise<{ message: 
   return response.data;
 }
 
+// Teacher/Admin: Regenerate QR Code
+export async function regenerateQRCode(sessionId: string): Promise<DailyAttendanceSession> {
+  const response = await api.put<{ data: DailyAttendanceSession; message: string }>(
+    `/attendance/daily-session/${sessionId}/regenerate`
+  );
+  return response.data.data;
+}
+
 // ====== ADMIN/PIKET APIs ======
 
 export interface AdminDailyAttendanceSession {

@@ -151,6 +151,29 @@ export const getTeacherClasses = async (req: Request, res: Response) => {
 };
 
 /**
+ * FLOW 6B: PUT /api/v1/attendance/daily-session/:sessionId/regenerate
+ * (Guru/Admin) Regenerate QR Code tanpa hapus data absensi
+ */
+export const regenerateQRCode = async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    
+    if (!sessionId) {
+      return res.status(400).json({ message: 'ID Sesi dibutuhkan' });
+    }
+
+    const updatedSession = await attendanceService.regenerateQRCode(sessionId);
+
+    res.status(200).json({ 
+      message: 'QR Code berhasil dibuat ulang', 
+      data: updatedSession 
+    });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+/**
  * FLOW 7: DELETE /api/v1/attendance/daily-session/:sessionId
  * (Guru) Menghapus Sesi Absensi Harian
  */

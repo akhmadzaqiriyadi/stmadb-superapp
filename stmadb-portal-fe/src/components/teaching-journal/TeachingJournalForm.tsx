@@ -19,8 +19,17 @@ import {
   AlertCircle,
   Upload,
   X,
-  Loader2
+  Loader2,
+  Camera
 } from "lucide-react";
+
+// Helper: Convert UTC time to WIB (UTC+7)
+const formatTimeWIB = (utcTimeString: string): string => {
+  const date = new Date(utcTimeString);
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
 
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
@@ -32,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { CameraCapture } from "./CameraCapture";
 
 const journalSchema = z.object({
   schedule_id: z.number().positive("Jadwal wajib dipilih"),
@@ -103,8 +113,9 @@ const learningMethodLabels: Record<LearningMethod, string> = {
 export function TeachingJournalForm() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
-  const [photoPreview, setPhotoPreview] = useState<string[]>([]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const [timingCheck, setTimingCheck] = useState<TeachingJournalTimingCheck | null>(null);
   const [isCheckingTiming, setIsCheckingTiming] = useState(false);
 
@@ -160,41 +171,23 @@ export function TeachingJournalForm() {
     }
   }, [selectedScheduleId]);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + photoFiles.length > 4) {
-      toast.error("Maksimal 4 foto");
-      return;
-    }
-
-    // Validate file size and type
-    const validFiles = files.filter(file => {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name} terlalu besar (max 5MB)`);
-        return false;
-      }
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name} bukan file gambar`);
-        return false;
-      }
-      return true;
-    });
-
-    setPhotoFiles(prev => [...prev, ...validFiles]);
-
-    // Create previews
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
+  const handleCameraCapture = (file: File) => {
+    setPhotoFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    setShowCamera(false);
+    toast.success("Foto berhasil diambil!");
   };
 
-  const removePhoto = (index: number) => {
-    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
-    setPhotoPreview(prev => prev.filter((_, i) => i !== index));
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
   };
 
   const createMutation = useMutation({
@@ -212,9 +205,9 @@ export function TeachingJournalForm() {
       if (data.learning_media) formData.append('learning_media', data.learning_media);
       if (data.learning_achievement) formData.append('learning_achievement', data.learning_achievement);
       
-      photoFiles.forEach((file) => {
-        formData.append('photos', file);
-      });
+      if (photoFile) {
+        formData.append('photos', photoFile);
+      }
 
       const response = await api.post('/academics/teaching-journals', formData, {
         headers: {
@@ -302,8 +295,7 @@ export function TeachingJournalForm() {
                             ({schedule.assignment.class.class_name})
                           </span>
                           <span className="text-xs text-[#44409D]">
-                            {format(new Date(schedule.start_time), 'HH:mm')} - 
-                            {format(new Date(schedule.end_time), 'HH:mm')}
+                            {formatTimeWIB(schedule.start_time)} - {formatTimeWIB(schedule.end_time)}
                           </span>
                         </div>
                       </SelectItem>
@@ -519,60 +511,64 @@ export function TeachingJournalForm() {
           </div>
         )}
 
-        {/* Photo Upload */}
+        {/* Photo Documentation */}
         <div className="bg-white rounded-2xl shadow-sm border-2 border-[#44409D]/30 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Upload className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
+            <Camera className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
             <h3 className="font-bold text-[#44409D] text-base">Dokumentasi</h3>
           </div>
 
           <p className="text-xs text-gray-600 mb-3">
-            Upload maksimal 4 foto (maks 5MB per foto)
+            Ambil 1 foto dokumentasi KBM (dengan watermark otomatis)
           </p>
 
-          {/* Photo Previews */}
-          {photoPreview.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              {photoPreview.map((preview, index) => (
-                <div key={index} className="relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200">
-                  <img
-                    src={preview}
-                    alt={`Preview ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+          {/* Photo Preview */}
+          {photoPreview ? (
+            <div className="space-y-3">
+              <div className="relative aspect-video rounded-xl overflow-hidden border-2 border-gray-200">
+                <img
+                  src={photoPreview}
+                  alt="Dokumentasi KBM"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => removePhoto(index)}
-                    className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    onClick={() => setShowCamera(true)}
+                    className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors shadow-lg"
+                  >
+                    <Camera className="h-4 w-4" strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removePhoto}
+                    className="w-9 h-9 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
                   >
                     <X className="h-4 w-4" strokeWidth={2.5} />
                   </button>
                 </div>
-              ))}
+              </div>
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Foto berhasil diambil dengan watermark
+              </p>
             </div>
-          )}
-
-          {/* Upload Button */}
-          {photoFiles.length < 4 && (
-            <div>
-              <input
-                type="file"
-                id="photo-upload"
-                multiple
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="hidden"
-              />
-              <label
-                htmlFor="photo-upload"
-                className="flex items-center justify-center gap-2 w-full h-12 bg-gradient-to-br from-[#9CBEFE]/20 to-[#44409D]/10 border-2 border-dashed border-[#44409D]/30 rounded-xl cursor-pointer hover:border-[#44409D] transition-colors"
-              >
-                <Upload className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
-                <span className="text-sm font-semibold text-[#44409D]">
-                  Pilih Foto
-                </span>
-              </label>
-            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCamera(true)}
+              className="flex items-center justify-center gap-2 w-full h-32 bg-gradient-to-br from-[#9CBEFE]/20 to-[#44409D]/10 border-2 border-dashed border-[#44409D]/30 rounded-xl hover:border-[#44409D] transition-colors"
+            >
+              <Camera className="h-8 w-8 text-[#44409D]" strokeWidth={2.5} />
+              <div className="text-left">
+                <p className="text-sm font-semibold text-[#44409D]">
+                  Ambil Foto
+                </p>
+                <p className="text-xs text-gray-600">
+                  Kamera akan terbuka otomatis
+                </p>
+              </div>
+            </button>
           )}
         </div>
 
@@ -594,6 +590,14 @@ export function TeachingJournalForm() {
           </Button>
         </div>
       </form>
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <CameraCapture
+          onCapture={handleCameraCapture}
+          onCancel={() => setShowCamera(false)}
+        />
+      )}
     </Form>
   );
 }

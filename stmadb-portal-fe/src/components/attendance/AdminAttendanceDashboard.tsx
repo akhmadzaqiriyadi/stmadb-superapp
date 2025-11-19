@@ -60,6 +60,7 @@ import {
   createDailySession,
   exportAttendanceData,
   deleteDailySession,
+  regenerateQRCode,
   type AdminAttendanceStatistics,
   type AdminDailyAttendanceSession,
   type ClassForAttendance,
@@ -213,17 +214,14 @@ export default function AdminAttendanceDashboard() {
   };
 
   const handleRegenerateQR = async (session: AdminDailyAttendanceSession) => {
-    if (!confirm('Buat QR code baru? QR lama akan dihapus.')) {
+    if (!confirm('Buat QR code baru? Data absensi akan tetap tersimpan, hanya QR yang akan diganti.')) {
       return;
     }
 
     setProcessingSessionId(session.id);
     try {
-      // Delete old session
-      await deleteDailySession(session.id);
-      
-      // Create new session
-      const newSession = await createDailySession(session.class.id);
+      // Regenerate QR code tanpa hapus session atau data absensi
+      const newSession = await regenerateQRCode(session.id);
       
       toast.success('QR Code berhasil dibuat ulang!');
       fetchSessions();
@@ -341,16 +339,28 @@ export default function AdminAttendanceDashboard() {
                   </div>
 
                   <div className="flex flex-col items-center space-y-4">
-                    <div className="bg-white p-8 rounded-lg border">
-                      <QRCode 
-                        value={createdSession.qr_code} 
-                        size={256}
-                        level="H"
-                      />
+                    <div className="border rounded-lg overflow-hidden">
+                      {/* Header - Nama Kelas */}
+                      <div className="px-6 py-3 bg-gradient-to-r from-[#9CBEFE] to-[#44409D] text-center">
+                        <h3 className="text-white font-bold text-base">{createdSession.class?.class_name}</h3>
+                        <p className="text-blue-100 text-xs mt-0.5">QR Code Absensi Harian</p>
+                      </div>
+                      
+                      {/* QR Code */}
+                      <div className="bg-white p-8">
+                        <QRCode 
+                          value={createdSession.qr_code} 
+                          size={256}
+                          level="H"
+                        />
+                      </div>
+                      
+                      {/* Footer */}
+                      <div className="px-6 py-3 bg-gray-50 text-center border-t">
+                        <p className="text-sm text-gray-600">Scan QR di atas untuk absensi</p>
+                        <p className="text-base font-semibold text-gray-900 mt-1">{createdSession.class?.class_name}</p>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Scan QR Code di atas untuk absensi
-                    </p>
                   </div>
 
                   <div className="flex gap-2">

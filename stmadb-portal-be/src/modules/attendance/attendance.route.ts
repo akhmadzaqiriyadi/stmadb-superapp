@@ -229,6 +229,32 @@ router.delete(
   attendanceController.deleteDailySession,
 );
 
+/**
+ * @openapi
+ * /attendance/daily-session/{sessionId}/regenerate:
+ *   put:
+ *     tags: [Attendance]
+ *     summary: (Guru/Piket/Admin) Regenerate QR Code
+ *     description: Membuat QR code baru dan extend waktu expiry tanpa menghapus data absensi yang sudah tercatat.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID dari sesi yang akan di-regenerate
+ *     responses:
+ *       '200':
+ *         description: QR Code berhasil dibuat ulang.
+ */
+router.put(
+  '/daily-session/:sessionId/regenerate',
+  authorize(['Teacher', 'WaliKelas', 'Piket', 'Admin']),
+  attendanceController.regenerateQRCode,
+);
+
 // ====== ADMIN/PIKET ROUTES ======
 
 /**
