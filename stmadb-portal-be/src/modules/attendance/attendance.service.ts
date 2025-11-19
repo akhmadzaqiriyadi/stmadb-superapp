@@ -163,6 +163,13 @@ export const scanAttendance = async (
 ) => {
   const session = await prisma.dailyAttendanceSession.findUnique({
     where: { qr_code: qrCode },
+    include: {
+      class: {
+        select: {
+          class_name: true,
+        },
+      },
+    },
   });
 
   if (!session) {
@@ -189,6 +196,21 @@ export const scanAttendance = async (
   if (now > session.expires_at) {
     throw new Error(
       `Sesi absensi sudah ditutup pada jam ${session.expires_at.toLocaleTimeString()}`,
+    );
+  }
+
+  // VALIDASI BARU: Cek apakah siswa terdaftar di kelas yang sama
+  const isStudentInClass = await prisma.classMember.findFirst({
+    where: {
+      student_user_id: studentUserId,
+      class_id: session.class_id,
+      academic_year_id: session.academic_year_id,
+    },
+  });
+
+  if (!isStudentInClass) {
+    throw new Error(
+      `QR code ini untuk kelas ${session.class.class_name}. Anda tidak terdaftar di kelas tersebut.`,
     );
   }
 

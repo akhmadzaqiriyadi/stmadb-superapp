@@ -31,6 +31,9 @@ services:
       - ./stmadb-portal-be/.env
     ports:
       - "8080:8080"
+    volumes:
+      # Persist uploads folder ke host
+      - ./stmadb-portal-be/uploads:/app/uploads
     networks:
       - stmadb-net
 
