@@ -170,7 +170,14 @@ export function CameraCapture({ onCapture, onCancel, className }: CameraCaptureP
           >
             <X className="w-6 h-6 text-white" />
           </button>
-          {!capturedImage && (
+          {capturedImage ? (
+            <button
+              onClick={confirmPhoto}
+              className="w-10 h-10 bg-green-500 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+            >
+              <Check className="w-6 h-6 text-white" />
+            </button>
+          ) : (
             <button
               onClick={switchCamera}
               className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
