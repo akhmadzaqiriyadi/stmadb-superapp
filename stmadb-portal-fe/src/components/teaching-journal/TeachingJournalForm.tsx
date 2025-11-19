@@ -519,7 +519,7 @@ export function TeachingJournalForm() {
           </div>
 
           <p className="text-xs text-gray-600 mb-3">
-            Ambil 1 foto dokumentasi KBM (dengan watermark otomatis)
+            Ambil foto kegiatan pembelajaran (watermark otomatis: tanggal, waktu, sekolah)
           </p>
 
           {/* Photo Preview */}
@@ -550,7 +550,7 @@ export function TeachingJournalForm() {
               </div>
               <p className="text-xs text-green-600 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" />
-                Foto berhasil diambil dengan watermark
+                Foto siap disimpan ke jurnal (dengan watermark)
               </p>
             </div>
           ) : (
@@ -596,6 +596,7 @@ export function TeachingJournalForm() {
         <CameraCapture
           onCapture={handleCameraCapture}
           onCancel={() => setShowCamera(false)}
+          className={schedules?.find(s => s.id === selectedScheduleId)?.assignment.class.class_name}
         />
       )}
     </Form>

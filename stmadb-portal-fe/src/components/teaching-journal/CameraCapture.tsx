@@ -12,9 +12,10 @@ import { id as idLocale } from "date-fns/locale";
 interface CameraCaptureProps {
   onCapture: (file: File) => void;
   onCancel: () => void;
+  className?: string;
 }
 
-export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, onCancel, className }: CameraCaptureProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isFrontCamera, setIsFrontCamera] = useState(false);
@@ -83,7 +84,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     // Add watermark
-    addWatermark(context, canvas.width, canvas.height);
+    addWatermark(context, canvas.width, canvas.height, className);
 
     // Convert to data URL
     const imageDataUrl = canvas.toDataURL("image/jpeg", 0.9);
@@ -91,7 +92,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     stopCamera();
   };
 
-  const addWatermark = (context: CanvasRenderingContext2D, width: number, height: number) => {
+  const addWatermark = (context: CanvasRenderingContext2D, width: number, height: number, kelas?: string) => {
     const now = new Date();
     const dateStr = format(now, "dd MMMM yyyy", { locale: idLocale });
     const timeStr = format(now, "HH:mm:ss");
@@ -100,7 +101,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     const padding = 15;
     const lineHeight = 30;
     const fontSize = 24;
-    const watermarkHeight = (lineHeight * 3) + (padding * 2);
+    const watermarkHeight = (lineHeight * 4) + (padding * 2); // Increase for 4 lines
     
     context.fillStyle = "rgba(0, 0, 0, 0.6)";
     context.fillRect(0, height - watermarkHeight, width, watermarkHeight);
@@ -116,9 +117,15 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     // Time
     context.fillText(timeStr, padding, height - watermarkHeight + padding + fontSize + lineHeight);
     
-    // Location/School name (you can customize this)
+    // Location/School name
     context.font = `${fontSize - 4}px sans-serif`;
     context.fillText("STMA Darul Banin", padding, height - watermarkHeight + padding + fontSize + (lineHeight * 2));
+    
+    // Class name if provided
+    if (kelas) {
+      context.font = `bold ${fontSize - 2}px sans-serif`;
+      context.fillText(kelas, padding, height - watermarkHeight + padding + fontSize + (lineHeight * 3));
+    }
     
     // Add camera icon indicator
     context.fillStyle = "rgba(255, 255, 255, 0.8)";

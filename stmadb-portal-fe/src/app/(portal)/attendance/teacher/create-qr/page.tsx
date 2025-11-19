@@ -78,23 +78,91 @@ function CreateQRContent() {
   };
 
   const handleDownloadQR = () => {
+    if (!session) return;
+    
+    const qrContainer = document.createElement('div');
+    qrContainer.style.padding = '40px';
+    qrContainer.style.backgroundColor = 'white';
+    qrContainer.style.display = 'inline-block';
+    
+    // Clone QR SVG
     const svg = document.getElementById('qr-code-svg');
     if (!svg) return;
-
-    const svgData = new XMLSerializer().serializeToString(svg);
+    
+    const qrClone = svg.cloneNode(true) as SVGElement;
+    qrContainer.appendChild(qrClone);
+    
+    // Add class name text below QR
+    const classText = document.createElement('div');
+    classText.style.textAlign = 'center';
+    classText.style.marginTop = '20px';
+    classText.style.fontSize = '24px';
+    classText.style.fontWeight = 'bold';
+    classText.style.color = '#44409D';
+    classText.textContent = className || 'QR Absensi';
+    qrContainer.appendChild(classText);
+    
+    // Add date info
+    const dateText = document.createElement('div');
+    dateText.style.textAlign = 'center';
+    dateText.style.marginTop = '8px';
+    dateText.style.fontSize = '14px';
+    dateText.style.color = '#666';
+    dateText.textContent = new Date().toLocaleDateString('id-ID', { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+    qrContainer.appendChild(dateText);
+    
+    document.body.appendChild(qrContainer);
+    
+    // Convert to canvas
+    const svgData = new XMLSerializer().serializeToString(qrContainer);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
     
     img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
+      // Set canvas size based on content
+      canvas.width = 400;
+      canvas.height = 500;
+      
+      // White background
+      if (ctx) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw QR code
+        ctx.drawImage(img, 0, 0, 240, 240, 80, 40, 240, 240);
+        
+        // Draw class name
+        ctx.fillStyle = '#44409D';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(className || 'QR Absensi', canvas.width / 2, 320);
+        
+        // Draw date
+        ctx.fillStyle = '#666';
+        ctx.font = '14px sans-serif';
+        ctx.fillText(
+          new Date().toLocaleDateString('id-ID', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+          }),
+          canvas.width / 2,
+          350
+        );
+      }
+      
       const url = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `QR-${className}-${new Date().toLocaleDateString('id-ID')}.png`;
       link.href = url;
       link.click();
+      
+      document.body.removeChild(qrContainer);
       toast.success("QR berhasil diunduh!");
     };
     
