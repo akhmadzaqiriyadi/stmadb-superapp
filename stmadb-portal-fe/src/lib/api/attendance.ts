@@ -106,6 +106,11 @@ export interface TeacherClassWithStatus {
   total_students: number;
   session_status: 'active' | 'expired' | 'none';
   attendance_count: number;
+  present_count: number;
+  sick_count: number;
+  permission_count: number;
+  absent_count: number;
+  attendance_rate: number;
   session_date: string | null;
   qr_expires_at: string | null;
 }

@@ -265,3 +265,39 @@ export const getAllClassesForAttendance = async (req: Request, res: Response) =>
     res.status(400).json({ message: (error as Error).message });
   }
 };
+
+/**
+ * GET /api/v1/attendance/export-monthly
+ * Export Absensi Bulanan dalam format Excel sesuai template
+ */
+export const exportMonthlyAttendance = async (req: Request, res: Response) => {
+  try {
+    const { class_id, month, year } = req.query;
+    
+    const classId = parseInt(class_id as string, 10);
+    const monthNum = parseInt(month as string, 10);
+    const yearNum = parseInt(year as string, 10);
+
+    const buffer = await attendanceService.exportMonthlyAttendance(
+      classId,
+      monthNum,
+      yearNum
+    );
+
+    const monthNames = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const monthName = monthNames[monthNum - 1];
+    const filename = `Absensi_Bulanan_${monthName}_${yearNum}.xlsx`;
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};

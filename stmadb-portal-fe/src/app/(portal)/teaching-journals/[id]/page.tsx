@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from 'date-fns/locale';
@@ -13,13 +13,15 @@ import {
   BookOpen, 
   Users,
   CheckCircle2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/axios";
 import { TeachingJournal, TeacherStatus, AttendanceStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import withAuth from "@/components/auth/withAuth";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 // Helper: Convert UTC time to WIB (UTC+7)
 const formatTimeWIB = (utcTimeString: string): string => {
@@ -104,6 +106,7 @@ const learningMethodLabels: Record<string, string> = {
 function TeachingJournalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const journalId = resolvedParams.id;
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const { data: journal, isLoading, isError } = useQuery<TeachingJournal, Error>({
     queryKey: ['teachingJournal', journalId],
@@ -255,6 +258,15 @@ function TeachingJournalDetailPage({ params }: { params: Promise<{ id: string }>
                   <p className="text-sm text-gray-700 leading-relaxed">{journal.learning_achievement}</p>
                 </div>
               )}
+
+              {journal.reflection_notes && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1">Catatan Refleksi Pembelajaran</p>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100/30 rounded-lg p-3 border border-blue-200">
+                    <p className="text-sm text-gray-800 leading-relaxed italic">{journal.reflection_notes}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -269,7 +281,11 @@ function TeachingJournalDetailPage({ params }: { params: Promise<{ id: string }>
 
             <div className="grid grid-cols-2 gap-3">
               {journal.photos.map((photo) => (
-                <div key={photo.id} className="aspect-square rounded-xl overflow-hidden border-2 border-gray-200">
+                <div 
+                  key={photo.id} 
+                  className="aspect-square rounded-xl overflow-hidden border-2 border-gray-200 cursor-pointer hover:border-[#44409D] transition-all hover:scale-[1.02]"
+                  onClick={() => setSelectedImage(photo.photo_url)}
+                >
                   <img 
                     src={photo.photo_url} 
                     alt="Foto jurnal"
@@ -367,6 +383,25 @@ function TeachingJournalDetailPage({ params }: { params: Promise<{ id: string }>
           </div>
         )}
       </div>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+        <DialogContent className="max-w-4xl w-full p-0 bg-black/95 border-none">
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <X className="h-6 w-6 text-white" />
+          </button>
+          {selectedImage && (
+            <img
+              src={selectedImage}
+              alt="Preview"
+              className="w-full h-auto max-h-[90vh] object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, LayoutDashboard, BookCopy, Home, CalendarClock, ChevronDown, LogOut, MessageSquare, CalendarCheck } from "lucide-react"; 
+import { Users, LayoutDashboard, BookCopy, Home, CalendarClock, ChevronDown, LogOut, MessageSquare, CalendarCheck, CalendarOff } from "lucide-react"; 
 
 type NavItem = {
   href: string;
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
       { href: "/dashboard/academics/majors", label: "Jurusan" },
       { href: "/dashboard/academics/subjects", label: "Mata Pelajaran" },
       { href: "/dashboard/academics/rooms", label: "Ruangan" },
+      { href: "/dashboard/academics/holidays", label: "Hari Libur" },
     ]
   },
   { href: "/dashboard/classes", label: "Manajemen Kelas", icon: Home },

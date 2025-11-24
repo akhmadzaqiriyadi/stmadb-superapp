@@ -537,4 +537,67 @@ router.get(
   teachingJournalController.getMissingJournals
 );
 
+/**
+ * @openapi
+ * /academics/teaching-journals/export:
+ *   get:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Export jurnal ke Excel
+ *     description: Export data jurnal KBM ke file Excel dengan filter tanggal dan kategori
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: date_from
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Tanggal mulai (YYYY-MM-DD)
+ *         example: "2024-01-01"
+ *       - in: query
+ *         name: date_to
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Tanggal selesai (YYYY-MM-DD)
+ *         example: "2024-01-31"
+ *       - in: query
+ *         name: teacher_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan guru (opsional, hanya untuk admin)
+ *       - in: query
+ *         name: class_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan kelas (opsional)
+ *       - in: query
+ *         name: subject_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan mata pelajaran (opsional)
+ *     responses:
+ *       200:
+ *         description: File Excel berhasil dihasilkan
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Parameter tidak valid
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/export',
+  authorize(['Guru', 'Teacher', 'Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.exportJournals
+);
+
 export default router;

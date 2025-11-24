@@ -276,6 +276,21 @@ model TeacherAssignment {
   schedules        Schedule[]
 }
 
+// ============== MODUL 2.5: HARI LIBUR ==============
+
+model Holiday {
+  id          Int      @id @default(autoincrement())
+  name        String   // Nama hari libur (e.g., "Hari Raya Idul Fitri", "Libur Semester")
+  date        DateTime @db.Date
+  description String?  @db.Text
+  is_active   Boolean  @default(true) // Aktif/Nonaktif
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
+
 // ============== MODUL 3: ABSENSI HARIAN (BARU) ==============
 
 // Model ini menggantikan AttendanceQRSession
@@ -366,6 +381,7 @@ model TeachingJournal {
   learning_media       String? // Slides, Video, Modul, dll
   learning_achievement String? @db.Text // Capaian pembelajaran siswa
   teacher_notes        String? @db.Text // Catatan tambahan guru
+  reflection_notes     String? @db.Text // Catatan refleksi hasil pembelajaran (100-500 karakter)
 
   // Link ke Daily Attendance Session (read-only dari sistem absensi harian yang sudah ada)
   // Jurnal akan fetch data absensi dari DailyAttendanceSession berdasarkan kelas & tanggal

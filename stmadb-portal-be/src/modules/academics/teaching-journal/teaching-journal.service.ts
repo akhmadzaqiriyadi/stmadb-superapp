@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { addMinutes, isWithinInterval, format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import type { CreateTeachingJournalDto, GetMyJournalsQuery, GetAdminJournalsQuery, GetMissingJournalsQuery } from './teaching-journal.validation.js';
+import type { CreateTeachingJournalDto, GetMyJournalsQuery, GetAdminJournalsQuery, GetMissingJournalsQuery, ExportJournalsQuery } from './teaching-journal.validation.js';
 import { deleteJournalPhoto, getJournalPhotoUrl } from '../../../core/config/multer.config.js';
+import ExcelJS from 'exceljs';
 
 const prisma = new PrismaClient();
 
@@ -247,6 +248,7 @@ export class TeachingJournalService {
         learning_method: data.learning_method ?? null,
         learning_media: data.learning_media ?? null,
         learning_achievement: data.learning_achievement ?? null,
+        reflection_notes: data.reflection_notes ?? null,
         
         // Link to daily session if exists
         daily_session_id: dailySession?.id ?? null,
@@ -740,6 +742,288 @@ export class TeachingJournalService {
     }
     
     return missing;
+  }
+
+  /**
+   * Export journals to Excel
+   */
+  async exportJournals(query: ExportJournalsQuery, userRole?: string, userId?: number): Promise<ExcelJS.Buffer> {
+    const { date_from, date_to, teacher_id, class_id, subject_id } = query;
+
+    // Build where clause
+    const whereClause: any = {
+      journal_date: {
+        gte: parseISO(date_from),
+        lte: parseISO(date_to)
+      }
+    };
+
+    // If role is TEACHER, only show own journals
+    if (userRole === 'TEACHER' && userId) {
+      whereClause.schedule = {
+        assignment: {
+          teacher_user_id: userId
+        }
+      };
+    } else {
+      // Admin can filter by teacher_id
+      if (teacher_id) {
+        whereClause.schedule = {
+          assignment: {
+            teacher_user_id: teacher_id
+          }
+        };
+      }
+    }
+
+    // Filter by class_id
+    if (class_id) {
+      whereClause.schedule = {
+        ...whereClause.schedule,
+        assignment: {
+          ...whereClause.schedule?.assignment,
+          class_id: class_id
+        }
+      };
+    }
+
+    // Filter by subject_id
+    if (subject_id) {
+      whereClause.schedule = {
+        ...whereClause.schedule,
+        assignment: {
+          ...whereClause.schedule?.assignment,
+          subject_id: subject_id
+        }
+      };
+    }
+
+    // Fetch journals
+    const journals = await prisma.teachingJournal.findMany({
+      where: whereClause,
+      include: {
+        schedule: {
+          include: {
+            assignment: {
+              include: {
+                teacher: {
+                  select: {
+                    profile: {
+                      select: {
+                        full_name: true
+                      }
+                    }
+                  }
+                },
+                subject: true,
+                class: true
+              }
+            }
+          }
+        },
+        daily_session: {
+          include: {
+            student_attendances: {
+              include: {
+                student: {
+                  select: {
+                    profile: {
+                      select: {
+                        full_name: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        photos: true
+      },
+      orderBy: [
+        { journal_date: 'asc' },
+        { createdAt: 'asc' }
+      ]
+    });
+
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Jurnal KBM');
+
+    // Add title rows (merged cells)
+    worksheet.mergeCells('A1:K1');
+    worksheet.getCell('A1').value = 'JURNAL KEGIATAN PEMBELAJARAN GURU';
+    worksheet.getCell('A1').font = { bold: true, size: 14 };
+    worksheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+    
+    worksheet.mergeCells('A2:K2');
+    worksheet.getCell('A2').value = 'SMKN 1 ADIWERNA TAHUN PELAJARAN 2024/2025';
+    worksheet.getCell('A2').font = { bold: true, size: 12 };
+    worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+    
+    // Add empty row
+    worksheet.addRow([]);
+    
+    // Add teacher info
+    const firstJournal = journals[0];
+    const teacherName = firstJournal?.schedule?.assignment?.teacher?.profile?.full_name || 'Semua Guru';
+    
+    worksheet.mergeCells('A4:B4');
+    worksheet.getCell('A4').value = 'Nama';
+    worksheet.getCell('A4').font = { bold: true };
+    worksheet.mergeCells('C4:K4');
+    worksheet.getCell('C4').value = `: ${teacherName}`;
+    
+    worksheet.mergeCells('A5:B5');
+    worksheet.getCell('A5').value = 'NIP';
+    worksheet.getCell('A5').font = { bold: true };
+    worksheet.mergeCells('C5:K5');
+    worksheet.getCell('C5').value = ': ......';
+    
+    // Add empty row
+    worksheet.addRow([]);
+
+    // Define header row (row 7)
+    const headerRow = worksheet.getRow(7);
+    headerRow.values = [
+      'No',
+      'Tanggal',
+      'Mata Pelajaran',
+      'Kelas',
+      'Status Kehadiran',
+      'Topik',
+      'Deskripsi',
+      'Metode',
+      'Refleksi / Catatan',
+      'H',
+      'I',
+      'S',
+      'A',
+      'Link Foto'
+    ];
+    
+    // Style header row
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' }
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    headerRow.height = 30;
+    
+    // Set column widths
+    worksheet.columns = [
+      { key: 'no', width: 5 },
+      { key: 'tanggal', width: 12 },
+      { key: 'mata_pelajaran', width: 20 },
+      { key: 'kelas', width: 10 },
+      { key: 'status_kehadiran', width: 15 },
+      { key: 'topik', width: 30 },
+      { key: 'deskripsi', width: 35 },
+      { key: 'metode', width: 20 },
+      { key: 'refleksi', width: 35 },
+      { key: 'h', width: 5 },
+      { key: 'i', width: 5 },
+      { key: 's', width: 5 },
+      { key: 'a', width: 5 },
+      { key: 'link_foto', width: 15 }
+    ];
+
+    // Add data rows
+    journals.forEach((journal, index) => {
+      const schedule = journal.schedule;
+      const assignment = schedule?.assignment;
+      
+      // Skip if assignment is missing
+      if (!assignment) {
+        return;
+      }
+      
+      // Calculate attendance stats
+      let presentCount = 0;
+      let sickCount = 0;
+      let permissionCount = 0;
+      let absentCount = 0;
+      
+      if (journal.daily_session?.student_attendances) {
+        journal.daily_session.student_attendances.forEach((att: any) => {
+          switch (att.status) {
+            case 'Hadir': presentCount++; break;
+            case 'Sakit': sickCount++; break;
+            case 'Izin': permissionCount++; break;
+            case 'Alfa': absentCount++; break;
+          }
+        });
+      }
+
+      // Translate learning method to Indonesian
+      const methodTranslation: Record<string, string> = {
+        'Ceramah': 'Ceramah',
+        'Diskusi': 'Diskusi',
+        'Praktik': 'Praktik',
+        'Demonstrasi': 'Demonstrasi',
+        'Eksperimen': 'Eksperimen',
+        'PresentasiSiswa': 'Presentasi Siswa',
+        'TanyaJawab': 'Tanya Jawab',
+        'PembelajaranKelompok': 'Pembelajaran Kelompok',
+        'Proyek': 'Proyek',
+        'ProblemSolving': 'Problem Solving'
+      };
+      
+      // Status kehadiran guru
+      const statusMapping: Record<string, string> = {
+        'Hadir': 'Hadir',
+        'Sakit': 'Sakit',
+        'Izin': 'Izin/DL',
+        'Alpa': 'Sakit'
+      };
+      
+      // Link foto (ambil foto pertama jika ada)
+      const photoLink = journal.photos?.[0]?.photo_url || '-';
+
+      const row = worksheet.addRow({
+        no: index + 1,
+        tanggal: format(journal.journal_date, 'dd/MM/yyyy'),
+        mata_pelajaran: assignment.subject?.subject_name || '-',
+        kelas: assignment.class?.class_name || '-',
+        status_kehadiran: statusMapping[journal.teacher_status] || journal.teacher_status,
+        topik: journal.material_topic || '-',
+        deskripsi: journal.material_description || '-',
+        metode: journal.learning_method ? methodTranslation[journal.learning_method] : '-',
+        refleksi: journal.reflection_notes || journal.teacher_notes || '-',
+        h: presentCount,
+        i: permissionCount,
+        s: sickCount,
+        a: absentCount,
+        link_foto: photoLink
+      });
+      
+      // Align text
+      row.alignment = { vertical: 'top', wrapText: true };
+      row.getCell(10).alignment = { horizontal: 'center', vertical: 'middle' }; // H
+      row.getCell(11).alignment = { horizontal: 'center', vertical: 'middle' }; // I
+      row.getCell(12).alignment = { horizontal: 'center', vertical: 'middle' }; // S
+      row.getCell(13).alignment = { horizontal: 'center', vertical: 'middle' }; // A
+    });
+
+    // Apply borders to all cells (from row 7 onwards)
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber >= 7) {
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        });
+      }
+    });
+
+    // Generate buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer as ExcelJS.Buffer;
   }
 }
 

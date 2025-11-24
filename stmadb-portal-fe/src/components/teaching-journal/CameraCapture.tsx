@@ -119,7 +119,7 @@ export function CameraCapture({ onCapture, onCancel, className }: CameraCaptureP
     
     // Location/School name
     context.font = `${fontSize - 4}px sans-serif`;
-    context.fillText("STMA Darul Banin", padding, height - watermarkHeight + padding + fontSize + (lineHeight * 2));
+    context.fillText("STM ADB", padding, height - watermarkHeight + padding + fontSize + (lineHeight * 2));
     
     // Class name if provided
     if (kelas) {

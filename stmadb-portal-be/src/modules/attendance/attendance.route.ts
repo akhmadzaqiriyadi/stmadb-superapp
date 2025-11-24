@@ -9,6 +9,7 @@ import {
   getAttendanceStatusSchema,
   markBatchManualAttendanceSchema,
   createDailySessionSchema,
+  exportMonthlyAttendanceSchema,
 } from './attendance.validation.js';
 
 const router = Router();
@@ -253,6 +254,57 @@ router.put(
   '/daily-session/:sessionId/regenerate',
   authorize(['Teacher', 'WaliKelas', 'Piket', 'Admin']),
   attendanceController.regenerateQRCode,
+);
+
+/**
+ * @openapi
+ * /attendance/export-monthly:
+ *   get:
+ *     tags: [Attendance]
+ *     summary: Export Absensi Bulanan dalam Format Excel
+ *     description: Export rekap absensi bulanan per kelas dalam format Excel sesuai template sekolah.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: class_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID Kelas
+ *         example: 1
+ *       - in: query
+ *         name: month
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 12
+ *         description: Bulan (1-12)
+ *         example: 11
+ *       - in: query
+ *         name: year
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Tahun
+ *         example: 2024
+ *     responses:
+ *       '200':
+ *         description: File Excel berhasil didownload
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       '400':
+ *         description: Parameter tidak valid atau data tidak ditemukan
+ */
+router.get(
+  '/export-monthly',
+  authorize(['Teacher', 'WaliKelas', 'Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  validate(exportMonthlyAttendanceSchema),
+  attendanceController.exportMonthlyAttendance,
 );
 
 // ====== ADMIN/PIKET ROUTES ======

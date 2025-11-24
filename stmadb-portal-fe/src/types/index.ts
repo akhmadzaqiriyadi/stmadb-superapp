@@ -511,6 +511,7 @@ export interface TeachingJournal {
   learning_method?: LearningMethod | null;
   learning_media?: string | null;
   learning_achievement?: string | null;
+  reflection_notes?: string | null;
   daily_session_id?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -573,4 +574,30 @@ export interface CreateTeachingJournalDto {
   learning_method?: LearningMethod;
   learning_media?: string;
   learning_achievement?: string;
+}
+
+// ============== HOLIDAY TYPES ==============
+
+export interface Holiday {
+  id: number;
+  name: string;
+  date: string;
+  description?: string | null;
+  is_active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateHolidayDto {
+  name: string;
+  date: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateHolidayDto {
+  name?: string;
+  date?: string;
+  description?: string;
+  is_active?: boolean;
 }

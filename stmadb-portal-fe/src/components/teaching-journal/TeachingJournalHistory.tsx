@@ -165,17 +165,32 @@ export function TeachingJournalHistory() {
                   {journal.attendance_stats && journal.attendance_stats.total > 0 && (
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 border-[#9CBEFE]/30">
                       <Users className="h-3.5 w-3.5 text-[#44409D]" strokeWidth={2.5} />
-                      <span className="text-xs font-bold text-[#44409D]">
-                        {journal.attendance_stats.hadir}/{journal.attendance_stats.total} Hadir
+                      <span className="text-xs font-bold">
+                        <span className="text-green-600">H: {journal.attendance_stats.hadir}</span>
+                        {' | '}
+                        <span className="text-orange-600">S: {journal.attendance_stats.sakit}</span>
+                        {' | '}
+                        <span className="text-blue-600">I: {journal.attendance_stats.izin}</span>
+                        {' | '}
+                        <span className="text-red-600">A: {journal.attendance_stats.alfa}</span>
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Time */}
-                <p className="text-xs text-gray-500 mt-2">
-                  {formatTimeWIB(journal.schedule.start_time)} - {formatTimeWIB(journal.schedule.end_time)}
-                </p>
+                {/* Time and Reflection Indicator */}
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    {formatTimeWIB(journal.schedule.start_time)} - {formatTimeWIB(journal.schedule.end_time)}
+                  </p>
+                  
+                  {/* Reflection Notes Indicator */}
+                  {journal.reflection_notes && (
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200">
+                      <span className="text-[10px] font-bold text-red-600">refleksi/ catatan</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Arrow Icon */}

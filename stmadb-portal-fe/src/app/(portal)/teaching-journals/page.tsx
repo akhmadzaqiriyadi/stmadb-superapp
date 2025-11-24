@@ -1,14 +1,46 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, BookOpen, AlertCircle } from "lucide-react";
+import { Plus, BookOpen, AlertCircle, Download } from "lucide-react";
 
 import withAuth from "@/components/auth/withAuth";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { TeachingJournalHistory } from "@/components/teaching-journal/TeachingJournalHistory";
+import { ExportJournalModal } from "@/components/teaching-journal/ExportJournalModal";
+import api from "@/lib/axios";
+import { format } from "date-fns";
 
 function TeachingJournalsPage() {
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [isCheckingHoliday, setIsCheckingHoliday] = useState(true);
+
+  useEffect(() => {
+    const checkHoliday = async () => {
+      try {
+        const today = format(new Date(), "yyyy-MM-dd");
+        const { data } = await api.get(`/academics/holidays/check?date=${today}`);
+        setIsHoliday(data.data.is_holiday);
+      } catch (error) {
+        console.error("Failed to check holiday:", error);
+        setIsHoliday(false);
+      } finally {
+        setIsCheckingHoliday(false);
+      }
+    };
+
+    checkHoliday();
+  }, []);
+
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-gradient-to-b from-white to-[#9CBEFE]/5 pb-24">
       {/* Header Section */}
       <div className="px-4 pt-6 pb-8 shadow-lg border-b-2 border-slate-300 bg-white">
@@ -24,18 +56,54 @@ function TeachingJournalsPage() {
 
       {/* Main Content */}
       <div className="px-4 -mt-6">
-        {/* CTA Button - Floating Style */}
-        <Button 
-          asChild 
-          className="w-full h-12 bg-gradient-to-br from-[#44409D] to-[#9CBEFE] hover:from-[#9CBEFE] hover:to-[#44409D] text-white shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 rounded-2xl font-semibold text-base mb-6"
-        >
-          <Link href="/teaching-journals/create">
+        {/* Action Buttons */}
+        <div className="space-y-3 mb-6">
+          {/* Create Journal Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <Button 
+                  asChild={!isHoliday}
+                  disabled={isHoliday || isCheckingHoliday}
+                  className="w-full h-12 bg-gradient-to-br from-[#44409D] to-[#9CBEFE] hover:from-[#9CBEFE] hover:to-[#44409D] text-white shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 rounded-2xl font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {!isHoliday && !isCheckingHoliday ? (
+                    <Link href="/teaching-journals/create">
+                      <div className="flex items-center justify-center gap-3">
+                        <Plus className="h-6 w-6" strokeWidth={3} />
+                        <span className="drop-shadow-sm">Buat Jurnal Baru</span>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center justify-center gap-3">
+                      <Plus className="h-6 w-6" strokeWidth={3} />
+                      <span className="drop-shadow-sm">
+                        {isCheckingHoliday ? "Memuat..." : "Buat Jurnal Baru"}
+                      </span>
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {isHoliday && (
+              <TooltipContent>
+                <p>Tidak dapat membuat jurnal pada hari libur</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+
+          {/* Export Button */}
+          <Button 
+            onClick={() => setShowExportModal(true)}
+            variant="outline"
+            className="w-full h-12 border-2 border-[#44409D] text-[#44409D] hover:bg-[#44409D] hover:text-white shadow-md hover:shadow-lg transition-all duration-200 active:scale-95 rounded-2xl font-semibold text-base"
+          >
             <div className="flex items-center justify-center gap-3">
-              <Plus className="h-6 w-6" strokeWidth={3} />
-              <span className="drop-shadow-sm">Buat Jurnal Baru</span>
+              <Download className="h-5 w-5" strokeWidth={2.5} />
+              <span>Export ke Excel</span>
             </div>
-          </Link>
-        </Button>
+          </Button>
+        </div>
 
         {/* Section Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -70,7 +138,14 @@ function TeachingJournalsPage() {
           </div>
         </div>
       </div>
+
+      {/* Export Modal */}
+      <ExportJournalModal 
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
     </div>
+    </TooltipProvider>
   );
 }
 

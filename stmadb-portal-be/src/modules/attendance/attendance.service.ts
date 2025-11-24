@@ -9,6 +9,9 @@ import {
 } from '@prisma/client';
 // --- AKHIR PERBAIKAN 1 ---
 import { v4 as uuidv4 } from 'uuid';
+import ExcelJS from 'exceljs';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 
 const prisma = new PrismaClient();
 
@@ -485,6 +488,34 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
   }
 
   const today = getTodayDate();
+  const now = new Date();
+
+  // Check if today is a holiday
+  const isHoliday = await prisma.holiday.findFirst({
+    where: {
+      date: {
+        gte: today,
+        lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+      is_active: true,
+    },
+  });
+
+  // If today is a holiday, return empty array
+  if (isHoliday) {
+    return [];
+  }
+
+  // Get current day of week (in Indonesian format)
+  const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const dayIndex = now.getDay();
+  
+  // Skip if weekend (Sunday = 0, Saturday = 6)
+  if (dayIndex === 0 || dayIndex === 6) {
+    return [];
+  }
+  
+  const currentDayOfWeek = dayNames[dayIndex] as 'Senin' | 'Selasa' | 'Rabu' | 'Kamis' | 'Jumat';
 
   // Get all teacher assignments for this teacher
   const teacherAssignments = await prisma.teacherAssignment.findMany({
@@ -492,12 +523,21 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
       teacher_user_id: teacherUserId,
       academic_year_id: activeAcademicYear.id,
     },
-    select: {
-      class_id: true,
+    include: {
       class: {
         select: {
           id: true,
           class_name: true,
+          grade_level: true,
+        },
+      },
+      schedules: {
+        where: {
+          day_of_week: currentDayOfWeek,
+          academic_year_id: activeAcademicYear.id,
+        },
+        select: {
+          schedule_type: true,
         },
       },
     },
@@ -508,7 +548,42 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
     return [];
   }
 
-  const classIds = teacherAssignments.map((assignment) => assignment.class_id);
+  // Get active schedule week settings for each grade level
+  const gradeLevels = [...new Set(teacherAssignments.map(a => a.class.grade_level))];
+  const activeScheduleWeeks = await prisma.activeScheduleWeek.findMany({
+    where: {
+      grade_level: { in: gradeLevels },
+      academic_year_id: activeAcademicYear.id,
+    },
+  });
+
+  const activeWeekMap = new Map(
+    activeScheduleWeeks.map(asw => [asw.grade_level, asw.active_week_type])
+  );
+
+  // Filter assignments based on active week type and schedules
+  const validAssignments = teacherAssignments.filter(assignment => {
+    // If no schedule for today, skip
+    if (assignment.schedules.length === 0) {
+      return false;
+    }
+
+    const gradeLevel = assignment.class.grade_level;
+    const activeWeekType = activeWeekMap.get(gradeLevel) || 'Umum';
+
+    // Check if any schedule matches active week type
+    const hasValidSchedule = assignment.schedules.some(schedule => {
+      return schedule.schedule_type === 'Umum' || schedule.schedule_type === activeWeekType;
+    });
+
+    return hasValidSchedule;
+  });
+
+  if (validAssignments.length === 0) {
+    return [];
+  }
+
+  const classIds = validAssignments.map((assignment) => assignment.class_id);
 
   // Get total students per class
   const studentCounts = await prisma.classMember.groupBy({
@@ -526,7 +601,7 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
     studentCounts.map((sc) => [sc.class_id, sc._count.student_user_id]),
   );
 
-  // Get today's sessions for these classes
+  // Get today's sessions for these classes with attendance details
   const todaySessions = await prisma.dailyAttendanceSession.findMany({
     where: {
       class_id: { in: classIds },
@@ -545,20 +620,33 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
     todaySessions.map((session) => [session.class_id, session]),
   );
 
-  // Build response
-  return teacherAssignments.map((assignment) => {
+  // Build response with H/I/S/A breakdown
+  return validAssignments.map((assignment) => {
     const classId = assignment.class.id;
     const totalStudents = studentCountMap.get(classId) || 0;
     const session = sessionMap.get(classId);
 
     let sessionStatus: 'active' | 'expired' | 'none' = 'none';
     let attendanceCount = 0;
+    let presentCount = 0;
+    let sickCount = 0;
+    let permissionCount = 0;
+    let absentCount = 0;
 
     if (session) {
-      const now = new Date();
       sessionStatus = now > session.expires_at ? 'expired' : 'active';
-      attendanceCount = session.student_attendances.length;
+      const attendances = session.student_attendances;
+      
+      attendanceCount = attendances.length;
+      presentCount = attendances.filter(a => a.status === 'Hadir').length;
+      sickCount = attendances.filter(a => a.status === 'Sakit').length;
+      permissionCount = attendances.filter(a => a.status === 'Izin').length;
+      absentCount = attendances.filter(a => a.status === 'Alfa').length;
     }
+
+    const attendanceRate = totalStudents > 0 
+      ? Math.round((presentCount / totalStudents) * 100)
+      : 0;
 
     return {
       class_id: classId,
@@ -566,6 +654,11 @@ export const getTeacherClassesWithStatus = async (teacherUserId: number) => {
       total_students: totalStudents,
       session_status: sessionStatus,
       attendance_count: attendanceCount,
+      present_count: presentCount,
+      sick_count: sickCount,
+      permission_count: permissionCount,
+      absent_count: absentCount,
+      attendance_rate: attendanceRate,
       session_date: session?.session_date || null,
       qr_expires_at: session?.expires_at || null,
     };
@@ -1198,4 +1291,335 @@ export const getAllClassesForAttendance = async () => {
     major_name: c.major?.major_name || '-',
     total_students: c._count.class_members,
   }));
+};
+
+/**
+ * Export Absensi Bulanan dalam format Excel sesuai template
+ */
+export const exportMonthlyAttendance = async (
+  classId: number,
+  month: number,
+  year: number
+): Promise<Buffer> => {
+  // Validasi kelas
+  const classData = await prisma.classes.findUnique({
+    where: { id: classId },
+    include: {
+      major: {
+        select: { major_name: true },
+      },
+    },
+  });
+
+  if (!classData) {
+    throw new Error('Kelas tidak ditemukan.');
+  }
+
+  // Dapatkan tahun ajaran aktif
+  const activeAcademicYear = await prisma.academicYear.findFirst({
+    where: { is_active: true },
+  });
+
+  if (!activeAcademicYear) {
+    throw new Error('Tidak ada tahun ajaran aktif.');
+  }
+
+  // Dapatkan wali kelas (cari dari assignment atau manual)
+  // Untuk sekarang, kita coba cari guru dengan role WaliKelas yang mengajar di kelas ini
+  const teacherAssignment = await prisma.teacherAssignment.findFirst({
+    where: {
+      class_id: classId,
+      academic_year_id: activeAcademicYear.id,
+      teacher: {
+        roles: {
+          some: {
+            role_name: 'WaliKelas',
+          },
+        },
+      },
+    },
+    include: {
+      teacher: {
+        include: {
+          profile: true,
+          teacher_extension: true,
+        },
+      },
+    },
+  });
+
+  // Dapatkan semua siswa di kelas
+  const students = await prisma.classMember.findMany({
+    where: {
+      class_id: classId,
+      academic_year_id: activeAcademicYear.id,
+    },
+    include: {
+      student: {
+        include: {
+          profile: true,
+          student_extension: true,
+        },
+      },
+    },
+    orderBy: {
+      student: {
+        profile: {
+          full_name: 'asc',
+        },
+      },
+    },
+  });
+
+  // Dapatkan semua tanggal dalam bulan yang diminta
+  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+  // Dapatkan data absensi untuk bulan ini
+  const attendanceData = await prisma.studentAttendance.findMany({
+    where: {
+      student_user_id: {
+        in: students.map((s: any) => s.student_user_id),
+      },
+      daily_session: {
+        session_date: {
+          gte: startDate,
+          lte: endDate,
+        },
+        class_id: classId,
+      },
+    },
+    include: {
+      daily_session: {
+        select: {
+          session_date: true,
+        },
+      },
+    },
+  });
+
+  // Buat map untuk akses cepat
+  const attendanceMap = new Map<string, AttendanceStatus>();
+  attendanceData.forEach((att) => {
+    const dateKey = format(att.daily_session.session_date, 'yyyy-MM-dd');
+    const key = `${att.student_user_id}_${dateKey}`;
+    attendanceMap.set(key, att.status);
+  });
+
+  // Dapatkan semua tanggal di bulan ini (kecuali Sabtu-Minggu)
+  const datesInMonth: Date[] = [];
+  const totalDays = new Date(year, month, 0).getDate();
+  
+  for (let day = 1; day <= totalDays; day++) {
+    const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const dayOfWeek = date.getDay();
+    
+    // Skip Sabtu (6) dan Minggu (0)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      datesInMonth.push(date);
+    }
+  }
+
+  // Buat Excel workbook
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Rekap Absensi');
+
+  // Nama bulan dalam bahasa Indonesia
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const monthName = monthNames[month - 1];
+
+  // Header Section
+  // Row 1: Title
+  worksheet.mergeCells('A1:E1');
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = 'REKAP ABSENSI BULANAN';
+  titleCell.font = { bold: true, size: 14 };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  // Row 2: School Name
+  worksheet.mergeCells('A2:E2');
+  const schoolCell = worksheet.getCell('A2');
+  schoolCell.value = 'SMTA MUHAMMADIYAH KUPANG';
+  schoolCell.font = { bold: true, size: 12 };
+  schoolCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  // Row 3: Empty
+  worksheet.getRow(3).height = 5;
+
+  // Row 4: Kelas info
+  worksheet.getCell('A4').value = 'Kelas';
+  worksheet.getCell('B4').value = ': ' + classData.class_name;
+  worksheet.getCell('A4').font = { bold: true };
+
+  // Row 5: Wali Kelas
+  worksheet.getCell('A5').value = 'Wali Kelas';
+  worksheet.getCell('B5').value = ': ' + (teacherAssignment?.teacher.profile?.full_name || '-');
+  worksheet.getCell('A5').font = { bold: true };
+
+  // Row 6: Bulan
+  worksheet.getCell('A6').value = 'Bulan';
+  worksheet.getCell('B6').value = `: ${monthName} ${year}`;
+  worksheet.getCell('A6').font = { bold: true };
+
+  // Row 7: Empty
+  worksheet.getRow(7).height = 5;
+
+  // Table headers start at row 8
+  const headerRow = 8;
+  
+  // Column headers
+  worksheet.getCell(`A${headerRow}`).value = 'No';
+  worksheet.getCell(`B${headerRow}`).value = 'NISN';
+  worksheet.getCell(`C${headerRow}`).value = 'Nama Siswa';
+  worksheet.getCell(`D${headerRow}`).value = 'L/P';
+
+  // Add date columns
+  let colIndex = 5; // Start from column E
+  datesInMonth.forEach((date) => {
+    const dateStr = format(date, 'd', { locale: idLocale });
+    const cell = worksheet.getCell(headerRow, colIndex);
+    cell.value = dateStr;
+    colIndex++;
+  });
+
+  // Summary columns
+  const summaryStartCol = colIndex;
+  worksheet.getCell(headerRow, colIndex++).value = 'H';
+  worksheet.getCell(headerRow, colIndex++).value = 'S';
+  worksheet.getCell(headerRow, colIndex++).value = 'I';
+  worksheet.getCell(headerRow, colIndex++).value = 'A';
+
+  // Style header row
+  const headerRowObj = worksheet.getRow(headerRow);
+  headerRowObj.height = 20;
+  headerRowObj.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFD9D9D9' },
+    };
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' },
+    };
+  });
+
+  // Set column widths
+  worksheet.getColumn(1).width = 5;  // No
+  worksheet.getColumn(2).width = 15; // NISN
+  worksheet.getColumn(3).width = 30; // Nama
+  worksheet.getColumn(4).width = 5;  // L/P
+  
+  // Date columns
+  for (let i = 5; i < summaryStartCol; i++) {
+    worksheet.getColumn(i).width = 4;
+  }
+  
+  // Summary columns
+  for (let i = summaryStartCol; i < summaryStartCol + 4; i++) {
+    worksheet.getColumn(i).width = 5;
+  }
+
+  // Fill student data
+  let rowIndex = headerRow + 1;
+  students.forEach((student: any, index: number) => {
+    const row = worksheet.getRow(rowIndex);
+    
+    // No
+    row.getCell(1).value = index + 1;
+    row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+    
+    // NISN
+    row.getCell(2).value = student.student.student_extension?.nisn || '-';
+    row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+    
+    // Nama
+    row.getCell(3).value = student.student.profile?.full_name || 'N/A';
+    row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    // Gender
+    row.getCell(4).value = student.student.profile?.gender === 'Laki-laki' ? 'L' : 'P';
+    row.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Attendance data for each date
+    let hadirCount = 0;
+    let sakitCount = 0;
+    let izinCount = 0;
+    let alfaCount = 0;
+    
+    let dateColIndex = 5;
+    datesInMonth.forEach((date) => {
+      const dateKey = format(date, 'yyyy-MM-dd');
+      const key = `${student.student_user_id}_${dateKey}`;
+      const status = attendanceMap.get(key);
+      
+      const cell = row.getCell(dateColIndex);
+      
+      if (status === 'Hadir') {
+        cell.value = 'H';
+        hadirCount++;
+      } else if (status === 'Sakit') {
+        cell.value = 'S';
+        sakitCount++;
+      } else if (status === 'Izin') {
+        cell.value = 'I';
+        izinCount++;
+      } else if (status === 'Alfa') {
+        cell.value = 'A';
+        alfaCount++;
+      } else {
+        cell.value = '-';
+      }
+      
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      dateColIndex++;
+    });
+
+    // Summary columns
+    row.getCell(summaryStartCol).value = hadirCount;
+    row.getCell(summaryStartCol + 1).value = sakitCount;
+    row.getCell(summaryStartCol + 2).value = izinCount;
+    row.getCell(summaryStartCol + 3).value = alfaCount;
+    
+    for (let i = summaryStartCol; i < summaryStartCol + 4; i++) {
+      row.getCell(i).alignment = { horizontal: 'center', vertical: 'middle' };
+    }
+
+    // Apply borders to all cells in row
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' },
+      };
+    });
+
+    rowIndex++;
+  });
+
+  // Add Keterangan section (optional - jika ada siswa sakit/izin)
+  const keteranganStartRow = rowIndex + 2;
+  worksheet.getCell(`A${keteranganStartRow}`).value = 'Keterangan:';
+  worksheet.getCell(`A${keteranganStartRow}`).font = { bold: true };
+  
+  let keteranganRow = keteranganStartRow + 1;
+  worksheet.getCell(`A${keteranganRow}`).value = 'H = Hadir';
+  keteranganRow++;
+  worksheet.getCell(`A${keteranganRow}`).value = 'S = Sakit';
+  keteranganRow++;
+  worksheet.getCell(`A${keteranganRow}`).value = 'I = Izin';
+  keteranganRow++;
+  worksheet.getCell(`A${keteranganRow}`).value = 'A = Alfa';
+
+  // Generate buffer
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
 };

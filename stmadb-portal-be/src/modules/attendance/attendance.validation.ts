@@ -40,3 +40,12 @@ export const markBatchManualAttendanceSchema = z.object({
       .min(1, 'Minimal harus ada satu data siswa'),
   }),
 });
+
+// 4. Validasi untuk Export Absensi Bulanan
+export const exportMonthlyAttendanceSchema = z.object({
+  query: z.object({
+    class_id: z.coerce.number().int().positive('ID Kelas harus angka positif'),
+    month: z.coerce.number().int().min(1).max(12, 'Bulan harus 1-12'),
+    year: z.coerce.number().int().min(2000).max(2100, 'Tahun tidak valid'),
+  }),
+});

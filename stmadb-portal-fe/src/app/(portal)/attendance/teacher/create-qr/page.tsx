@@ -8,17 +8,15 @@ import { QRCodeSVG } from "qrcode.react";
 import { 
   QrCode, 
   Download, 
-  Share2, 
   Clock,
   AlertCircle,
   Loader2,
   ArrowLeft,
   Users,
   PenLine,
-  Trash2,
   RefreshCw
 } from "lucide-react";
-import { createDailySession, deleteDailySession, regenerateQRCode, type DailyAttendanceSession } from "@/lib/api/attendance";
+import { createDailySession, regenerateQRCode, type DailyAttendanceSession } from "@/lib/api/attendance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,47 +167,6 @@ function CreateQRContent() {
     }
   };
 
-  const handleShare = async () => {
-    if (!session) return;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `QR Absensi ${className}`,
-          text: `Scan QR untuk absen`,
-        });
-      } catch (error) {
-        console.error('Error sharing:', error);
-      }
-    } else {
-      toast.info("Browser tidak support share");
-    }
-  };
-
-  const handleDeleteSession = async () => {
-    if (!session) return;
-
-    if (!confirm('Yakin ingin menghapus sesi absensi ini? Data kehadiran yang sudah tercatat akan tetap tersimpan.')) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      await deleteDailySession(session.id);
-      toast.success("Sesi absensi berhasil dihapus");
-      router.push('/attendance/teacher');
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || "Terjadi kesalahan";
-      
-      toast.error("Gagal Menghapus Sesi", {
-        description: errorMessage,
-        duration: 5000,
-      });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handleRegenerateQR = async () => {
     if (!confirm('Buat QR code baru? Data absensi akan tetap tersimpan, hanya QR yang akan diganti.')) {
       return;
@@ -349,34 +306,25 @@ function CreateQRContent() {
         </Card>
 
         {/* Compact Action Buttons */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="mb-3">
           <Button
             variant="outline"
             onClick={handleDownloadQR}
             disabled={isExpired || deleting}
-            className="h-9 text-xs"
+            className="h-9 text-xs w-full"
           >
             <Download className="w-3 h-3 mr-1" />
             Download
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleShare}
-            disabled={isExpired || deleting}
-            className="h-9 text-xs"
-          >
-            <Share2 className="w-3 h-3 mr-1" />
-            Bagikan
-          </Button>
         </div>
 
         {/* Management Buttons */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="mb-3">
           <Button
             variant="outline"
             onClick={handleRegenerateQR}
             disabled={deleting}
-            className="h-9 text-xs border-blue-300 text-blue-700 hover:bg-blue-50"
+            className="h-9 text-xs w-full border-blue-300 text-blue-700 hover:bg-blue-50"
           >
             {deleting ? (
               <Loader2 className="w-3 h-3 mr-1 animate-spin" />
@@ -384,19 +332,6 @@ function CreateQRContent() {
               <RefreshCw className="w-3 h-3 mr-1" />
             )}
             Buat Ulang
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleDeleteSession}
-            disabled={deleting}
-            className="h-9 text-xs border-red-300 text-red-700 hover:bg-red-50"
-          >
-            {deleting ? (
-              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-            ) : (
-              <Trash2 className="w-3 h-3 mr-1" />
-            )}
-            Hapus Sesi
           </Button>
         </div>
 

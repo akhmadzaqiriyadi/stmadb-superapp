@@ -31,6 +31,12 @@ export const createTeachingJournalSchema = z.object({
   learning_method: learningMethodSchema.optional(),
   learning_media: z.string().optional(),
   learning_achievement: z.string().optional(),
+  
+  // Reflection notes
+  reflection_notes: z.string()
+    .min(100, 'Reflection notes must be at least 100 characters')
+    .max(500, 'Reflection notes must not exceed 500 characters')
+    .optional(),
 }).refine(
   (data) => {
     // If teacher is present, material_topic and learning_method are required
@@ -86,8 +92,18 @@ export const getMissingJournalsQuerySchema = z.object({
   period: z.enum(['today', 'this_week', 'this_month']).default('today')
 });
 
+// Export journals query
+export const exportJournalsQuerySchema = z.object({
+  date_from: z.string().min(1, 'Start date is required'),
+  date_to: z.string().min(1, 'End date is required'),
+  teacher_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  class_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  subject_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+});
+
 // Export types
 export type CreateTeachingJournalDto = z.infer<typeof createTeachingJournalSchema>;
 export type GetMyJournalsQuery = z.infer<typeof getMyJournalsQuerySchema>;
 export type GetAdminJournalsQuery = z.infer<typeof getAdminJournalsQuerySchema>;
 export type GetMissingJournalsQuery = z.infer<typeof getMissingJournalsQuerySchema>;
+export type ExportJournalsQuery = z.infer<typeof exportJournalsQuerySchema>;

@@ -3,9 +3,11 @@ import { teachingJournalService } from './teaching-journal.service.js';
 import type { 
   CreateTeachingJournalDto, 
   GetMyJournalsQuery, 
-  GetAdminJournalsQuery,
-  GetMissingJournalsQuery 
+  GetAdminJournalsQuery, 
+  GetMissingJournalsQuery,
+  ExportJournalsQuery
 } from './teaching-journal.validation.js';
+import { format } from 'date-fns';
 import { 
   uploadJournalPhotos, 
   getJournalPhotoUrl,
@@ -65,6 +67,7 @@ export const createJournal = async (req: Request, res: Response) => {
       learning_method: req.body.learning_method || undefined,
       learning_media: req.body.learning_media || undefined,
       learning_achievement: req.body.learning_achievement || undefined,
+      reflection_notes: req.body.reflection_notes || undefined,
     };
     
     const journal = await teachingJournalService.createJournal(data, teacherId, files);
@@ -380,6 +383,31 @@ export const getMissingJournals = async (req: Request, res: Response) => {
       success: true,
       data: result
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message
+    });
+  }
+};
+
+/**
+ * Export journals to Excel
+ */
+export const exportJournals = async (req: Request, res: Response) => {
+  try {
+    const query = req.query as unknown as ExportJournalsQuery;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
+
+    const buffer = await teachingJournalService.exportJournals(query, userRole, userId);
+
+    // Set headers for file download
+    const filename = `Jurnal_KBM_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    res.send(buffer);
   } catch (error) {
     res.status(500).json({
       success: false,

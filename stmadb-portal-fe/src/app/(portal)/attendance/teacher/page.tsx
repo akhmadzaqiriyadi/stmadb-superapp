@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
-  Loader2
+  Loader2,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getTeacherClasses, type TeacherClassWithStatus } from "@/lib/api/attendance";
+import { ExportMonthlyAttendanceModal } from "@/components/attendance/ExportMonthlyAttendanceModal";
 
 interface TeacherClass {
   id: number;
@@ -30,6 +32,11 @@ interface TeacherClass {
   session_expires_at?: string;
   total_students: number;
   attended_count: number;
+  present_count: number;
+  sick_count: number;
+  permission_count: number;
+  absent_count: number;
+  attendance_rate: number;
 }
 
 export default function TeacherAttendancePage() {
@@ -37,6 +44,11 @@ export default function TeacherAttendancePage() {
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [selectedClassForExport, setSelectedClassForExport] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchTeacherClasses();
@@ -63,6 +75,11 @@ export default function TeacherAttendancePage() {
         session_expires_at: cls.qr_expires_at || undefined,
         total_students: cls.total_students,
         attended_count: cls.attendance_count,
+        present_count: cls.present_count || 0,
+        sick_count: cls.sick_count || 0,
+        permission_count: cls.permission_count || 0,
+        absent_count: cls.absent_count || 0,
+        attendance_rate: cls.attendance_rate || 0,
       }));
       
       setClasses(transformedClasses);
@@ -87,6 +104,11 @@ export default function TeacherAttendancePage() {
 
   const handleViewStatus = (classId: number, className: string) => {
     router.push(`/attendance/teacher/status?classId=${classId}&className=${className}`);
+  };
+
+  const handleExport = (classId: number, className: string) => {
+    setSelectedClassForExport({ id: classId, name: className });
+    setExportModalOpen(true);
   };
 
   if (loading) {
@@ -182,22 +204,18 @@ export default function TeacherAttendancePage() {
         {classes.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center">
-              <Users className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <h3 className="font-semibold text-sm text-gray-900 mb-1">
-                Tidak Ada Kelas
+                Tidak Ada Kelas Hari Ini
               </h3>
               <p className="text-xs text-gray-500">
-                Anda belum memiliki kelas yang diampu
+                Tidak ada jadwal mengajar hari ini atau sedang hari libur
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-2">
             {classes.map((cls) => {
-              const attendanceRate = cls.total_students > 0
-                ? ((cls.attended_count / cls.total_students) * 100).toFixed(0)
-                : 0;
-
               const isExpired = cls.session_expires_at 
                 ? new Date(cls.session_expires_at) < new Date()
                 : false;
@@ -230,18 +248,37 @@ export default function TeacherAttendancePage() {
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-3 text-xs text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            {cls.total_students} siswa
-                          </span>
-                          {cls.has_session_today && (
+                        {cls.has_session_today ? (
+                          <>
+                            <div className="flex items-center gap-3 text-xs text-gray-600 mb-1">
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {cls.total_students} siswa
+                              </span>
+                            </div>
+                            
+                            {/* H/I/S/A Breakdown */}
+                            <div className="text-xs font-medium text-gray-700 mt-1.5">
+                              <span className="text-green-600">H: {cls.present_count}</span>
+                              {' | '}
+                              <span className="text-orange-600">S: {cls.sick_count}</span>
+                              {' | '}
+                              <span className="text-blue-600">I: {cls.permission_count}</span>
+                              {' | '}
+                              <span className="text-red-600">A: {cls.absent_count}</span>
+                              <span className="ml-2 text-gray-600">
+                                ({cls.attendance_rate}%)
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-3 text-xs text-gray-600">
                             <span className="flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-green-600" />
-                              {cls.attended_count} hadir ({attendanceRate}%)
+                              <Users className="w-3 h-3" />
+                              {cls.total_students} siswa
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         {cls.has_session_today && cls.session_expires_at && !isExpired && (
                           <div className="mt-1.5 flex items-center gap-1 text-[10px] text-orange-600">
@@ -256,7 +293,7 @@ export default function TeacherAttendancePage() {
                     </div>
 
                     {/* Action Buttons - Smaller */}
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-4 gap-1.5">
                       <Button
                         size="sm"
                         variant={cls.has_session_today ? "outline" : "default"}
@@ -291,6 +328,16 @@ export default function TeacherAttendancePage() {
                         <Users className="w-3 h-3 mr-1" />
                         Status
                       </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleExport(cls.id, cls.class_name)}
+                        className="h-8 text-xs px-2"
+                      >
+                        <Download className="w-3 h-3 mr-1" />
+                        Export
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -299,6 +346,19 @@ export default function TeacherAttendancePage() {
           </div>
         )}
       </div>
+
+      {/* Export Modal */}
+      {selectedClassForExport && (
+        <ExportMonthlyAttendanceModal
+          isOpen={exportModalOpen}
+          onClose={() => {
+            setExportModalOpen(false);
+            setSelectedClassForExport(null);
+          }}
+          classId={selectedClassForExport.id}
+          className={selectedClassForExport.name}
+        />
+      )}
     </div>
   );
 }

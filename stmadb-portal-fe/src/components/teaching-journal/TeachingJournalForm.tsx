@@ -53,6 +53,10 @@ const journalSchema = z.object({
   learning_method: z.nativeEnum(LearningMethod).optional(),
   learning_media: z.string().optional(),
   learning_achievement: z.string().optional(),
+  reflection_notes: z.string()
+    .min(100, "Catatan refleksi minimal 100 karakter")
+    .max(500, "Catatan refleksi maksimal 500 karakter")
+    .optional(),
   photos: z.any().optional(),
 }).refine(
   (data) => {
@@ -204,6 +208,7 @@ export function TeachingJournalForm() {
       if (data.learning_method) formData.append('learning_method', data.learning_method);
       if (data.learning_media) formData.append('learning_media', data.learning_media);
       if (data.learning_achievement) formData.append('learning_achievement', data.learning_achievement);
+      if (data.reflection_notes) formData.append('reflection_notes', data.reflection_notes);
       
       if (photoFile) {
         formData.append('photos', photoFile);
@@ -504,6 +509,49 @@ export function TeachingJournalForm() {
                       className="min-h-[80px] resize-none"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Reflection Notes */}
+            <FormField
+              control={form.control}
+              name="reflection_notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-semibold text-gray-700">
+                    Catatan Refleksi Pembelajaran
+                  </FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      <Textarea
+                        {...field}
+                        placeholder="Refleksi hasil pembelajaran, tantangan yang dihadapi, dan rencana perbaikan... (100-500 karakter)"
+                        className="min-h-[100px] resize-none"
+                        maxLength={500}
+                      />
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500">
+                          {field.value ? `${field.value.length}/500 karakter` : '0/500 karakter'}
+                        </span>
+                        {field.value && field.value.length < 100 && (
+                          <span className="text-orange-600 font-medium">
+                            Minimal 100 karakter
+                          </span>
+                        )}
+                        {field.value && field.value.length >= 100 && field.value.length <= 500 && (
+                          <span className="text-green-600 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Lengkap
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Isi catatan refleksi tentang hasil pembelajaran, kendala, dan rencana perbaikan (opsional, minimal 100 karakter jika diisi)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
