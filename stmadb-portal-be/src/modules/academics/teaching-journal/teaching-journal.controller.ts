@@ -5,7 +5,10 @@ import type {
   GetMyJournalsQuery, 
   GetAdminJournalsQuery, 
   GetMissingJournalsQuery,
-  ExportJournalsQuery
+  ExportJournalsQuery,
+  GetDashboardQuery,
+  PiketJournalEntryDto,
+  GetActiveTeachersQuery
 } from './teaching-journal.validation.js';
 import { format } from 'date-fns';
 import { 
@@ -412,6 +415,124 @@ export const exportJournals = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: (error as Error).message
+    });
+  }
+};
+
+// ===== DASHBOARD ENDPOINTS =====
+
+/**
+ * Get dashboard data
+ */
+export const getDashboard = async (req: Request, res: Response) => {
+  try {
+    const query = req.query as unknown as GetDashboardQuery;
+    
+    const result = await teachingJournalService.getDashboard(query);
+    
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message
+    });
+  }
+};
+
+// ===== PIKET ENDPOINTS =====
+
+/**
+ * Get active teachers (for search)
+ */
+export const getActiveTeachers = async (req: Request, res: Response) => {
+  try {
+    const query = req.query as unknown as GetActiveTeachersQuery;
+    
+    const result = await teachingJournalService.getActiveTeachers(query);
+    
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message
+    });
+  }
+};
+
+/**
+ * Get teacher active schedules
+ */
+export const getTeacherActiveSchedules = async (req: Request, res: Response) => {
+  try {
+    const { teacherId } = req.params;
+    
+    const result = await teachingJournalService.getTeacherActiveSchedules(
+      parseInt(teacherId!)
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message
+    });
+  }
+};
+
+/**
+ * Create piket journal entry
+ */
+export const createPiketJournalEntry = async (req: Request, res: Response) => {
+  try {
+    const piketUserId = req.user!.userId;
+    
+    const data: PiketJournalEntryDto = {
+      teacher_user_id: parseInt(req.body.teacher_user_id),
+      schedule_id: parseInt(req.body.schedule_id),
+      journal_date: new Date(req.body.journal_date),
+      teacher_status: req.body.teacher_status,
+      teacher_notes: req.body.teacher_notes,
+      material_topic: req.body.material_topic,
+      material_description: req.body.material_description,
+    };
+    
+    const journal = await teachingJournalService.createPiketJournalEntry(data, piketUserId);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Jurnal piket berhasil dibuat',
+      data: journal
+    });
+  } catch (error) {
+    const message = (error as Error).message;
+    
+    if (message.includes('tidak ditemukan') || message.includes('tidak sesuai')) {
+      return res.status(404).json({
+        success: false,
+        message
+      });
+    }
+    
+    if (message.includes('sudah dibuat')) {
+      return res.status(409).json({
+        success: false,
+        message
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Gagal membuat jurnal piket',
+      error: message
     });
   }
 };

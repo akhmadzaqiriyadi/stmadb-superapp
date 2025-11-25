@@ -120,7 +120,23 @@ export default function SchedulePage() {
   const { data: schedulesData, isLoading: isLoadingSchedules } = useQuery({
     queryKey: ['weeklySchedule', profile?.id, selectedDay],
     queryFn: async () => {
-      if (!profile) return { schedules: [], activeWeek: null };
+      if (!profile) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
+
+      // Check if today is a holiday
+      const today = format(new Date(), 'yyyy-MM-dd');
+      try {
+        const { data: holidayCheck } = await api.get(`/academics/holidays/check?date=${today}`);
+        if (holidayCheck.data.is_holiday) {
+          return { 
+            schedules: [], 
+            activeWeek: null, 
+            isHoliday: true, 
+            holidayInfo: holidayCheck.data.holiday 
+          };
+        }
+      } catch (error) {
+        console.error('Failed to check holiday:', error);
+      }
 
       let viewMode: 'class' | 'teacher' | null = null;
       let viewId: number | undefined;
@@ -184,6 +200,8 @@ export default function SchedulePage() {
           a.start_time.localeCompare(b.start_time)
         ),
         activeWeek,
+        isHoliday: false,
+        holidayInfo: null
       };
     },
     enabled: !!profile,
@@ -192,6 +210,8 @@ export default function SchedulePage() {
   const isLoading = isLoadingProfile || isLoadingSchedules;
   const schedules = schedulesData?.schedules || [];
   const activeWeek = schedulesData?.activeWeek;
+  const isHoliday = schedulesData?.isHoliday || false;
+  const holidayInfo = schedulesData?.holidayInfo || null;
 
   // Get schedule status based on current time
   const getScheduleStatus = (
@@ -318,6 +338,21 @@ export default function SchedulePage() {
                   {isLoading ? (
                     <div className="flex justify-center items-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-[#44409D]" />
+                    </div>
+                  ) : isHoliday ? (
+                    <div className="flex flex-col items-center justify-center text-center py-8">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center mb-3 border-2 border-amber-200">
+                        <Calendar className="h-8 w-8 text-amber-600" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 mb-1">Hari Libur</p>
+                      {holidayInfo && (
+                        <>
+                          <p className="text-xs font-medium text-amber-700 mb-1">{holidayInfo.name}</p>
+                          {holidayInfo.description && (
+                            <p className="text-xs text-gray-500">{holidayInfo.description}</p>
+                          )}
+                        </>
+                      )}
                     </div>
                   ) : schedules.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">

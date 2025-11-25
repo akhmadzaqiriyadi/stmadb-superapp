@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { addMinutes, isWithinInterval, format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import type { CreateTeachingJournalDto, GetMyJournalsQuery, GetAdminJournalsQuery, GetMissingJournalsQuery, ExportJournalsQuery } from './teaching-journal.validation.js';
+import type { CreateTeachingJournalDto, GetMyJournalsQuery, GetAdminJournalsQuery, GetMissingJournalsQuery, ExportJournalsQuery, GetDashboardQuery, PiketJournalEntryDto, GetActiveTeachersQuery } from './teaching-journal.validation.js';
 import { deleteJournalPhoto, getJournalPhotoUrl } from '../../../core/config/multer.config.js';
 import ExcelJS from 'exceljs';
 
@@ -496,13 +496,6 @@ export class TeachingJournalService {
                 student: {
                   include: { profile: true }
                 }
-              },
-              orderBy: {
-                student: {
-                  profile: {
-                    full_name: 'asc'
-                  }
-                }
               }
             }
           }
@@ -512,6 +505,15 @@ export class TeachingJournalService {
     
     if (!journal) {
       throw new Error('Jurnal tidak ditemukan');
+    }
+    
+    // Sort student attendances by name after fetching
+    if (journal.daily_session?.student_attendances) {
+      journal.daily_session.student_attendances.sort((a: any, b: any) => {
+        const nameA = a.student?.profile?.full_name || '';
+        const nameB = b.student?.profile?.full_name || '';
+        return nameA.localeCompare(nameB);
+      });
     }
     
     // Authorization: teacher can only see their own journal
@@ -1024,6 +1026,456 @@ export class TeachingJournalService {
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer as ExcelJS.Buffer;
+  }
+  
+  // ===== DASHBOARD ENDPOINTS =====
+  
+  /**
+   * Get dashboard data - real-time active journals
+   * Shows all classes with their current active journals
+   */
+  async getDashboard(query: GetDashboardQuery) {
+    // Parse query params properly (they come as strings from URL)
+    const grade_level = query.grade_level 
+      ? (typeof query.grade_level === 'string' ? parseInt(query.grade_level) : query.grade_level)
+      : undefined;
+    const class_id = query.class_id
+      ? (typeof query.class_id === 'string' ? parseInt(query.class_id) : query.class_id)
+      : undefined;
+    
+    // Get current Jakarta time
+    const now = new Date();
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    const today = startOfDay(jakartaTime);
+    const endToday = endOfDay(jakartaTime);
+    
+    // Get current day
+    const dayMap: Record<number, string> = {
+      0: 'Minggu',
+      1: 'Senin',
+      2: 'Selasa',
+      3: 'Rabu',
+      4: 'Kamis',
+      5: 'Jumat',
+      6: 'Sabtu'
+    };
+    const currentDay = dayMap[jakartaTime.getDay()] as any; // Cast to bypass enum check
+    const currentTime = format(jakartaTime, 'HH:mm');
+    
+    // Build class filter
+    const classWhere: any = {};
+    if (grade_level) {
+      classWhere.grade_level = grade_level;
+    }
+    if (class_id) {
+      classWhere.id = class_id;
+    }
+    
+    // Get all classes
+    const classes = await prisma.classes.findMany({
+      where: classWhere,
+      include: {
+        major: true,
+        teacher_assignments: {
+          where: {
+            academic_year: {
+              is_active: true
+            }
+          },
+          include: {
+            subject: true,
+            teacher: {
+              include: {
+                profile: true,
+                teacher_extension: true
+              }
+            },
+            schedules: {
+              where: {
+                day_of_week: currentDay,
+                academic_year: {
+                  is_active: true
+                }
+              },
+              orderBy: {
+                start_time: 'asc'
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { grade_level: 'asc' },
+        { class_name: 'asc' }
+      ]
+    });
+    
+    // For each class, find ALL current active schedules and journals
+    const dashboardData: any[] = [];
+    
+    for (const cls of classes) {
+      const activeSchedules = [];
+      
+      // Find ALL active schedules for this class based on current time
+      for (const assignment of cls.teacher_assignments) {
+        for (const schedule of assignment.schedules) {
+          const scheduleStart = format(schedule.start_time, 'HH:mm');
+          const scheduleEnd = format(schedule.end_time, 'HH:mm');
+          const scheduleStartTime = parseISO(`1970-01-01T${scheduleStart}`);
+          const scheduleEndTime = parseISO(`1970-01-01T${scheduleEnd}`);
+          const currentTimeDate = parseISO(`1970-01-01T${currentTime}`);
+          
+          // Check if current time is within schedule (with grace period)
+          const allowedStart = addMinutes(scheduleStartTime, -15);
+          const allowedEnd = addMinutes(scheduleEndTime, 30);
+          
+          const isActiveNow = isWithinInterval(currentTimeDate, {
+            start: allowedStart,
+            end: allowedEnd
+          });
+          
+          if (isActiveNow) {
+            // Get journal for this schedule today
+            const activeJournal = await prisma.teachingJournal.findFirst({
+              where: {
+                schedule_id: schedule.id,
+                journal_date: {
+                  gte: today,
+                  lte: endToday
+                }
+              },
+              include: {
+                photos: {
+                  take: 1,
+                  orderBy: {
+                    createdAt: 'asc'
+                  }
+                },
+                daily_session: {
+                  include: {
+                    student_attendances: true
+                  }
+                }
+              }
+            });
+            
+            // Calculate attendance stats if journal exists
+            let journalWithStats = activeJournal;
+            if (activeJournal) {
+              const attendances = activeJournal.daily_session?.student_attendances ?? [];
+              const total = attendances.length;
+              const hadir = attendances.filter((a: any) => a.status === 'Hadir').length;
+              const sakit = attendances.filter((a: any) => a.status === 'Sakit').length;
+              const izin = attendances.filter((a: any) => a.status === 'Izin').length;
+              const alfa = attendances.filter((a: any) => a.status === 'Alfa').length;
+              
+              journalWithStats = {
+                ...activeJournal,
+                attendance_stats: {
+                  total,
+                  hadir,
+                  sakit,
+                  izin,
+                  alfa
+                }
+              } as any;
+            }
+            
+            activeSchedules.push({
+              schedule: {
+                ...schedule,
+                subject: assignment.subject,
+                teacher: assignment.teacher,
+                start_time: scheduleStart,
+                end_time: scheduleEnd
+              },
+              journal: journalWithStats
+            });
+          }
+        }
+      }
+      
+      // If class has active schedules, create a card for EACH schedule
+      if (activeSchedules.length > 0) {
+        for (const item of activeSchedules) {
+          dashboardData.push({
+            class: {
+              id: cls.id,
+              class_name: cls.class_name,
+              grade_level: cls.grade_level,
+              major: cls.major
+            },
+            active_schedule: item.schedule,
+            active_journal: item.journal
+          });
+        }
+      } else {
+        // No active schedule, show one card with "no schedule"
+        dashboardData.push({
+          class: {
+            id: cls.id,
+            class_name: cls.class_name,
+            grade_level: cls.grade_level,
+            major: cls.major
+          },
+          active_schedule: null,
+          active_journal: null
+        });
+      }
+    }
+    
+    return dashboardData;
+  }
+  
+  // ===== PIKET ENDPOINTS =====
+  
+  /**
+   * Get active teachers (for search in piket entry)
+   */
+  async getActiveTeachers(query: GetActiveTeachersQuery) {
+    const { search } = query;
+    
+    const where: any = {
+      roles: {
+        some: {
+          role_name: {
+            in: ['Guru', 'Teacher']
+          }
+        }
+      },
+      is_active: true
+    };
+    
+    if (search) {
+      where.profile = {
+        full_name: {
+          contains: search,
+          mode: 'insensitive'
+        }
+      };
+    }
+    
+    const teachers = await prisma.user.findMany({
+      where,
+      take: 20,
+      include: {
+        profile: true,
+        teacher_extension: true,
+        teacher_assignments: {
+          where: {
+            academic_year: {
+              is_active: true
+            }
+          },
+          include: {
+            subject: true,
+            class: true
+          }
+        }
+      },
+      orderBy: {
+        profile: {
+          full_name: 'asc'
+        }
+      }
+    });
+    
+    return teachers;
+  }
+  
+  /**
+   * Get teacher active schedules for current week
+   */
+  async getTeacherActiveSchedules(teacherId: number) {
+    // Get current Jakarta time
+    const now = new Date();
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    
+    // Get current day
+    const dayMap: Record<number, string> = {
+      0: 'Minggu',
+      1: 'Senin',
+      2: 'Selasa',
+      3: 'Rabu',
+      4: 'Kamis',
+      5: 'Jumat',
+      6: 'Sabtu'
+    };
+    const currentDay = dayMap[jakartaTime.getDay()] as any; // Cast to bypass enum check
+    
+    // Get today's schedules
+    const schedules = await prisma.schedule.findMany({
+      where: {
+        day_of_week: currentDay,
+        assignment: {
+          teacher_user_id: teacherId,
+          academic_year: {
+            is_active: true
+          }
+        }
+      },
+      include: {
+        assignment: {
+          include: {
+            subject: true,
+            class: true
+          }
+        }
+      },
+      orderBy: {
+        start_time: 'asc'
+      }
+    });
+    
+    // Check which schedules already have journals today
+    const today = startOfDay(jakartaTime);
+    const endToday = endOfDay(jakartaTime);
+    
+    const schedulesWithStatus = await Promise.all(schedules.map(async (schedule) => {
+      const existingJournal = await prisma.teachingJournal.findFirst({
+        where: {
+          schedule_id: schedule.id,
+          journal_date: {
+            gte: today,
+            lte: endToday
+          }
+        }
+      });
+      
+      return {
+        ...schedule,
+        has_journal: !!existingJournal,
+        journal: existingJournal || null,
+        start_time: format(schedule.start_time, 'HH:mm'),
+        end_time: format(schedule.end_time, 'HH:mm')
+      };
+    }));
+    
+    return schedulesWithStatus;
+  }
+  
+  /**
+   * Create journal entry by piket (for absent teacher)
+   */
+  async createPiketJournalEntry(data: PiketJournalEntryDto, piketUserId: number) {
+    const { teacher_user_id, schedule_id, journal_date, teacher_status, teacher_notes, material_topic, material_description } = data;
+    
+    // Validate schedule belongs to teacher
+    const schedule = await prisma.schedule.findFirst({
+      where: {
+        id: schedule_id,
+        assignment: {
+          teacher_user_id,
+          academic_year: {
+            is_active: true
+          }
+        }
+      },
+      include: {
+        assignment: {
+          include: {
+            subject: true,
+            class: true,
+            teacher: {
+              include: {
+                profile: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    if (!schedule) {
+      throw new Error('Jadwal tidak ditemukan atau tidak sesuai dengan guru yang dipilih');
+    }
+    
+    // Validate journal date = today
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const journalDateStr = format(new Date(journal_date), 'yyyy-MM-dd');
+    
+    if (journalDateStr !== today) {
+      throw new Error('Entri jurnal piket hanya dapat dilakukan untuk hari ini');
+    }
+    
+    // Check duplicate
+    const existingJournal = await prisma.teachingJournal.findUnique({
+      where: {
+        schedule_id_journal_date: {
+          schedule_id,
+          journal_date: new Date(journal_date)
+        }
+      }
+    });
+    
+    if (existingJournal) {
+      throw new Error('Jurnal untuk jadwal ini sudah dibuat');
+    }
+    
+    // Find or create daily attendance session
+    const dailySession = await prisma.dailyAttendanceSession.findFirst({
+      where: {
+        class_id: schedule.assignment.class_id,
+        session_date: {
+          gte: startOfDay(new Date(journal_date)),
+          lte: endOfDay(new Date(journal_date))
+        }
+      }
+    });
+    
+    // Create journal with piket entry
+    const journal = await prisma.teachingJournal.create({
+      data: {
+        schedule_id,
+        teacher_user_id,
+        journal_date: new Date(journal_date),
+        teacher_status,
+        teacher_notes: `[ENTRI PIKET] ${teacher_notes}`,
+        
+        // Assignment details from piket
+        material_topic,
+        material_description,
+        learning_method: null,
+        learning_media: null,
+        learning_achievement: null,
+        
+        // Link to daily session if exists
+        daily_session_id: dailySession?.id ?? null,
+      },
+      include: {
+        schedule: {
+          include: {
+            assignment: {
+              include: {
+                subject: true,
+                class: true,
+                teacher: {
+                  include: {
+                    profile: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        photos: true,
+        daily_session: {
+          include: {
+            student_attendances: {
+              include: {
+                student: {
+                  include: {
+                    profile: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    return journal;
   }
 }
 

@@ -275,6 +275,67 @@ router.get(
   teachingJournalController.getMyJournals
 );
 
+// ===== DASHBOARD ROUTES (Must be before /:journalId to avoid route conflict) =====
+
+/**
+ * @openapi
+ * /academics/teaching-journals/dashboard:
+ *   get:
+ *     tags:
+ *       - Teaching Journal (Dashboard)
+ *     summary: Dashboard Jurnal - Realtime Active Journals
+ *     description: Menampilkan data seluruh kelas dengan jurnal aktif saat ini (mapel, guru, foto jurnal)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: grade_level
+ *         schema:
+ *           type: integer
+ *           enum: [10, 11, 12]
+ *         description: Filter berdasarkan tingkat kelas (X, XI, XII)
+ *       - in: query
+ *         name: class_id
+ *         schema:
+ *           type: integer
+ *         description: Filter berdasarkan kelas tertentu
+ *     responses:
+ *       200:
+ *         description: Dashboard data berhasil diambil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       class:
+ *                         type: object
+ *                         description: Data kelas
+ *                       active_schedule:
+ *                         type: object
+ *                         description: Jadwal yang sedang berlangsung
+ *                       active_journal:
+ *                         type: object
+ *                         description: Jurnal aktif hari ini
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/dashboard',
+  authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.getDashboard
+);
+
 /**
  * @openapi
  * /academics/teaching-journals/{journalId}:
@@ -598,6 +659,167 @@ router.get(
   '/export',
   authorize(['Guru', 'Teacher', 'Admin', 'Piket', 'KepalaSekolah', 'Waka']),
   teachingJournalController.exportJournals
+);
+
+// ===== PIKET ROUTES =====
+
+/**
+ * @openapi
+ * /academics/teaching-journals/piket/teachers:
+ *   get:
+ *     tags:
+ *       - Teaching Journal (Piket)
+ *     summary: Cari guru aktif (untuk entri piket)
+ *     description: Mencari guru aktif yang dapat dibuatkan jurnal oleh piket
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Pencarian berdasarkan nama guru
+ *     responses:
+ *       200:
+ *         description: Daftar guru berhasil diambil
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Piket only
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/piket/teachers',
+  authorize(['Piket', 'Admin']),
+  teachingJournalController.getActiveTeachers
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/piket/teachers/{teacherId}/schedules:
+ *   get:
+ *     tags:
+ *       - Teaching Journal (Piket)
+ *     summary: Dapatkan jadwal aktif guru hari ini
+ *     description: Menampilkan jadwal mengajar guru di hari ini dengan status jurnal
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: teacherId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID guru
+ *     responses:
+ *       200:
+ *         description: Jadwal berhasil diambil
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       subject:
+ *                         type: object
+ *                       class:
+ *                         type: object
+ *                       start_time:
+ *                         type: string
+ *                       end_time:
+ *                         type: string
+ *                       has_journal:
+ *                         type: boolean
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Piket only
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/piket/teachers/:teacherId/schedules',
+  authorize(['Piket', 'Admin']),
+  teachingJournalController.getTeacherActiveSchedules
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/piket/entry:
+ *   post:
+ *     tags:
+ *       - Teaching Journal (Piket)
+ *     summary: Entri jurnal oleh piket untuk guru yang tidak hadir
+ *     description: Guru piket membuat jurnal untuk guru yang DL/Sakit/Izin dengan penugasan
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - teacher_user_id
+ *               - schedule_id
+ *               - journal_date
+ *               - teacher_status
+ *               - teacher_notes
+ *               - material_topic
+ *               - material_description
+ *             properties:
+ *               teacher_user_id:
+ *                 type: integer
+ *                 description: ID guru yang tidak hadir
+ *               schedule_id:
+ *                 type: integer
+ *                 description: ID jadwal mengajar
+ *               journal_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Tanggal jurnal (hari ini)
+ *               teacher_status:
+ *                 type: string
+ *                 enum: [Sakit, Izin, Alpa]
+ *                 description: Status ketidakhadiran guru
+ *               teacher_notes:
+ *                 type: string
+ *                 description: Alasan ketidakhadiran
+ *               material_topic:
+ *                 type: string
+ *                 description: Topik penugasan yang diberikan
+ *               material_description:
+ *                 type: string
+ *                 description: Deskripsi penugasan
+ *     responses:
+ *       201:
+ *         description: Jurnal piket berhasil dibuat
+ *       400:
+ *         description: Validasi gagal
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Piket only
+ *       404:
+ *         description: Jadwal atau guru tidak ditemukan
+ *       409:
+ *         description: Jurnal sudah ada
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  '/piket/entry',
+  authorize(['Piket', 'Admin']),
+  teachingJournalController.createPiketJournalEntry
 );
 
 export default router;

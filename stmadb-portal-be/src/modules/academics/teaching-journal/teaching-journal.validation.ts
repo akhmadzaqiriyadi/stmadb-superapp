@@ -101,9 +101,36 @@ export const exportJournalsQuerySchema = z.object({
   subject_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
 });
 
+// Dashboard query schema
+export const getDashboardQuerySchema = z.object({
+  grade_level: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+  class_id: z.string().optional().transform(val => val ? parseInt(val) : undefined),
+});
+
+// Piket journal entry schema
+export const piketJournalEntrySchema = z.object({
+  teacher_user_id: z.number().int().positive(),
+  schedule_id: z.number().int().positive(),
+  journal_date: z.string().datetime().or(z.date()),
+  teacher_status: z.enum(['Sakit', 'Izin', 'Alpa']), // Piket hanya untuk guru tidak hadir
+  teacher_notes: z.string().min(1, 'Alasan ketidakhadiran harus diisi'),
+  
+  // Assignment details
+  material_topic: z.string().min(1, 'Topik penugasan harus diisi'),
+  material_description: z.string().min(1, 'Deskripsi penugasan harus diisi'),
+});
+
+// Get active teachers query
+export const getActiveTeachersQuerySchema = z.object({
+  search: z.string().optional(),
+});
+
 // Export types
 export type CreateTeachingJournalDto = z.infer<typeof createTeachingJournalSchema>;
 export type GetMyJournalsQuery = z.infer<typeof getMyJournalsQuerySchema>;
 export type GetAdminJournalsQuery = z.infer<typeof getAdminJournalsQuerySchema>;
 export type GetMissingJournalsQuery = z.infer<typeof getMissingJournalsQuerySchema>;
 export type ExportJournalsQuery = z.infer<typeof exportJournalsQuerySchema>;
+export type GetDashboardQuery = z.infer<typeof getDashboardQuerySchema>;
+export type PiketJournalEntryDto = z.infer<typeof piketJournalEntrySchema>;
+export type GetActiveTeachersQuery = z.infer<typeof getActiveTeachersQuerySchema>;

@@ -161,20 +161,38 @@ export function TeachingJournalHistory() {
                     </span>
                   </div>
 
-                  {/* Attendance Stats (if available) */}
-                  {journal.attendance_stats && journal.attendance_stats.total > 0 && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 border-[#9CBEFE]/30">
-                      <Users className="h-3.5 w-3.5 text-[#44409D]" strokeWidth={2.5} />
-                      <span className="text-xs font-bold">
-                        <span className="text-green-600">H: {journal.attendance_stats.hadir}</span>
-                        {' | '}
-                        <span className="text-orange-600">S: {journal.attendance_stats.sakit}</span>
-                        {' | '}
-                        <span className="text-blue-600">I: {journal.attendance_stats.izin}</span>
-                        {' | '}
-                        <span className="text-red-600">A: {journal.attendance_stats.alfa}</span>
+                  {/* Piket Entry Badge */}
+                  {journal.teacher_notes?.includes('[ENTRI PIKET]') && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200">
+                      <span className="text-xs font-bold text-purple-700">
+                        Entri Piket
                       </span>
                     </div>
+                  )}
+
+                  {/* Attendance Stats (if available) */}
+                  {journal.attendance_stats && journal.attendance_stats.total > 0 && (
+                    <>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-[#9CBEFE]/10 to-[#44409D]/5 border-[#9CBEFE]/30">
+                        <Users className="h-3.5 w-3.5 text-[#44409D]" strokeWidth={2.5} />
+                        <span className="text-xs font-bold">
+                          <span className="text-green-600">H: {journal.attendance_stats.hadir}</span>
+                          {' | '}
+                          <span className="text-orange-600">S: {journal.attendance_stats.sakit}</span>
+                          {' | '}
+                          <span className="text-blue-600">I: {journal.attendance_stats.izin}</span>
+                          {' | '}
+                          <span className="text-red-600">A: {journal.attendance_stats.alfa}</span>
+                        </span>
+                      </div>
+                      
+                      {/* Attendance Percentage */}
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
+                        <span className="text-xs font-bold text-green-700">
+                          {Math.round(((journal.attendance_stats.hadir + journal.attendance_stats.sakit + journal.attendance_stats.izin + journal.attendance_stats.alfa) / journal.attendance_stats.total) * 100)}% Kehadiran
+                        </span>
+                      </div>
+                    </>
                   )}
                 </div>
 

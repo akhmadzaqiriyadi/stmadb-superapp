@@ -21,7 +21,25 @@ const formatTime = (timeString: string | Date): string => {
 };
 
 const fetchTodayScheduleData = async (user: ProfileData | null) => {
-  if (!user) return { schedules: [], activeWeek: null };
+  if (!user) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
+
+  // Check if today is a holiday
+  const today = format(new Date(), 'yyyy-MM-dd');
+  let isHoliday = false;
+  let holidayInfo = null;
+  
+  try {
+    const { data: holidayCheck } = await api.get(`/academics/holidays/check?date=${today}`);
+    isHoliday = holidayCheck.data.is_holiday;
+    holidayInfo = holidayCheck.data.holiday;
+  } catch (error) {
+    console.error('Failed to check holiday:', error);
+  }
+
+  // If it's a holiday, return early
+  if (isHoliday) {
+    return { schedules: [], activeWeek: null, isHoliday, holidayInfo };
+  }
 
   const isStudent = user.roles.some(role => role.role_name === 'Student');
   const isTeacher = user.roles.some(role => role.role_name === 'Teacher');
@@ -56,12 +74,12 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     gradeLevel = 10;
   }
 
-  if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null };
+  if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
 
   const currentDay = format(new Date(), 'EEEE', { locale: idLocale }) as DayOfWeek;
   
   if (!Object.values(DayOfWeek).includes(currentDay)) {
-      return 'WEEKEND';
+      return { schedules: 'WEEKEND', activeWeek: null, isHoliday: false, holidayInfo: null };
   }
 
   const endpoint = `/academics/schedules/${viewMode}/${viewId}`;
@@ -112,7 +130,9 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
   
   return {
     schedules: filteredSchedules.sort((a, b) => a.start_time.localeCompare(b.start_time)),
-    activeWeek: activeWeek
+    activeWeek: activeWeek,
+    isHoliday: false,
+    holidayInfo: null
   };
 };
 
@@ -207,8 +227,10 @@ export function TodaySchedule() {
     }
   };
 
-  const schedules = result === 'WEEKEND' ? 'WEEKEND' : result?.schedules || [];
-  const activeWeek = result !== 'WEEKEND' ? result?.activeWeek : null;
+  const schedules = result?.schedules === 'WEEKEND' ? 'WEEKEND' : result?.schedules || [];
+  const activeWeek = result?.schedules !== 'WEEKEND' ? result?.activeWeek : null;
+  const isHoliday = result?.isHoliday || false;
+  const holidayInfo = result?.holidayInfo || null;
 
   return (
     <div className="bg-white rounded-xl border-2 border-[#FFCD6A]">
@@ -236,13 +258,28 @@ export function TodaySchedule() {
 
       {/* Content */}
       <div className="p-4">
-        {schedules === 'WEEKEND' ? (
+        {isHoliday ? (
+          <div className="flex flex-col items-center justify-center text-center py-8">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center mb-3 border-2 border-amber-200">
+              <Calendar className="h-8 w-8 text-amber-600" />
+            </div>
+            <p className="text-sm font-semibold text-gray-900 mb-1">Hari Libur</p>
+            {holidayInfo && (
+              <>
+                <p className="text-xs font-medium text-amber-700 mb-1">{holidayInfo.name}</p>
+                {holidayInfo.description && (
+                  <p className="text-xs text-gray-500">{holidayInfo.description}</p>
+                )}
+              </>
+            )}
+          </div>
+        ) : schedules === 'WEEKEND' ? (
           renderEmptyState("Hari ini libur")
         ) : !schedules || schedules.length === 0 ? (
           renderEmptyState("Tidak ada jadwal")
-        ) : (
+        ) : Array.isArray(schedules) && schedules.length > 0 ? (
           <div className="space-y-3">
-            {schedules.map((item) => {
+            {schedules.map((item: Schedule) => {
               const scheduleStatus = getScheduleStatus(item.start_time, item.end_time);
               
               return (
@@ -298,10 +335,10 @@ export function TodaySchedule() {
               );
             })}
           </div>
-        )}
+        ) : null}
 
         {/* Tombol Lihat Semua Jadwal */}
-        {schedules && schedules.length > 0 && (
+        {!isHoliday && schedules && schedules !== 'WEEKEND' && schedules.length > 0 && (
           <div className="mt-4 pt-3 border-t border-gray-200">
             <Link 
               href="/schedule"
