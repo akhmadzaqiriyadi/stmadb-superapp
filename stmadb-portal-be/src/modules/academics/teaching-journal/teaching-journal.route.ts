@@ -822,4 +822,52 @@ router.delete(
   teachingJournalController.deleteJournal
 );
 
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}/reflection:
+ *   patch:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Update catatan refleksi
+ *     description: Memperbarui catatan refleksi hasil pembelajaran (100-500 karakter). Dapat diisi sewaktu-waktu setelah jurnal dibuat.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reflection_notes:
+ *                 type: string
+ *                 minLength: 100
+ *                 maxLength: 500
+ *                 description: Catatan refleksi hasil pembelajaran
+ *                 example: Pembelajaran berjalan dengan baik. Siswa antusias dalam diskusi kelompok. Namun masih ada beberapa siswa yang kurang aktif. Perlu pendekatan personal untuk meningkatkan partisipasi mereka di pertemuan selanjutnya.
+ *     responses:
+ *       200:
+ *         description: Catatan refleksi berhasil diperbarui
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Tidak memiliki akses
+ *       404:
+ *         description: Jurnal tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.patch(
+  '/:journalId/reflection',
+  authorize(['Guru', 'Teacher']),
+  teachingJournalController.updateReflectionNotes
+);
+
 export default router;

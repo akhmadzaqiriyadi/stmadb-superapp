@@ -350,3 +350,11 @@ export async function createPiketJournalEntry(data: PiketJournalEntryDto) {
   const response = await api.post('/academics/teaching-journals/piket/entry', data);
   return response.data;
 }
+
+// Update reflection notes
+export async function updateReflectionNotes(journalId: number, reflectionNotes: string) {
+  const response = await api.patch(`/academics/teaching-journals/${journalId}/reflection`, {
+    reflection_notes: reflectionNotes
+  });
+  return response.data;
+}

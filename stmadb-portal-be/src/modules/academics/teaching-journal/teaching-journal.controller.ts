@@ -8,7 +8,8 @@ import type {
   ExportJournalsQuery,
   GetDashboardQuery,
   PiketJournalEntryDto,
-  GetActiveTeachersQuery
+  GetActiveTeachersQuery,
+  UpdateReflectionNotesDto
 } from './teaching-journal.validation.js';
 import { format } from 'date-fns';
 import { 
@@ -532,6 +533,53 @@ export const createPiketJournalEntry = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Gagal membuat jurnal piket',
+      error: message
+    });
+  }
+};
+
+/**
+ * Update reflection notes
+ */
+export const updateReflectionNotes = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const userRole = req.user!.role;
+    const { journalId } = req.params;
+    const data = req.body as UpdateReflectionNotesDto;
+
+    const journal = await teachingJournalService.updateReflectionNotes(
+      parseInt(journalId!),
+      data,
+      userId,
+      userRole
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Catatan refleksi berhasil diperbarui',
+      data: journal
+    });
+  } catch (error: any) {
+    const message = error.message || 'Unknown error';
+
+    if (message.includes('tidak ditemukan')) {
+      return res.status(404).json({
+        success: false,
+        message
+      });
+    }
+
+    if (message.includes('tidak memiliki akses')) {
+      return res.status(403).json({
+        success: false,
+        message
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Gagal memperbarui catatan refleksi',
       error: message
     });
   }

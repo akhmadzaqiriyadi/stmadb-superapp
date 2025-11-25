@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { addMinutes, isWithinInterval, format, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import type { CreateTeachingJournalDto, GetMyJournalsQuery, GetAdminJournalsQuery, GetMissingJournalsQuery, ExportJournalsQuery, GetDashboardQuery, PiketJournalEntryDto, GetActiveTeachersQuery } from './teaching-journal.validation.js';
+import type { CreateTeachingJournalDto, GetMyJournalsQuery, GetAdminJournalsQuery, GetMissingJournalsQuery, ExportJournalsQuery, GetDashboardQuery, PiketJournalEntryDto, GetActiveTeachersQuery, UpdateReflectionNotesDto } from './teaching-journal.validation.js';
 import { deleteJournalPhoto, getJournalPhotoUrl } from '../../../core/config/multer.config.js';
 import ExcelJS from 'exceljs';
 
@@ -760,8 +760,8 @@ export class TeachingJournalService {
       }
     };
 
-    // If role is TEACHER, only show own journals
-    if (userRole === 'TEACHER' && userId) {
+    // If role is GURU/TEACHER, only show own journals
+    if ((userRole === 'Guru' || userRole === 'Teacher') && userId) {
       whereClause.schedule = {
         assignment: {
           teacher_user_id: userId
@@ -1301,10 +1301,10 @@ export class TeachingJournalService {
       5: 'Jumat',
       6: 'Sabtu'
     };
-    const currentDay = dayMap[jakartaTime.getDay()] as any; // Cast to bypass enum check
+    const currentDay = dayMap[jakartaTime.getDay()] as any;
     
-    // Get today's schedules
-    const schedules = await prisma.schedule.findMany({
+    // Get all schedules for this teacher on current day
+    const allSchedules = await prisma.schedule.findMany({
       where: {
         day_of_week: currentDay,
         assignment: {
@@ -1325,6 +1325,39 @@ export class TeachingJournalService {
       orderBy: {
         start_time: 'asc'
       }
+    });
+    
+    // Get active week settings for all grade levels
+    const activeWeeks = await prisma.activeScheduleWeek.findMany({
+      where: {
+        academic_year: {
+          is_active: true
+        }
+      }
+    });
+    
+    // Create map of grade_level -> active_week_type
+    const activeWeekMap = new Map<number, string>();
+    activeWeeks.forEach(aw => {
+      activeWeekMap.set(aw.grade_level, aw.active_week_type);
+    });
+    
+    // Filter schedules based on active week
+    const schedules = allSchedules.filter(schedule => {
+      const gradeLevel = schedule.assignment.class.grade_level;
+      const activeWeekType = activeWeekMap.get(gradeLevel);
+      
+      // If schedule_type is "Umum", it's always active
+      if (schedule.schedule_type === 'Umum') return true;
+      
+      // If no active week setting, include all
+      if (!activeWeekType) return true;
+      
+      // If active week is "Umum", include all
+      if (activeWeekType === 'Umum') return true;
+      
+      // Otherwise, schedule must match active week
+      return schedule.schedule_type === activeWeekType;
     });
     
     // Check which schedules already have journals today
@@ -1476,6 +1509,58 @@ export class TeachingJournalService {
     });
     
     return journal;
+  }
+
+  /**
+   * Update reflection notes
+   */
+  async updateReflectionNotes(journalId: number, data: UpdateReflectionNotesDto, userId: number, userRole: string) {
+    // Get journal
+    const journal = await prisma.teachingJournal.findUnique({
+      where: { id: journalId },
+      include: {
+        schedule: {
+          include: {
+            assignment: true
+          }
+        }
+      }
+    });
+
+    if (!journal) {
+      throw new Error('Jurnal tidak ditemukan');
+    }
+
+    // Authorization: teacher can only update their own journal
+    if (userRole === 'Guru' && journal.teacher_user_id !== userId) {
+      throw new Error('Anda tidak memiliki akses untuk mengubah jurnal ini');
+    }
+
+    // Update reflection notes
+    const updatedJournal = await prisma.teachingJournal.update({
+      where: { id: journalId },
+      data: {
+        reflection_notes: data.reflection_notes
+      },
+      include: {
+        schedule: {
+          include: {
+            assignment: {
+              include: {
+                subject: true,
+                class: true,
+                teacher: {
+                  include: { profile: true }
+                }
+              }
+            }
+          }
+        },
+        photos: true
+      }
+    });
+
+    return updatedJournal;
   }
 }
 

@@ -125,6 +125,13 @@ export const getActiveTeachersQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+// Update reflection notes schema
+export const updateReflectionNotesSchema = z.object({
+  reflection_notes: z.string()
+    .min(100, 'Catatan refleksi minimal 100 karakter')
+    .max(500, 'Catatan refleksi maksimal 500 karakter'),
+});
+
 // Export types
 export type CreateTeachingJournalDto = z.infer<typeof createTeachingJournalSchema>;
 export type GetMyJournalsQuery = z.infer<typeof getMyJournalsQuerySchema>;
@@ -134,3 +141,4 @@ export type ExportJournalsQuery = z.infer<typeof exportJournalsQuerySchema>;
 export type GetDashboardQuery = z.infer<typeof getDashboardQuerySchema>;
 export type PiketJournalEntryDto = z.infer<typeof piketJournalEntrySchema>;
 export type GetActiveTeachersQuery = z.infer<typeof getActiveTeachersQuerySchema>;
+export type UpdateReflectionNotesDto = z.infer<typeof updateReflectionNotesSchema>;

@@ -6,11 +6,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from 'date-fns/locale';
-import { Loader2, AlertCircle, BookOpen, ChevronRight, Users, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, BookOpen, ChevronRight, Users, CheckCircle2, FileText } from "lucide-react";
 import api from "@/lib/axios";
 import { TeachingJournal, TeachingJournalsApiResponse, TeacherStatus } from "@/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ReflectionDialog } from "./ReflectionDialog";
 
 // Helper: Convert UTC time to WIB (UTC+7)
 const formatTimeWIB = (utcTimeString: string): string => {
@@ -62,6 +64,18 @@ const statusConfig = {
 };
 
 export function TeachingJournalHistory() {
+  const [reflectionDialog, setReflectionDialog] = useState<{
+    open: boolean;
+    journalId: number;
+    initialNotes: string;
+    subjectName: string;
+  }>({
+    open: false,
+    journalId: 0,
+    initialNotes: '',
+    subjectName: '',
+  });
+
   const { data: journals, isLoading, isError } = useQuery<TeachingJournal[], Error>({
     queryKey: ['teachingJournals'],
     queryFn: fetchMyJournals,
@@ -114,10 +128,9 @@ export function TeachingJournalHistory() {
         const Icon = config.icon;
         
         return (
-          <Link
+          <div
             key={journal.id}
-            href={`/teaching-journals/${journal.id}`}
-            className="block p-4 hover:bg-gradient-to-r hover:from-[#9CBEFE]/5 hover:to-transparent transition-all duration-200 active:bg-[#44409D]/5"
+            className="p-4 hover:bg-gradient-to-r hover:from-[#9CBEFE]/5 hover:to-transparent transition-all duration-200"
           >
             <div className="flex items-start gap-3">
               {/* Date Badge */}
@@ -131,7 +144,10 @@ export function TeachingJournalHistory() {
               </div>
 
               {/* Content */}
-              <div className="flex-1 min-w-0">
+              <Link
+                href={`/teaching-journals/${journal.id}`}
+                className="flex-1 min-w-0"
+              >
                 {/* Subject & Class */}
                 <h3 className="font-bold text-[#44409D] text-base mb-1 truncate">
                   {journal.schedule.assignment.subject.subject_name}
@@ -209,16 +225,45 @@ export function TeachingJournalHistory() {
                     </div>
                   )}
                 </div>
-              </div>
+              </Link>
 
-              {/* Arrow Icon */}
-              <div className="flex-shrink-0">
-                <ChevronRight className="h-5 w-5 text-gray-400" strokeWidth={2.5} />
+              {/* Action Buttons */}
+              <div className="flex-shrink-0 flex flex-col gap-2">
+                <Link href={`/teaching-journals/${journal.id}`}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReflectionDialog({
+                      open: true,
+                      journalId: journal.id,
+                      initialNotes: journal.reflection_notes || '',
+                      subjectName: journal.schedule.assignment.subject.subject_name,
+                    });
+                  }}
+                  title="Isi Catatan Refleksi"
+                >
+                  <FileText className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-          </Link>
+          </div>
         );
       })}
+
+      <ReflectionDialog
+        open={reflectionDialog.open}
+        onOpenChange={(open) => setReflectionDialog({ ...reflectionDialog, open })}
+        journalId={reflectionDialog.journalId}
+        initialNotes={reflectionDialog.initialNotes}
+        subjectName={reflectionDialog.subjectName}
+      />
     </div>
   );
 }

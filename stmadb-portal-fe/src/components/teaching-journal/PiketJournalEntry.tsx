@@ -196,7 +196,7 @@ export default function PiketJournalEntry() {
               <CardHeader>
                 <CardTitle>2. Pilih Jam Mapel Aktif</CardTitle>
                 <CardDescription>
-                  Jadwal mengajar guru hari ini di minggu aktif
+                  Jadwal aktif guru hari ini sesuai minggu A/B yang sedang berjalan
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -207,7 +207,8 @@ export default function PiketJournalEntry() {
                 ) : schedules.length === 0 ? (
                   <div className="text-center py-4 text-muted-foreground">
                     <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                    <p>Tidak ada jadwal hari ini</p>
+                    <p className="font-medium">Tidak ada jadwal aktif hari ini</p>
+                    <p className="text-xs mt-1">Guru tidak memiliki jadwal di minggu A/B yang sedang berjalan</p>
                   </div>
                 ) : (
                   schedules.map((schedule) => (
