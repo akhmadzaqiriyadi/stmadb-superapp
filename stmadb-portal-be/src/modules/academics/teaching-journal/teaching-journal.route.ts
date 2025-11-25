@@ -278,8 +278,6 @@ router.get(
 // ===== DASHBOARD ROUTES (Must be before /:journalId to avoid route conflict) =====
 
 /**
- * @openapi
- * /academics/teaching-journals/dashboard:
  *   get:
  *     tags:
  *       - Teaching Journal (Dashboard)
@@ -334,76 +332,6 @@ router.get(
   '/dashboard',
   authorize(['Admin', 'Piket', 'KepalaSekolah', 'Waka']),
   teachingJournalController.getDashboard
-);
-
-/**
- * @openapi
- * /academics/teaching-journals/{journalId}:
- *   get:
- *     tags:
- *       - Teaching Journal
- *     summary: Dapatkan detail jurnal
- *     description: Mengambil detail lengkap jurnal termasuk absensi siswa dan foto
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: journalId
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID jurnal
- *     responses:
- *       200:
- *         description: Detail jurnal berhasil diambil
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Tidak memiliki akses
- *       404:
- *         description: Jurnal tidak ditemukan
- *       500:
- *         description: Server error
- */
-router.get(
-  '/:journalId',
-  authorize(['Guru', 'Teacher', 'Admin', 'Piket', 'KepalaSekolah', 'Waka']),
-  teachingJournalController.getJournalDetail
-);
-
-/**
- * @openapi
- * /academics/teaching-journals/{journalId}:
- *   delete:
- *     tags:
- *       - Teaching Journal
- *     summary: Hapus jurnal
- *     description: Menghapus jurnal beserta foto (cascade delete). Absensi siswa tetap tersimpan di sesi harian.
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: journalId
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID jurnal
- *     responses:
- *       200:
- *         description: Jurnal berhasil dihapus
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Tidak memiliki akses
- *       404:
- *         description: Jurnal tidak ditemukan
- *       500:
- *         description: Server error
- */
-router.delete(
-  '/:journalId',
-  authorize(['Guru', 'Teacher']),
-  teachingJournalController.deleteJournal
 );
 
 // ===== ADMIN ROUTES =====
@@ -820,6 +748,78 @@ router.post(
   '/piket/entry',
   authorize(['Piket', 'Admin']),
   teachingJournalController.createPiketJournalEntry
+);
+
+// ===== DETAIL ROUTES (Must be LAST to avoid matching specific routes) =====
+
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}:
+ *   get:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Dapatkan detail jurnal
+ *     description: Mengambil detail lengkap jurnal termasuk absensi siswa dan foto
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *     responses:
+ *       200:
+ *         description: Detail jurnal berhasil diambil
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Tidak memiliki akses
+ *       404:
+ *         description: Jurnal tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.get(
+  '/:journalId',
+  authorize(['Guru', 'Teacher', 'Admin', 'Piket', 'KepalaSekolah', 'Waka']),
+  teachingJournalController.getJournalDetail
+);
+
+/**
+ * @openapi
+ * /academics/teaching-journals/{journalId}:
+ *   delete:
+ *     tags:
+ *       - Teaching Journal
+ *     summary: Hapus jurnal
+ *     description: Menghapus jurnal beserta foto (cascade delete). Absensi siswa tetap tersimpan di sesi harian.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID jurnal
+ *     responses:
+ *       200:
+ *         description: Jurnal berhasil dihapus
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Tidak memiliki akses
+ *       404:
+ *         description: Jurnal tidak ditemukan
+ *       500:
+ *         description: Server error
+ */
+router.delete(
+  '/:journalId',
+  authorize(['Guru', 'Teacher']),
+  teachingJournalController.deleteJournal
 );
 
 export default router;

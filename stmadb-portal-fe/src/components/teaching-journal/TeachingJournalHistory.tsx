@@ -189,7 +189,7 @@ export function TeachingJournalHistory() {
                       {/* Attendance Percentage */}
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
                         <span className="text-xs font-bold text-green-700">
-                          {Math.round(((journal.attendance_stats.hadir + journal.attendance_stats.sakit + journal.attendance_stats.izin + journal.attendance_stats.alfa) / journal.attendance_stats.total) * 100)}% Kehadiran
+                          {Math.round((journal.attendance_stats.hadir / journal.attendance_stats.total) * 100)}% Kehadiran
                         </span>
                       </div>
                     </>
