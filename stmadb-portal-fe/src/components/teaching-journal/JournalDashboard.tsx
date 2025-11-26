@@ -13,21 +13,51 @@ import { RefreshCw, Search, Calendar, Clock, User, BookOpen } from 'lucide-react
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import Image from 'next/image';
+import { getJakartaTime } from '@/lib/date-utils';
+import { toast } from 'sonner';
 
 export default function JournalDashboard() {
   const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState(getJakartaTime());
   const itemsPerPage = 12;
 
   // Update current time every minute
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(getJakartaTime());
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Function to open WhatsApp chat
+  const handleWhatsApp = (teacherName: string, teacherPhone: string | null, className: string, subjectName: string) => {
+    if (!teacherPhone) {
+      toast.error('Nomor telepon guru tidak tersedia');
+      return;
+    }
+
+    // Clean phone number (remove spaces, dashes, etc.)
+    let cleanPhone = teacherPhone.replace(/[\s-]/g, '');
+    
+    // Add 62 prefix if starts with 0
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.substring(1);
+    }
+    
+    // Add 62 prefix if doesn't have country code
+    if (!cleanPhone.startsWith('62')) {
+      cleanPhone = '62' + cleanPhone;
+    }
+
+    const message = encodeURIComponent(
+      `Assalamualaikum ${teacherName},\n\nMohon segera mengisi jurnal KBM untuk kelas ${className} mata pelajaran ${subjectName}.\n\nTerima kasih.`
+    );
+
+    const waUrl = `https://wa.me/${cleanPhone}?text=${message}`;
+    window.open(waUrl, '_blank');
+  };
 
   const {
     data: dashboardResponse,
@@ -282,14 +312,20 @@ export default function JournalDashboard() {
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-semibold text-red-500 mb-2">
-                        Guru Belu masuk / Belum mengisi jurnal
+                        Guru Belum masuk / Belum mengisi jurnal
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full bg-blue-500 text-white hover:bg-blue-600 border-blue-600"
+                        className="w-full bg-green-500 text-white hover:bg-green-600 border-green-600 transition-all duration-200 hover:shadow-md active:scale-95"
+                        onClick={() => handleWhatsApp(
+                          item.active_schedule?.teacher.profile.full_name || '',
+                          (item.active_schedule?.teacher.profile as any).phone_number || null,
+                          item.class.class_name,
+                          item.active_schedule?.subject.subject_name || ''
+                        )}
                       >
-                        Kirim WA
+                        📱 Kirim WA
                       </Button>
                     </div>
                   </div>

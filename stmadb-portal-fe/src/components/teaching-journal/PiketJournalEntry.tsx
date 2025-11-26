@@ -22,6 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Search, User, Clock, BookOpen, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toJakartaISOString } from '@/lib/date-utils';
 
 export default function PiketJournalEntry() {
   const queryClient = useQueryClient();
@@ -117,7 +118,7 @@ export default function PiketJournalEntry() {
     const data: PiketJournalEntryDto = {
       teacher_user_id: selectedTeacher.id,
       schedule_id: selectedSchedule.id,
-      journal_date: new Date().toISOString(),
+      journal_date: toJakartaISOString(new Date()),
       teacher_status: formData.teacher_status,
       teacher_notes: formData.teacher_notes,
       material_topic: formData.material_topic,

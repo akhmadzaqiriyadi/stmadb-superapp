@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from 'date-fns/locale';
-import { Loader2, AlertCircle, BookOpen, ChevronRight, Users, CheckCircle2, FileText } from "lucide-react";
+import { Loader2, AlertCircle, BookOpen, ChevronRight, Users, CheckCircle2 } from "lucide-react";
 import api from "@/lib/axios";
 import { TeachingJournal, TeachingJournalsApiResponse, TeacherStatus } from "@/types";
 import { cn } from "@/lib/utils";
@@ -228,30 +228,33 @@ export function TeachingJournalHistory() {
               </Link>
 
               {/* Action Buttons */}
-              <div className="flex-shrink-0 flex flex-col gap-2">
+              <div className="flex-shrink-0 flex items-center">
                 <Link href={`/teaching-journals/${journal.id}`}>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setReflectionDialog({
-                      open: true,
-                      journalId: journal.id,
-                      initialNotes: journal.reflection_notes || '',
-                      subjectName: journal.schedule.assignment.subject.subject_name,
-                    });
-                  }}
-                  title="Isi Catatan Refleksi"
-                >
-                  <FileText className="h-4 w-4" />
-                </Button>
               </div>
+            </div>
+
+            {/* Reflection Button - Bottom Right */}
+            <div className="flex justify-end mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs font-semibold text-green-600 hover:text-green-700 hover:bg-green-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setReflectionDialog({
+                    open: true,
+                    journalId: journal.id,
+                    initialNotes: journal.reflection_notes || '',
+                    subjectName: journal.schedule.assignment.subject.subject_name,
+                  });
+                }}
+              >
+                {journal.reflection_notes ? 'Edit Refleksi' : 'Tambah Refleksi'}
+              </Button>
             </div>
           </div>
         );

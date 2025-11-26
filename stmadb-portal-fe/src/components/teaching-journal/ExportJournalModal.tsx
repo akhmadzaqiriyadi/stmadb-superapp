@@ -44,6 +44,8 @@ export function ExportJournalModal({ open, onClose }: ExportJournalModalProps) {
     try {
       setIsExporting(true);
 
+      // Backend will automatically filter by current user if role is Teacher
+      // based on JWT token (req.user.userId and req.user.role)
       const params = new URLSearchParams({
         date_from: format(dateFrom, "yyyy-MM-dd"),
         date_to: format(dateTo, "yyyy-MM-dd"),

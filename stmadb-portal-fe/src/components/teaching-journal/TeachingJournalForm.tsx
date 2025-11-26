@@ -22,6 +22,7 @@ import {
   Loader2,
   Camera
 } from "lucide-react";
+import { getJakartaDateString, toJakartaISOString } from '@/lib/date-utils';
 
 // Helper: Convert UTC time to WIB (UTC+7)
 const formatTimeWIB = (utcTimeString: string): string => {
@@ -48,9 +49,9 @@ const journalSchema = z.object({
   journal_date: z.string(),
   teacher_status: z.nativeEnum(TeacherStatus),
   teacher_notes: z.string().optional(),
-  material_topic: z.string().optional(),
+  material_topic: z.string().min(1, "Topik materi wajib diisi"),
   material_description: z.string().optional(),
-  learning_method: z.nativeEnum(LearningMethod).optional(),
+  learning_method: z.nativeEnum(LearningMethod),
   learning_media: z.string().optional(),
   learning_achievement: z.string().optional(),
   reflection_notes: z.string()
@@ -58,29 +59,7 @@ const journalSchema = z.object({
     .max(500, "Catatan refleksi maksimal 500 karakter")
     .optional(),
   photos: z.any().optional(),
-}).refine(
-  (data) => {
-    if (data.teacher_status === TeacherStatus.Hadir) {
-      return !!data.material_topic && !!data.learning_method;
-    }
-    return true;
-  },
-  {
-    message: "Topik materi dan metode pembelajaran wajib diisi saat guru hadir",
-    path: ["material_topic"]
-  }
-).refine(
-  (data) => {
-    if (data.teacher_status !== TeacherStatus.Hadir) {
-      return !!data.teacher_notes;
-    }
-    return true;
-  },
-  {
-    message: "Catatan guru wajib diisi saat tidak hadir",
-    path: ["teacher_notes"]
-  }
-);
+});
 
 type JournalFormValues = z.infer<typeof journalSchema>;
 
@@ -138,7 +117,7 @@ export function TeachingJournalForm() {
     resolver: zodResolver(journalSchema),
     defaultValues: {
       schedule_id: 0,
-      journal_date: format(new Date(), 'yyyy-MM-dd'),
+      journal_date: getJakartaDateString(),
       teacher_status: TeacherStatus.Hadir,
       teacher_notes: '',
       material_topic: '',
@@ -149,7 +128,6 @@ export function TeachingJournalForm() {
     }
   });
 
-  const teacherStatus = form.watch("teacher_status");
   const selectedScheduleId = form.watch("schedule_id");
 
   // Check timing when schedule changes
@@ -199,7 +177,7 @@ export function TeachingJournalForm() {
       const formData = new FormData();
       
       formData.append('schedule_id', data.schedule_id.toString());
-      formData.append('journal_date', new Date(data.journal_date).toISOString());
+      formData.append('journal_date', toJakartaISOString(data.journal_date));
       formData.append('teacher_status', data.teacher_status);
       
       if (data.teacher_notes) formData.append('teacher_notes', data.teacher_notes);
@@ -319,88 +297,12 @@ export function TeachingJournalForm() {
           />
         </div>
 
-        {/* Teacher Status */}
-        <div className="bg-white rounded-2xl shadow-sm border-2 border-[#44409D]/30 p-4">
-          <FormField
-            control={form.control}
-            name="teacher_status"
-            render={({ field }) => (
-              <FormItem className="space-y-3">
-                <FormLabel className="text-[#44409D] font-bold flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Status Kehadiran
-                </FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    className="grid grid-cols-2 gap-3"
-                  >
-                    {Object.values(TeacherStatus).map((status) => (
-                      <div key={status}>
-                        <RadioGroupItem
-                          value={status}
-                          id={status}
-                          className="peer sr-only"
-                        />
-                        <label
-                          htmlFor={status}
-                          className={cn(
-                            "flex items-center justify-center rounded-xl border-2 p-3 cursor-pointer transition-all",
-                            "peer-data-[state=checked]:border-[#44409D] peer-data-[state=checked]:bg-gradient-to-br peer-data-[state=checked]:from-[#9CBEFE]/20 peer-data-[state=checked]:to-[#44409D]/10",
-                            "hover:border-[#9CBEFE] border-gray-200"
-                          )}
-                        >
-                          <span className={cn(
-                            "text-sm font-semibold",
-                            field.value === status ? "text-[#44409D]" : "text-gray-700"
-                          )}>
-                            {status}
-                          </span>
-                        </label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Teacher Notes (if not present) */}
-          {teacherStatus !== TeacherStatus.Hadir && (
-            <FormField
-              control={form.control}
-              name="teacher_notes"
-              render={({ field }) => (
-                <FormItem className="mt-4">
-                  <FormLabel className="text-sm font-semibold text-gray-700">
-                    Catatan/Keterangan *
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Contoh: Izin mengikuti workshop, Sakit demam, dll"
-                      className="min-h-[80px] resize-none"
-                    />
-                  </FormControl>
-                  <FormDescription className="text-xs">
-                    Wajib diisi saat tidak hadir
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
-        </div>
-
-        {/* Material Section (only if present) */}
-        {teacherStatus === TeacherStatus.Hadir && (
-          <div className="bg-white rounded-2xl shadow-sm border-2 border-[#44409D]/30 p-4 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
-              <h3 className="font-bold text-[#44409D] text-base">Materi Pembelajaran</h3>
-            </div>
+        {/* Material Section */}
+        <div className="bg-white rounded-2xl shadow-sm border-2 border-[#44409D]/30 p-4 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <BookOpen className="h-5 w-5 text-[#44409D]" strokeWidth={2.5} />
+            <h3 className="font-bold text-[#44409D] text-base">Materi Pembelajaran</h3>
+          </div>
 
             {/* Material Topic */}
             <FormField
@@ -557,7 +459,6 @@ export function TeachingJournalForm() {
               )}
             />
           </div>
-        )}
 
         {/* Photo Documentation */}
         <div className="bg-white rounded-2xl shadow-sm border-2 border-[#44409D]/30 p-4">

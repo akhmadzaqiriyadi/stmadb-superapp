@@ -10,6 +10,7 @@ import Link from "next/link";
 
 import api from "@/lib/axios";
 import { ProfileData, Schedule, DayOfWeek, ActiveScheduleWeek, ScheduleType } from "@/types";
+import { getJakartaDateString, getJakartaTime } from '@/lib/date-utils';
 
 // Fungsi untuk format waktu dari UTC
 const formatTime = (timeString: string | Date): string => {
@@ -24,7 +25,7 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
   if (!user) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
 
   // Check if today is a holiday
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = getJakartaDateString();
   let isHoliday = false;
   let holidayInfo = null;
   
@@ -76,7 +77,7 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
 
   if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
 
-  const currentDay = format(new Date(), 'EEEE', { locale: idLocale }) as DayOfWeek;
+  const currentDay = format(getJakartaTime(), 'EEEE', { locale: idLocale }) as DayOfWeek;
   
   if (!Object.values(DayOfWeek).includes(currentDay)) {
       return { schedules: 'WEEKEND', activeWeek: null, isHoliday: false, holidayInfo: null };
@@ -187,7 +188,7 @@ export function TodaySchedule() {
 
   // Helper function to get schedule status based on current time
   const getScheduleStatus = (startTime: string, endTime: string) => {
-    const now = new Date();
+    const now = getJakartaTime();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
     const currentTimeInMinutes = currentHours * 60 + currentMinutes;
@@ -240,7 +241,7 @@ export function TodaySchedule() {
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Jadwal Hari Ini</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {format(new Date(), 'EEEE, dd MMM yyyy', { locale: idLocale })}
+              {format(getJakartaTime(), 'EEEE, dd MMM yyyy', { locale: idLocale })}
             </p>
           </div>
           

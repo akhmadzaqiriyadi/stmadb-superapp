@@ -186,9 +186,18 @@ export class TeachingJournalService {
       throw new Error(validation.message);
     }
     
-    // 2. Validate journal date = today
-    const today = format(new Date(), 'yyyy-MM-dd');
+    // 2. Validate journal date = today (using Jakarta timezone)
+    // Convert current time to Jakarta timezone (WIB/UTC+7)
+    const now = new Date();
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    const today = format(jakartaTime, 'yyyy-MM-dd');
     const journalDateStr = format(new Date(journal_date), 'yyyy-MM-dd');
+    
+    console.log('📅 Date Validation Debug:');
+    console.log('  - Server time (UTC):', now.toISOString());
+    console.log('  - Jakarta time:', jakartaTime.toISOString());
+    console.log('  - Today (Jakarta):', today);
+    console.log('  - Journal date:', journalDateStr);
     
     if (journalDateStr !== today) {
       throw new Error('Jurnal hanya dapat diisi untuk hari ini');
@@ -576,10 +585,14 @@ export class TeachingJournalService {
    * Get admin statistics
    */
   async getAdminStatistics() {
-    const today = startOfDay(new Date());
-    const endToday = endOfDay(new Date());
-    const startThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
-    const endThisWeek = endOfWeek(new Date(), { weekStartsOn: 1 });
+    // Use Jakarta timezone for accurate date calculations
+    const now = new Date();
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    
+    const today = startOfDay(jakartaTime);
+    const endToday = endOfDay(jakartaTime);
+    const startThisWeek = startOfWeek(jakartaTime, { weekStartsOn: 1 }); // Monday
+    const endThisWeek = endOfWeek(jakartaTime, { weekStartsOn: 1 });
     
     const [totalJournals, thisWeekJournals, todayJournals] = await Promise.all([
       prisma.teachingJournal.count(),
@@ -682,19 +695,23 @@ export class TeachingJournalService {
     let dateStart: Date;
     let dateEnd: Date;
     
+    // Use Jakarta timezone for accurate period calculations
+    const now = new Date();
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    
     if (period === 'today') {
-      dateStart = startOfDay(new Date());
-      dateEnd = endOfDay(new Date());
+      dateStart = startOfDay(jakartaTime);
+      dateEnd = endOfDay(jakartaTime);
     } else if (period === 'this_week') {
-      dateStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-      dateEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+      dateStart = startOfWeek(jakartaTime, { weekStartsOn: 1 });
+      dateEnd = endOfWeek(jakartaTime, { weekStartsOn: 1 });
     } else {
-      dateStart = startOfMonth(new Date());
-      dateEnd = endOfMonth(new Date());
+      dateStart = startOfMonth(jakartaTime);
+      dateEnd = endOfMonth(jakartaTime);
     }
     
     // Get all schedules in period
-    const currentDay = format(new Date(), 'EEEE', { locale: localeId }) as any; // Cast to bypass enum check
+    const currentDay = format(jakartaTime, 'EEEE', { locale: localeId }) as any; // Cast to bypass enum check
     
     const schedules = await prisma.schedule.findMany({
       where: {
