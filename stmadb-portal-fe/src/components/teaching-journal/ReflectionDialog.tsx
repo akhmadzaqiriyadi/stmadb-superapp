@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateReflectionNotes } from '@/lib/api/teaching-journal';
 import {
@@ -36,6 +36,11 @@ export function ReflectionDialog({
 }: ReflectionDialogProps) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState(initialNotes);
+
+  // Sync notes state when initialNotes changes (when dialog opens with different journal)
+  useEffect(() => {
+    setNotes(initialNotes);
+  }, [initialNotes, open]);
 
   const updateMutation = useMutation({
     mutationFn: (reflectionNotes: string) =>

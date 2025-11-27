@@ -402,7 +402,9 @@ export const exportJournals = async (req: Request, res: Response) => {
   try {
     const query = req.query as unknown as ExportJournalsQuery;
     const userId = req.user?.userId;
-    const userRole = req.user?.role;
+    // Fix: JWT token has 'roles' (array), not 'role' (string)
+    const userRoles = req.user?.roles as string[] | undefined;
+    const userRole = userRoles?.[0]; // Get first role
 
     const buffer = await teachingJournalService.exportJournals(query, userRole, userId);
 
