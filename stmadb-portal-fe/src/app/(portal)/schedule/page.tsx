@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Clock, User, MapPin, Calendar, BookOpen } from 'lucide-react';
+import { Loader2, Clock, User, MapPin, Calendar, BookOpen, Building2, AlertCircle } from 'lucide-react';
 import api from '@/lib/axios';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -28,6 +28,23 @@ interface ProfileData {
     class_name: string;
     grade_level: number;
     academic_year_id: number;
+  };
+}
+
+// PKL Assignment Interface
+interface PKLAssignment {
+  id: number;
+  status: string;
+  start_date: string;
+  end_date: string;
+  industry: {
+    company_name: string;
+    address: string;
+  };
+  school_supervisor?: {
+    profile: {
+      full_name: string;
+    };
   };
 }
 
@@ -115,6 +132,22 @@ export default function SchedulePage() {
 
   const isStudent = profile?.roles.some((role) => role.role_name === 'Student');
   const isTeacher = profile?.roles.some((role) => role.role_name === 'Teacher');
+
+  // Fetch PKL assignment if student
+  const { data: pklData } = useQuery<PKLAssignment | null>({
+    queryKey: ['myPKLAssignment'],
+    queryFn: async () => {
+      try {
+        const { data: pklResponse } = await api.get('/pkl/assignments/my-assignment');
+        const pklAssignment = pklResponse.data || pklResponse;
+        return pklAssignment.status === 'Active' ? pklAssignment : null;
+      } catch (error: any) {
+        if (error.response?.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: !!profile && isStudent,
+  });
 
   // Fetch schedules
   const { data: schedulesData, isLoading: isLoadingSchedules } = useQuery({
@@ -300,7 +333,7 @@ export default function SchedulePage() {
         </div>
 
         {/* Active Week Badge */}
-        {activeWeek && (
+        {activeWeek && !pklData && (
           <div className="bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 inline-flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FFCD6A] animate-pulse"></div>
             <span className="text-sm font-medium">
@@ -309,6 +342,66 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+
+      {/* PKL Indicator Banner */}
+      {pklData && (
+        <div className="px-4 mt-4">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-4 shadow-md">
+            <div className="flex items-start gap-3">
+              {/* Icon */}
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-400">
+                <Building2 className="h-6 w-6 text-amber-700" />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Sedang Melaksanakan PKL
+                  </h3>
+                  <Badge className="bg-amber-500 text-white text-xs">
+                    Aktif
+                  </Badge>
+                </div>
+                
+                <p className="text-xs text-gray-700 font-medium mb-2">
+                  {pklData.industry.company_name}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                  {/* Period */}
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5 text-amber-600" />
+                    <span>
+                      {format(new Date(pklData.start_date), 'd MMM', { locale: idLocale })} -{' '}
+                      {format(new Date(pklData.end_date), 'd MMM yyyy', { locale: idLocale })}
+                    </span>
+                  </div>
+
+                  {/* Supervisor */}
+                  {pklData.school_supervisor && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <div className="flex items-center gap-1">
+                        <User className="h-3.5 w-3.5 text-amber-600" />
+                        <span>{pklData.school_supervisor.profile.full_name}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Info text */}
+                <div className="mt-3 flex items-start gap-2 bg-amber-100/50 rounded-lg px-2 py-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    Jadwal kelas reguler di bawah ini tidak berlaku selama periode PKL
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Day Tabs */}
       <div className="px-4 mt-6">

@@ -9,6 +9,7 @@ import academicRoutes from './modules/academics/academics.route.js';
 import leaveRoutes from './modules/leave/leave.route.js';
 import counselingRoutes from './modules/counseling/counseling.route.js';
 import attendanceRoutes from './modules/attendance/attendance.route.js';
+import pklRoutes from './modules/pkl/pkl.route.js';
 
 // Impor swagger
 import swaggerUi from 'swagger-ui-express';
@@ -58,6 +59,7 @@ app.use('/api/v1/academics', academicRoutes);
 app.use('/api/v1/leave-permits', leaveRoutes);
 app.use('/api/v1/counseling', counselingRoutes);
 app.use('/api/v1/attendance', attendanceRoutes);
+app.use('/api/v1/pkl', pklRoutes); // PKL Module
 
 
 export default app;

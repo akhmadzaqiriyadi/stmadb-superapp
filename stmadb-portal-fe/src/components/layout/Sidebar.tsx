@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Users, LayoutDashboard, BookCopy, Home, CalendarClock, ChevronDown, LogOut, MessageSquare, CalendarCheck, CalendarOff, BookOpen, ClipboardList } from "lucide-react"; 
+import { Users, LayoutDashboard, BookCopy, Home, CalendarClock, ChevronDown, LogOut, MessageSquare, CalendarCheck, CalendarOff, BookOpen, ClipboardList, Briefcase } from "lucide-react"; 
 
 type NavItem = {
   href: string;
@@ -18,7 +18,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/users", label: "Manajemen User", icon: Users },
   {
-    href: "/dashboard/academics",
+    href:"/dashboard/academics",
     label: "Struktur Akademik",
     icon: BookCopy,
     children: [
@@ -31,6 +31,17 @@ const navItems: NavItem[] = [
   },
   { href: "/dashboard/classes", label: "Manajemen Kelas", icon: Home },
   { href: "/dashboard/schedules", label: "Manajemen Jadwal", icon: CalendarClock },
+  {
+    href: "/dashboard/pkl",
+    label: "PKL Management",
+    icon: Briefcase,
+    children: [
+      { href: "/dashboard/pkl/industries", label: "Data Industri" },
+      { href: "/dashboard/pkl/assignments", label: "Assignment PKL" },
+      { href: "/dashboard/pkl/students", label: "Monitoring Siswa" },
+      { href: "/dashboard/pkl/approvals", label: "Pending Approval" },
+    ]
+  },
   { href: "/dashboard/journal-dashboard", label: "Dashboard Jurnal", icon: BookOpen },
   { href: "/dashboard/piket-journal", label: "Entri Jurnal Piket", icon: ClipboardList },
   { href: "/dashboard/counseling", label: "E-Counseling", icon: MessageSquare },

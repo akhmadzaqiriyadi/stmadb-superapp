@@ -51,6 +51,10 @@ model User {
   counseling_tickets_as_student   CounselingTicket[] @relation("StudentCounseling")
   counseling_tickets_as_counselor CounselingTicket[] @relation("CounselorTickets")
 
+  // PKL Relations
+  pkl_assignments_as_student    PKLAssignment[] @relation("PKLStudent")
+  pkl_assignments_as_supervisor PKLAssignment[] @relation("PKLSchoolSupervisor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -280,13 +284,13 @@ model TeacherAssignment {
 
 model Holiday {
   id          Int      @id @default(autoincrement())
-  name        String   // Nama hari libur (e.g., "Hari Raya Idul Fitri", "Libur Semester")
+  name        String // Nama hari libur (e.g., "Hari Raya Idul Fitri", "Libur Semester")
   date        DateTime @db.Date
   description String?  @db.Text
   is_active   Boolean  @default(true) // Aktif/Nonaktif
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([date])
 }
@@ -546,4 +550,230 @@ model CounselingTicket {
   @@index([student_user_id])
   @@index([counselor_user_id])
   @@index([status])
+}
+
+// ============== MODUL 7: PKL (PRAKTIK KERJA LAPANGAN) ==============
+
+// 1. Master Data Industry/Perusahaan
+model Industry {
+  id Int @id @default(autoincrement())
+
+  // Data Perusahaan
+  company_name String  @unique
+  company_code String? @unique
+  address      String  @db.Text
+  phone        String?
+  email        String?
+  website      String?
+
+  // Geolocation untuk validasi GPS
+  latitude      Decimal @db.Decimal(10, 8) // -90 to 90
+  longitude     Decimal @db.Decimal(11, 8) // -180 to 180
+  radius_meters Int     @default(100) // Radius validasi dalam meter
+
+  // Data Tambahan
+  industry_type String? // Manufaktur, IT, Perhotelan, dll
+  description   String? @db.Text
+
+  // Contact Person dari Perusahaan
+  contact_person_name  String?
+  contact_person_phone String?
+  contact_person_email String?
+
+  // Status
+  is_active Boolean @default(true)
+
+  // Kapasitas (optional)
+  max_students Int? // Maksimal siswa yang bisa diterima
+
+  // Relations
+  pkl_assignments PKLAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([company_name])
+  @@index([is_active])
+}
+
+// 2. PKL Assignment
+model PKLAssignment {
+  id Int @id @default(autoincrement())
+
+  // Siswa
+  student_user_id Int
+  student         User @relation("PKLStudent", fields: [student_user_id], references: [id])
+
+  // Industry/Perusahaan
+  industry_id Int
+  industry    Industry @relation(fields: [industry_id], references: [id])
+
+  // Mentor dari Perusahaan (specific untuk assignment ini)
+  company_mentor_name  String?
+  company_mentor_phone String?
+  company_mentor_email String?
+
+  // Periode PKL
+  start_date DateTime @db.Date
+  end_date   DateTime @db.Date
+
+  // Pembimbing dari Sekolah (Guru Pendamping)
+  school_supervisor_id Int?
+  school_supervisor    User? @relation("PKLSchoolSupervisor", fields: [school_supervisor_id], references: [id])
+
+  // Target & Notes
+  learning_objectives String? @db.Text // Target pembelajaran
+  notes               String? @db.Text
+
+  // Status
+  status PKLStatus @default(Active)
+
+  // Relations
+  attendances PKLAttendance[]
+  journals    PKLJournal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([student_user_id, start_date]) // 1 siswa, 1 PKL per periode
+  @@index([student_user_id])
+  @@index([industry_id])
+  @@index([school_supervisor_id])
+  @@index([status])
+}
+
+enum PKLStatus {
+  Active // Sedang berlangsung
+  Completed // Selesai
+  Cancelled // Dibatalkan
+  OnHold // Ditangguhkan
+}
+
+// 3. PKL Attendance (Tap In/Out)
+model PKLAttendance {
+  id                Int           @id @default(autoincrement())
+  pkl_assignment_id Int
+  pkl_assignment    PKLAssignment @relation(fields: [pkl_assignment_id], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  // Tap In
+  tap_in_time   DateTime?
+  tap_in_lat    Decimal?  @db.Decimal(10, 8)
+  tap_in_lng    Decimal?  @db.Decimal(11, 8)
+  tap_in_photo  String? // URL selfie saat tap in (optional)
+  tap_in_method String?   @default("Manual") // Manual, GPS, Auto
+
+  // Tap Out
+  tap_out_time   DateTime?
+  tap_out_lat    Decimal?  @db.Decimal(10, 8)
+  tap_out_lng    Decimal?  @db.Decimal(11, 8)
+  tap_out_method String?   @default("Manual")
+
+  // Calculated
+  total_hours Decimal? @db.Decimal(5, 2) // Jam kerja (auto calculate)
+
+  // Status
+  status PKLAttendanceStatus @default(InProgress)
+
+  // Handling "Lupa Tap" - Manual Request
+  is_manual_entry Boolean         @default(false) // True jika diajukan manual
+  approval_status ApprovalStatus? // Pending, Approved, Rejected
+  approved_by_id  Int? // ID guru pembimbing yang approve
+  approved_at     DateTime?
+  approval_notes  String?         @db.Text
+
+  // Evidence untuk manual entry
+  evidence_urls Json? // Array of URLs bukti
+  manual_reason String? @db.Text // Alasan lupa tap
+
+  notes String? @db.Text
+
+  // Relation to journal
+  journal PKLJournal?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pkl_assignment_id, date]) // 1 attendance per day
+  @@index([pkl_assignment_id])
+  @@index([date])
+  @@index([status])
+  @@index([approval_status])
+}
+
+enum PKLAttendanceStatus {
+  Present // Hadir (sudah tap in & out)
+  InProgress // Sedang PKL (sudah tap in, belum tap out)
+  Absent // Tidak hadir
+  Excused // Izin
+  Sick // Sakit
+}
+
+// 4. PKL Daily Journal
+model PKLJournal {
+  id                Int           @id @default(autoincrement())
+  pkl_assignment_id Int
+  pkl_assignment    PKLAssignment @relation(fields: [pkl_assignment_id], references: [id], onDelete: Cascade)
+
+  attendance_id Int           @unique
+  attendance    PKLAttendance @relation(fields: [attendance_id], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  // Isi Jurnal
+  activities String  @db.Text // Kegiatan yang dilakukan (wajib)
+  learnings  String? @db.Text // Apa yang dipelajari (optional)
+  challenges String? @db.Text // Kendala yang dihadapi (optional)
+
+  // Media
+  photos Json? // Array of photo URLs (optional)
+
+  // Self Assessment
+  self_rating Int? // 1-5 (optional)
+
+  // Status
+  status       JournalStatus @default(Draft)
+  submitted_at DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pkl_assignment_id])
+  @@index([attendance_id])
+  @@index([date])
+  @@index([status])
+}
+
+enum JournalStatus {
+  Draft
+  Submitted
+}
+
+// 5. PKL Settings (Global Config) - Optional
+model PKLSettings {
+  id Int @id @default(autoincrement())
+
+  // Default Settings
+  default_radius_meters       Int      @default(100)
+  default_work_start_time     DateTime @db.Time
+  default_work_end_time       DateTime @db.Time
+  grace_period_tap_in_minutes Int      @default(120) // 2 jam
+
+  // Auto Tap Out Settings
+  enable_auto_tapout        Boolean  @default(true)
+  auto_tapout_time          DateTime @db.Time
+  auto_tapout_default_hours Decimal  @default(8.00) @db.Decimal(4, 2)
+
+  // Validation Rules
+  require_gps_validation        Boolean @default(true)
+  require_journal_before_tapout Boolean @default(true)
+  max_manual_requests_per_month Int     @default(3)
+
+  // Notifications
+  enable_reminders        Boolean  @default(true)
+  reminder_tap_in_minutes Int      @default(15)
+  reminder_journal_time   DateTime @db.Time
+
+  updatedAt DateTime @updatedAt
 }

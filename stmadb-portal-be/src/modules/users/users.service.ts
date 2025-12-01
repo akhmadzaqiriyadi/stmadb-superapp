@@ -209,6 +209,15 @@ export const getUsers = async (filters: any) => {
       profile: true,
       teacher_extension: true,
       student_extension: true,
+      class_memberships: {
+        include: {
+          class: {
+            include: {
+              major: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: 'desc' }
   });
