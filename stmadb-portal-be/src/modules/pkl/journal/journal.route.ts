@@ -169,7 +169,7 @@ router.put(
 /**
  * @openapi
  * /pkl/journals/{id}/submit:
- *   patch:
+ *   post:
  *     tags:
  *       - PKL - Journal
  *     summary: Submit journal (Student)
@@ -186,7 +186,7 @@ router.put(
  *       200:
  *         description: Journal berhasil disubmit
  */
-router.patch(
+router.post(
   '/:id/submit',
   protect,
   authorize(['Student']),
@@ -276,6 +276,34 @@ router.delete(
   authorize(['Student']),
   validate(deletePhotoSchema),
   journalController.deletePhoto
+);
+
+/**
+ * @openapi
+ * /pkl/journals/{id}:
+ *   get:
+ *     tags:
+ *       - PKL - Journal
+ *     summary: Get journal by ID (Student)
+ *     description: Mendapatkan detail journal berdasarkan ID
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Detail journal
+ */
+router.get(
+  '/:id',
+  protect,
+  authorize(['Student', 'Teacher', 'Admin']),
+  validate(getJournalByIdSchema),
+  journalController.getJournalById
 );
 
 /**

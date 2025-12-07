@@ -8,10 +8,11 @@ export const metadata: Metadata = {
   description: 'Detail assignment siswa PKL',
 };
 
-export default function AssignmentDetailPage({ params }: { params: { id: string } }) {
+export default async function AssignmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className="space-y-6">
-      <AssignmentDetail assignmentId={parseInt(params.id)} />
+      <AssignmentDetail assignmentId={parseInt(id)} />
     </div>
   );
 }

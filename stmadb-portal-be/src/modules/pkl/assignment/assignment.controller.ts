@@ -157,3 +157,69 @@ export const getAssignmentByStudentId = async (req: Request, res: Response) => {
     res.status(400).json({ message: (error as Error).message });
   }
 };
+
+// Add Allowed Location
+export const addAllowedLocation = async (req: Request, res: Response) => {
+  try {
+    const idParam = req.params.id;
+    if (!idParam) {
+      return res.status(400).json({ message: 'ID assignment dibutuhkan' });
+    }
+
+    const id = parseInt(idParam, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID assignment tidak valid' });
+    }
+
+    const location = await assignmentService.addAllowedLocation(id, req.body);
+
+    res.status(201).json({
+      message: 'Lokasi berhasil ditambahkan',
+      data: location,
+    });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+// Remove Allowed Location
+export const removeAllowedLocation = async (req: Request, res: Response) => {
+  try {
+    const locationIdParam = req.params.locationId;
+    if (!locationIdParam) {
+      return res.status(400).json({ message: 'ID lokasi dibutuhkan' });
+    }
+
+    const locationId = parseInt(locationIdParam, 10);
+    if (isNaN(locationId)) {
+      return res.status(400).json({ message: 'ID lokasi tidak valid' });
+    }
+
+    const result = await assignmentService.removeAllowedLocation(locationId);
+
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+// Get Allowed Locations
+export const getAllowedLocations = async (req: Request, res: Response) => {
+  try {
+    const idParam = req.params.id;
+    if (!idParam) {
+      return res.status(400).json({ message: 'ID assignment dibutuhkan' });
+    }
+
+    const id = parseInt(idParam, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID assignment tidak valid' });
+    }
+
+    const locations = await assignmentService.getAllowedLocations(id);
+
+    res.status(200).json({ data: locations });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};

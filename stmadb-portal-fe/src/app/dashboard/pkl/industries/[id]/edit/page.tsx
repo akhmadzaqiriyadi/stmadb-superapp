@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   description: 'Edit data industri PKL',
 };
 
-export default function EditIndustryPage({ params }: { params: { id: string } }) {
+export default async function EditIndustryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
@@ -17,7 +18,7 @@ export default function EditIndustryPage({ params }: { params: { id: string } })
           Perbarui informasi industri/perusahaan tempat PKL
         </p>
       </div>
-      <IndustryForm industryId={parseInt(params.id)} />
+      <IndustryForm industryId={parseInt(id)} />
     </div>
   );
 }

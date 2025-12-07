@@ -270,15 +270,13 @@ export function TeachingJournalForm() {
                   <SelectContent>
                     {todaySchedules.map((schedule) => (
                       <SelectItem key={schedule.id} value={String(schedule.id)}>
-                        <div className="flex flex-col gap-0.5 py-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm">
-                              {schedule.assignment.subject.subject_name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              ({schedule.assignment.class.class_name})
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {schedule.assignment.subject.subject_name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({schedule.assignment.class.class_name})
+                          </span>
                           <span className="text-xs text-[#44409D]">
                             {formatTimeWIB(schedule.start_time)} - {formatTimeWIB(schedule.end_time)}
                           </span>

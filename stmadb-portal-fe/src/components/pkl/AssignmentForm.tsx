@@ -31,6 +31,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import AllowedLocationsManager from "./AllowedLocationsManager";
 
 interface AssignmentFormProps {
   assignmentId?: number;
@@ -46,6 +48,11 @@ interface AssignmentFormData {
   company_mentor_phone?: string;
   notes?: string;
   status: string;
+  pkl_type: string;
+  work_schedule_type: string;
+  work_start_time: string;
+  work_end_time: string;
+  require_gps_validation: boolean;
 }
 
 export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
@@ -77,6 +84,11 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
       company_mentor_phone: "",
       notes: "",
       status: "Active",
+      pkl_type: "Onsite",
+      work_schedule_type: "Regular",
+      work_start_time: "08:00",
+      work_end_time: "17:00",
+      require_gps_validation: true,
     },
   });
 
@@ -135,6 +147,11 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
         company_mentor_phone: assignment.company_mentor_phone || "",
         notes: assignment.notes || "",
         status: assignment.status,
+        pkl_type: assignment.pkl_type || "Onsite",
+        work_schedule_type: assignment.work_schedule_type || "Regular",
+        work_start_time: assignment.work_start_time ? new Date(assignment.work_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "08:00",
+        work_end_time: assignment.work_end_time ? new Date(assignment.work_end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "17:00",
+        require_gps_validation: assignment.require_gps_validation ?? true,
       });
       setSelectedStudents([assignment.student_user_id]);
     }
@@ -584,6 +601,111 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Flexible Attendance Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pengaturan Kehadiran</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="pkl_type" className="mb-2 block">
+                Tipe PKL
+              </Label>
+              <Select
+                value={watch("pkl_type")}
+                onValueChange={(value) => setValue("pkl_type", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Onsite">Onsite (WFO)</SelectItem>
+                  <SelectItem value="Remote">Remote (WFH)</SelectItem>
+                  <SelectItem value="Hybrid">Hybrid</SelectItem>
+                  <SelectItem value="Flexible">Flexible (Project Based)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="work_schedule_type" className="mb-2 block">
+                Jadwal Kerja
+              </Label>
+              <Select
+                value={watch("work_schedule_type")}
+                onValueChange={(value) => setValue("work_schedule_type", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Regular">Regular (Jam Tetap)</SelectItem>
+                  <SelectItem value="Shift">Shift</SelectItem>
+                  <SelectItem value="Flexible">Flexible Hours</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="work_start_time" className="mb-2 block">
+                Jam Masuk
+              </Label>
+              <Input
+                id="work_start_time"
+                type="time"
+                {...register("work_start_time")}
+              />
+            </div>
+            <div>
+              <Label htmlFor="work_end_time" className="mb-2 block">
+                Jam Pulang
+              </Label>
+              <Input
+                id="work_end_time"
+                type="time"
+                {...register("work_end_time")}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="require_gps_validation"
+              checked={watch("require_gps_validation")}
+              onCheckedChange={(checked) => setValue("require_gps_validation", checked)}
+            />
+            <Label htmlFor="require_gps_validation">
+              Wajib Validasi GPS saat Tap In/Out
+            </Label>
+          </div>
+
+          {isEdit && assignmentId && (
+            <div className="pt-4 border-t">
+              <AllowedLocationsManager 
+                assignmentId={assignmentId} 
+                industryLocation={
+                  assignmentData?.data?.industry 
+                    ? {
+                        latitude: Number(assignmentData.data.industry.latitude),
+                        longitude: Number(assignmentData.data.industry.longitude),
+                      } 
+                    : undefined
+                }
+              />
+            </div>
+          )}
+          
+          {!isEdit && (
+            <div className="p-4 bg-muted rounded-md text-sm text-muted-foreground">
+              ℹ️ Simpan assignment terlebih dahulu untuk menambahkan lokasi alternatif (misal: rumah siswa untuk WFH/Hybrid).
+            </div>
+          )}
         </CardContent>
       </Card>
 

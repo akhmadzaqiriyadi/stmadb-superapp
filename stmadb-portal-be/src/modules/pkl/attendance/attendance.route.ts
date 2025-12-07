@@ -5,6 +5,7 @@ import * as attendanceController from './attendance.controller.js';
 import { protect } from '../../../core/middlewares/auth.middleware.js';
 import { authorize } from '../../../core/middlewares/authorize.middleware.js';
 import { validate } from '../../../core/middlewares/validate.middleware.js';
+import { uploadAttendancePhoto } from '../../../core/config/multer.config.js';
 import {
   tapInSchema,
   tapOutSchema,
@@ -38,7 +39,7 @@ router.use(protect);
 router.post(
   '/tap-in',
   authorize(['Student']),
-  validate(tapInSchema),
+  uploadAttendancePhoto.single('photo'),
   attendanceController.tapIn
 );
 

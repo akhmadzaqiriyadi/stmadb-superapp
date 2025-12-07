@@ -1,7 +1,7 @@
 // src/modules/pkl/assignment/assignment.validation.ts
 
 import { z } from 'zod';
-import { PKLStatus } from '@prisma/client';
+import { PKLStatus, PKLType, WorkScheduleType } from '@prisma/client';
 
 // Create Assignment
 export const createAssignmentSchema = z.object({
@@ -16,6 +16,12 @@ export const createAssignmentSchema = z.object({
     company_mentor_email: z.string().email('Format email tidak valid').optional(),
     learning_objectives: z.string().optional(),
     notes: z.string().optional(),
+    // PKL Flexible Attendance fields
+    pkl_type: z.nativeEnum(PKLType).optional(),
+    work_schedule_type: z.nativeEnum(WorkScheduleType).optional(),
+    work_start_time: z.string().optional(),
+    work_end_time: z.string().optional(),
+    require_gps_validation: z.boolean().optional(),
   }),
 });
 
@@ -35,6 +41,12 @@ export const updateAssignmentSchema = z.object({
     learning_objectives: z.string().optional(),
     notes: z.string().optional(),
     status: z.nativeEnum(PKLStatus).optional(),
+    // PKL Flexible Attendance fields
+    pkl_type: z.nativeEnum(PKLType).optional(),
+    work_schedule_type: z.nativeEnum(WorkScheduleType).optional(),
+    work_start_time: z.string().optional(),
+    work_end_time: z.string().optional(),
+    require_gps_validation: z.boolean().optional(),
   }),
 });
 

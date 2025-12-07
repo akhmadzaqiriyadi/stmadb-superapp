@@ -8,7 +8,8 @@ export const metadata: Metadata = {
   description: 'Edit assignment siswa PKL',
 };
 
-export default function EditAssignmentPage({ params }: { params: { id: string } }) {
+export default async function EditAssignmentPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className="space-y-6">
       <div>
@@ -17,7 +18,7 @@ export default function EditAssignmentPage({ params }: { params: { id: string } 
           Perbarui informasi penugasan siswa PKL
         </p>
       </div>
-      <AssignmentForm assignmentId={parseInt(params.id)} />
+      <AssignmentForm assignmentId={parseInt(id)} />
     </div>
   );
 }

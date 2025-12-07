@@ -23,12 +23,12 @@ export const tapOutSchema = z.object({
 // Manual Attendance Request
 export const manualAttendanceRequestSchema = z.object({
   body: z.object({
-    date: z.string().datetime(),
-    tap_in_time: z.string().datetime(),
-    tap_out_time: z.string().datetime(),
-    manual_reason: z.string().min(20, 'Alasan minimal 20 karakter'),
-    evidence_urls: z.array(z.string().url()).min(1, 'Minimal 1 bukti'), 
-    witness_name: z.string().optional(),
+    date: z.string().datetime({ message: 'Format tanggal tidak valid' }),
+    tap_in_time: z.string().datetime({ message: 'Format waktu tap in tidak valid' }),
+    tap_out_time: z.string().datetime({ message: 'Format waktu tap out tidak valid' }),
+    manual_reason: z.string().min(10, 'Alasan minimal 10 karakter').max(500, 'Alasan maksimal 500 karakter'),
+    evidence_urls: z.array(z.string().url({ message: 'URL bukti tidak valid' })).optional().default([]), 
+    witness_name: z.string().min(3, 'Nama saksi minimal 3 karakter').max(100, 'Nama saksi maksimal 100 karakter').optional(),
   }),
 });
 

@@ -8,10 +8,11 @@ export const metadata: Metadata = {
   description: 'Informasi lengkap industri PKL',
 };
 
-export default function IndustryDetailPage({ params }: { params: { id: string } }) {
+export default async function IndustryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className="space-y-6">
-      <IndustryDetail industryId={parseInt(params.id)} />
+      <IndustryDetail industryId={parseInt(id)} />
     </div>
   );
 }

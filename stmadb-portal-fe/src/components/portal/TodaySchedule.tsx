@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Loader2, Clock, User, MapPin, Calendar, ArrowRight, Building2 } from "lucide-react";
+import { Loader2, Clock, User, MapPin, Calendar, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import api from "@/lib/axios";
@@ -22,7 +22,7 @@ const formatTime = (timeString: string | Date): string => {
 };
 
 const fetchTodayScheduleData = async (user: ProfileData | null) => {
-  if (!user) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null, isPKL: false, pklInfo: null };
+  if (!user) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
 
   // Check if today is a holiday
   const today = getJakartaDateString();
@@ -39,42 +39,11 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
 
   // If it's a holiday, return early
   if (isHoliday) {
-    return { schedules: [], activeWeek: null, isHoliday, holidayInfo, isPKL: false, pklInfo: null };
+    return { schedules: [], activeWeek: null, isHoliday, holidayInfo };
   }
 
   const isStudent = user.roles.some(role => role.role_name === 'Student');
   const isTeacher = user.roles.some(role => role.role_name === 'Teacher');
-
-  // Check if student has active PKL assignment
-  let isPKL = false;
-  let pklInfo = null;
-  
-  if (isStudent) {
-    try {
-      const { data: pklResponse } = await api.get('/pkl/assignments/my-assignment');
-      const pklAssignment = pklResponse.data || pklResponse; // Handle both wrapped and unwrapped responses
-      
-      if (pklAssignment && pklAssignment.status === 'Active') {
-        isPKL = true;
-        pklInfo = pklAssignment;
-        
-        // If student has active PKL, show PKL schedule
-        return {
-          schedules: 'PKL',
-          activeWeek: null,
-          isHoliday: false,
-          holidayInfo: null,
-          isPKL: true,
-          pklInfo
-        };
-      }
-    } catch (error: any) {
-      // If 404, student doesn't have PKL assignment, continue with regular schedule
-      if (error.response?.status !== 404) {
-        console.error('Failed to fetch PKL assignment:', error);
-      }
-    }
-  }
 
   let viewMode: 'class' | 'teacher' | null = null;
   let viewId: number | undefined;
@@ -106,12 +75,12 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     gradeLevel = 10;
   }
 
-  if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null, isPKL: false, pklInfo: null };
+  if (!viewMode || !viewId || !academicYearId) return { schedules: [], activeWeek: null, isHoliday: false, holidayInfo: null };
 
   const currentDay = format(getJakartaTime(), 'EEEE', { locale: idLocale }) as DayOfWeek;
   
   if (!Object.values(DayOfWeek).includes(currentDay)) {
-      return { schedules: 'WEEKEND', activeWeek: null, isHoliday: false, holidayInfo: null, isPKL: false, pklInfo: null };
+      return { schedules: 'WEEKEND', activeWeek: null, isHoliday: false, holidayInfo: null };
   }
 
   const endpoint = `/academics/schedules/${viewMode}/${viewId}`;
@@ -164,9 +133,7 @@ const fetchTodayScheduleData = async (user: ProfileData | null) => {
     schedules: filteredSchedules.sort((a, b) => a.start_time.localeCompare(b.start_time)),
     activeWeek: activeWeek,
     isHoliday: false,
-    holidayInfo: null,
-    isPKL: false,
-    pklInfo: null
+    holidayInfo: null
   };
 };
 
@@ -261,12 +228,10 @@ export function TodaySchedule() {
     }
   };
 
-  const schedules = result?.schedules === 'WEEKEND' ? 'WEEKEND' : result?.schedules === 'PKL' ? 'PKL' : result?.schedules || [];
-  const activeWeek = result?.schedules !== 'WEEKEND' && result?.schedules !== 'PKL' ? result?.activeWeek : null;
+  const schedules = result?.schedules === 'WEEKEND' ? 'WEEKEND' : result?.schedules || [];
+  const activeWeek = result?.schedules !== 'WEEKEND' ? result?.activeWeek : null;
   const isHoliday = result?.isHoliday || false;
   const holidayInfo = result?.holidayInfo || null;
-  const isPKL = result?.isPKL || false;
-  const pklInfo = result?.pklInfo || null;
 
   return (
     <div className="bg-white rounded-xl border-2 border-[#FFCD6A]">
@@ -280,15 +245,8 @@ export function TodaySchedule() {
             </p>
           </div>
           
-          {/* Active Schedule Badge or PKL Badge */}
-          {isPKL ? (
-            <div className="flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-amber-600" />
-              <span className="text-xs font-medium px-2 py-1 rounded-md bg-amber-100 text-amber-700">
-                PKL
-              </span>
-            </div>
-          ) : (isStudent || isTeacher) && activeWeek && (
+          {/* Active Schedule Badge - For both students and teachers */}
+          {(isStudent || isTeacher) && activeWeek && (
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-gray-400" />
               <span className={`text-xs font-medium px-2 py-1 rounded-md ${getScheduleTypeDisplay(activeWeek.active_week_type).color}`}>
@@ -315,61 +273,6 @@ export function TodaySchedule() {
                 )}
               </>
             )}
-          </div>
-        ) : isPKL && pklInfo ? (
-          /* PKL Schedule Display */
-          <div className="space-y-3">
-            <div className="rounded-lg p-4 border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
-              {/* Company Header */}
-              <div className="flex items-start gap-3 mb-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-300">
-                  <Building2 className="h-6 w-6 text-amber-700" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 text-sm mb-1">
-                    Praktik Kerja Lapangan
-                  </h3>
-                  <p className="text-xs text-gray-600">
-                    {pklInfo.industry?.company_name || 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Work Hours */}
-              <div className="flex items-center gap-2 text-xs text-gray-700 mb-2 bg-white/50 rounded-md px-3 py-2">
-                <Clock className="h-4 w-4 text-amber-600" />
-                <span className="font-medium">Jam Kerja:</span>
-                <span>08:00 - 16:00</span>
-              </div>
-
-              {/* Location */}
-              {pklInfo.industry?.address && (
-                <div className="flex items-start gap-2 text-xs text-gray-700 bg-white/50 rounded-md px-3 py-2">
-                  <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-600" />
-                  <span className="line-clamp-2">{pklInfo.industry.address}</span>
-                </div>
-              )}
-
-              {/* Supervisor Info */}
-              {pklInfo.school_supervisor && (
-                <div className="mt-3 pt-3 border-t border-amber-200">
-                  <div className="flex items-center gap-2 text-xs">
-                    <User className="h-3.5 w-3.5 text-gray-500" />
-                    <span className="text-gray-600">Pembimbing:</span>
-                    <span className="font-medium text-gray-900">
-                      {pklInfo.school_supervisor.profile?.full_name || 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* PKL Period */}
-            <div className="text-xs text-center text-gray-500">
-              <span className="font-medium">Periode PKL:</span>{' '}
-              {format(new Date(pklInfo.start_date), 'd MMM', { locale: idLocale })} - {' '}
-              {format(new Date(pklInfo.end_date), 'd MMM yyyy', { locale: idLocale })}
-            </div>
           </div>
         ) : schedules === 'WEEKEND' ? (
           renderEmptyState("Hari ini libur")

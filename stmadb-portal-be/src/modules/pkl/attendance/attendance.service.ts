@@ -38,11 +38,6 @@ interface GetAttendanceHistoryQuery {
 class AttendanceService {
   // Tap In
   async tapIn(studentUserId: number, data: TapInDto) {
-    // Validate coordinates
-    if (!isValidCoordinates(data.latitude, data.longitude)) {
-      throw new Error('Koordinat GPS tidak valid');
-    }
-
     // Get active PKL assignment
     const assignment = await prisma.pKLAssignment.findFirst({
       where: {
@@ -51,11 +46,23 @@ class AttendanceService {
       },
       include: {
         industry: true,
+        allowed_locations: {
+          where: { is_active: true },
+        },
       },
     });
 
     if (!assignment) {
       throw new Error('Kamu belum memiliki assignment PKL aktif');
+    }
+
+    // Check if GPS validation is required
+    const isFlexible = assignment.pkl_type === 'Flexible';
+    const requireGps = assignment.require_gps_validation && !isFlexible;
+
+    // Validate coordinates only if GPS is required
+    if (requireGps && !isValidCoordinates(data.latitude, data.longitude)) {
+      throw new Error('Koordinat GPS tidak valid');
     }
 
     const today = startOfDay(new Date());
@@ -76,20 +83,57 @@ class AttendanceService {
       }
     }
 
-    // Validate GPS location
-    const industry = assignment.industry;
-    const gpsCheck = isWithinRadius(
-      data.latitude,
-      data.longitude,
-      Number(industry.latitude),
-      Number(industry.longitude),
-      industry.radius_meters
-    );
+    // GPS Validation Logic
+    let isGpsValid = false;
+    let validLocationId: number | null = null;
+    let locationMessage = '';
 
-    if (!gpsCheck.isValid) {
-      throw new Error(
-        `Lokasi kamu di luar radius perusahaan (${gpsCheck.distance}m dari lokasi). Gunakan fitur ajukan manual jika kamu benar-benar di tempat PKL.`
-      );
+    if (!requireGps) {
+      // Skip GPS validation for Flexible type
+      isGpsValid = false; // Not validated
+      locationMessage = 'Tap in berhasil! Selamat bekerja 💪';
+    } else {
+      // Validate against allowed locations
+      if (assignment.allowed_locations && assignment.allowed_locations.length > 0) {
+        // Check semua allowed locations
+        for (const loc of assignment.allowed_locations) {
+          const locCheck = isWithinRadius(
+            data.latitude,
+            data.longitude,
+            Number(loc.latitude),
+            Number(loc.longitude),
+            loc.radius_meters
+          );
+          
+          if (locCheck.isValid) {
+            isGpsValid = true;
+            validLocationId = loc.id;
+            locationMessage = `Tap in berhasil dari ${loc.location_name}! Selamat bekerja 💪`;
+            break;
+          }
+        }
+      } else {
+        // Fallback: Check Industry Location (untuk backward compatibility)
+        const industry = assignment.industry;
+        const industryCheck = isWithinRadius(
+          data.latitude,
+          data.longitude,
+          Number(industry.latitude),
+          Number(industry.longitude),
+          industry.radius_meters
+        );
+
+        if (industryCheck.isValid) {
+          isGpsValid = true;
+          locationMessage = `Tap in berhasil dari ${industry.company_name}! Selamat bekerja 💪`;
+        }
+      }
+
+      if (!isGpsValid) {
+        throw new Error(
+          `Lokasi kamu di luar semua lokasi yang diizinkan. Gunakan fitur Manual Request jika kamu benar-benar di lokasi PKL.`
+        );
+      }
     }
 
     const now = new Date();
@@ -100,11 +144,13 @@ class AttendanceService {
           where: { id: existingAttendance.id },
           data: {
             tap_in_time: now,
-            tap_in_lat: data.latitude,
-            tap_in_lng: data.longitude,
+            tap_in_lat: data.latitude ?? null,
+            tap_in_lng: data.longitude ?? null,
             tap_in_photo: data.photo ?? null,
-            tap_in_method: 'GPS',
+            tap_in_method: requireGps ? 'GPS' : 'Manual',
             status: 'InProgress',
+            tap_in_location_id: validLocationId,
+            tap_in_gps_valid: isGpsValid,
           },
         })
       : await prisma.pKLAttendance.create({
@@ -112,18 +158,19 @@ class AttendanceService {
             pkl_assignment_id: assignment.id,
             date: today,
             tap_in_time: now,
-            tap_in_lat: data.latitude,
-            tap_in_lng: data.longitude,
+            tap_in_lat: data.latitude ?? null,
+            tap_in_lng: data.longitude ?? null,
             tap_in_photo: data.photo ?? null,
-            tap_in_method: 'GPS',
-           status: 'InProgress',
+            tap_in_method: requireGps ? 'GPS' : 'Manual',
+            status: 'InProgress',
+            tap_in_location_id: validLocationId,
+            tap_in_gps_valid: isGpsValid,
           },
         });
 
     return {
-      message: 'Tap in berhasil! Selamat bekerja 💪',
+      message: locationMessage || 'Tap in berhasil! Selamat bekerja 💪',
       data: attendance,
-      location_distance: `${gpsCheck.distance}m dari lokasi`,
     };
   }
 
@@ -137,6 +184,9 @@ class AttendanceService {
       },
       include: {
         industry: true,
+        allowed_locations: {
+          where: { is_active: true },
+        },
       },
     });
 
@@ -178,23 +228,49 @@ class AttendanceService {
 
     const now = new Date();
 
-    // Validate GPS if provided
+    // GPS Validation for Tap Out (optional but tracked)
+    let isGpsValid = false;
+    let validLocationId: number | null = null;
     let locationMessage = '';
-    if (data.latitude && data.longitude) {
-      if (!isValidCoordinates(data.latitude, data.longitude)) {
-        throw new Error('Koordinat GPS tidak valid');
+
+    const isFlexible = assignment.pkl_type === 'Flexible';
+    const requireGps = assignment.require_gps_validation && !isFlexible;
+
+    if (data.latitude && data.longitude && isValidCoordinates(data.latitude, data.longitude)) {
+      // Validate against allowed locations
+      if (assignment.allowed_locations && assignment.allowed_locations.length > 0) {
+        for (const loc of assignment.allowed_locations) {
+          const locCheck = isWithinRadius(
+            data.latitude,
+            data.longitude,
+            Number(loc.latitude),
+            Number(loc.longitude),
+            loc.radius_meters
+          );
+          
+          if (locCheck.isValid) {
+            isGpsValid = true;
+            validLocationId = loc.id;
+            locationMessage = `${locCheck.distance}m dari ${loc.location_name}`;
+            break;
+          }
+        }
+      } else {
+        // Fallback: Check Industry Location
+        const industry = assignment.industry;
+        const gpsCheck = isWithinRadius(
+          data.latitude,
+          data.longitude,
+          Number(industry.latitude),
+          Number(industry.longitude),
+          industry.radius_meters
+        );
+
+        if (gpsCheck.isValid) {
+          isGpsValid = true;
+          locationMessage = `${gpsCheck.distance}m dari ${industry.company_name}`;
+        }
       }
-
-      const industry = assignment.industry;
-      const gpsCheck = isWithinRadius(
-        data.latitude,
-        data.longitude,
-        Number(industry.latitude),
-        Number(industry.longitude),
-        industry.radius_meters
-      );
-
-      locationMessage = `${gpsCheck.distance}m dari lokasi`;
     }
 
     // Calculate total hours
@@ -207,7 +283,9 @@ class AttendanceService {
         tap_out_time: now,
         tap_out_lat: data.latitude ?? null,
         tap_out_lng: data.longitude ?? null,
-        tap_out_method: data.latitude ? 'GPS' : 'Manual',
+        tap_out_method: (data.latitude && data.longitude) ? 'GPS' : 'Manual',
+        tap_out_location_id: validLocationId,
+        tap_out_gps_valid: isGpsValid,
         total_hours: totalHours,
         status: 'Present',
       },
@@ -217,7 +295,7 @@ class AttendanceService {
       message: 'Tap out berhasil! Hati-hati di jalan 🙏',
       data: updated,
       total_hours: `${totalHours} jam`,
-      location_distance: locationMessage,
+      location_info: locationMessage || null,
     };
   }
 
@@ -323,8 +401,8 @@ class AttendanceService {
       return { data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 0 } };
     }
 
-    const page = query.page || 1;
-    const limit = query.limit || 10;
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -440,8 +518,8 @@ class AttendanceService {
 
   // Get Pending Approvals (Supervisor)
   async getPendingApprovals(supervisorUserId: number, query: any) {
-    const page = query.page || 1;
-    const limit = query.limit || 10;
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;
 
     const where: any = {

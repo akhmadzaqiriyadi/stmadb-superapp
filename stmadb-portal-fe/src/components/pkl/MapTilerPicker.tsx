@@ -65,6 +65,10 @@ export default function MapTilerPicker({
     }
 
     return () => {
+      if (marker.current) {
+        marker.current.remove();
+        marker.current = null;
+      }
       if (map.current) {
         map.current.remove();
         map.current = null;

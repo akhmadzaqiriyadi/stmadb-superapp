@@ -205,21 +205,25 @@ export function TeachingJournalHistory() {
                       {/* Attendance Percentage */}
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border-2 bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
                         <span className="text-xs font-bold text-green-700">
-                          {Math.round(
-                            ((journal.attendance_stats.hadir + journal.attendance_stats.izin + journal.attendance_stats.sakit) / 
-                             journal.attendance_stats.total) * 100
-                          )}% Kehadiran
+                          {Math.round((journal.attendance_stats.hadir / journal.attendance_stats.total) * 100)}% Kehadiran
                         </span>
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Time */}
-                <div className="mt-2">
+                {/* Time and Reflection Indicator */}
+                <div className="flex items-center justify-between mt-2">
                   <p className="text-xs text-gray-500">
                     {formatTimeWIB(journal.schedule.start_time)} - {formatTimeWIB(journal.schedule.end_time)}
                   </p>
+                  
+                  {/* Reflection Notes Indicator */}
+                  {journal.reflection_notes && (
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200">
+                      <span className="text-[10px] font-bold text-red-600">refleksi/ catatan</span>
+                    </div>
+                  )}
                 </div>
               </Link>
 

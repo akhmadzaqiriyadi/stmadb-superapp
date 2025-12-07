@@ -136,4 +136,43 @@ router.get(
   assignmentController.getAssignmentByStudentId
 );
 
+/**
+ * @openapi
+ * /pkl/assignments/{id}/locations:
+ *   post:
+ *     tags: [PKL - Assignment]
+ *     summary: (Admin) Add allowed location to assignment
+ */
+router.post(
+  '/:id/locations',
+  authorize(['Admin']),
+  assignmentController.addAllowedLocation
+);
+
+/**
+ * @openapi
+ * /pkl/assignments/{id}/locations:
+ *   get:
+ *     tags: [PKL - Assignment]
+ *     summary: Get allowed locations for assignment
+ */
+router.get(
+  '/:id/locations',
+  authorize(['Admin', 'Teacher', 'WaliKelas', 'Student']),
+  assignmentController.getAllowedLocations
+);
+
+/**
+ * @openapi
+ * /pkl/assignments/{id}/locations/{locationId}:
+ *   delete:
+ *     tags: [PKL - Assignment]
+ *     summary: (Admin) Remove allowed location from assignment
+ */
+router.delete(
+  '/:id/locations/:locationId',
+  authorize(['Admin']),
+  assignmentController.removeAllowedLocation
+);
+
 export default router;

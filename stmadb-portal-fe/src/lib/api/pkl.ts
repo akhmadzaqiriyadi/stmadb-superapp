@@ -77,13 +77,25 @@ export const assignmentsApi = {
 
   getByStudent: (studentId: number) =>
     api.get(`/pkl/assignments/student/${studentId}`),
+
+  // Allowed Locations
+  addLocation: (id: number, data: any) =>
+    api.post(`/pkl/assignments/${id}/locations`, data),
+
+  removeLocation: (id: number, locationId: number) =>
+    api.delete(`/pkl/assignments/${id}/locations/${locationId}`),
+
+  getLocations: (id: number) =>
+    api.get(`/pkl/assignments/${id}/locations`),
 };
 
 // ===== ATTENDANCE API =====
 export const attendanceApi = {
   // Student
-  tapIn: (data: { latitude: number; longitude: number; photo?: string }) =>
-    api.post('/pkl/attendance/tap-in', data),
+  tapIn: (formData: FormData) =>
+    api.post('/pkl/attendance/tap-in', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
 
   tapOut: (data?: { latitude?: number; longitude?: number }) =>
     api.post('/pkl/attendance/tap-out', data),
@@ -107,6 +119,8 @@ export const attendanceApi = {
 
   getToday: () => api.get('/pkl/attendance/today'),
 
+  getTodayAttendance: () => api.get('/pkl/attendance/today'),
+
   getStats: () => api.get('/pkl/attendance/stats'),
 
   // Supervisor
@@ -118,6 +132,52 @@ export const attendanceApi = {
 
   reject: (attendanceId: number, approval_notes?: string) =>
     api.patch(`/pkl/attendance/${attendanceId}/reject`, { approval_notes }),
+};
+
+// ===== JOURNAL API =====
+export const journalApi = {
+  // Student
+  getMyJournals: (params?: {
+    page?: number;
+    limit?: number;
+    start_date?: string;
+    end_date?: string;
+  }) => api.get('/pkl/journals/my', { params }),
+
+  getJournalById: (id: number) => api.get(`/pkl/journals/${id}`),
+
+  createJournal: (data: {
+    date: string;
+    activities: string;
+    learning_points: string;
+    obstacles?: string;
+    solutions?: string;
+    photo_url?: string;
+    attachment_url?: string;
+  }) => api.post('/pkl/journals', data),
+
+  updateJournal: (id: string, data: any) => api.put(`/pkl/journals/${id}`, data),
+
+  submitJournal: (id: number) => api.post(`/pkl/journals/${id}/submit`),
+
+  uploadPhotos: (journalId: number, formData: FormData) => 
+    api.post(`/pkl/journals/${journalId}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
+  deletePhoto: (journalId: number, photoUrl: string) =>
+    api.delete(`/pkl/journals/${journalId}/photos`, { data: { photo_url: photoUrl } }),
+
+  deleteJournal: (id: string) => api.delete(`/pkl/journals/${id}`),
+
+  // Supervisor (deprecated - no longer used)
+  getPendingJournals: (params?: { page?: number; limit?: number }) =>
+    api.get('/pkl/journals/pending', { params }),
+
+  provideFeedback: (
+    id: string,
+    data: { supervisor_feedback: string; supervisor_approved: boolean }
+  ) => api.patch(`/pkl/journals/${id}/feedback`, data),
 };
 
 // ===== SUPERVISOR API =====

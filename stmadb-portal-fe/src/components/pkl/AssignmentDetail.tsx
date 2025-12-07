@@ -14,6 +14,7 @@ import {
   Pause,
   UserCheck,
   Phone,
+  MapPin,
 } from "lucide-react";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -262,6 +263,85 @@ export default function AssignmentDetail({
           </CardContent>
         </Card>
       </div>
+
+      {/* Attendance Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5" />
+            Pengaturan Kehadiran
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* PKL Type & Work Schedule */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium mb-2">Tipe PKL</p>
+              <Badge variant="outline" className="text-base">
+                {assignment.pkl_type || 'Onsite'}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">Jadwal Kerja</p>
+              <Badge variant="outline" className="text-base">
+                {assignment.work_schedule_type || 'Fixed'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Work Hours */}
+          {(assignment.work_start_time || assignment.work_end_time) && (
+            <div>
+              <p className="text-sm font-medium mb-2">Jam Kerja</p>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>
+                  {assignment.work_start_time || '-'} s/d {assignment.work_end_time || '-'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* GPS Validation */}
+          <div>
+            <p className="text-sm font-medium mb-2">Validasi GPS</p>
+            <Badge variant={assignment.require_gps_validation ? 'default' : 'secondary'}>
+              {assignment.require_gps_validation ? 'Aktif' : 'Tidak Aktif'}
+            </Badge>
+          </div>
+
+          {/* Allowed Locations */}
+          {assignment.allowed_locations && assignment.allowed_locations.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-3">Lokasi yang Diizinkan</p>
+              <div className="space-y-3">
+                {assignment.allowed_locations.map((location: any, index: number) => (
+                  <div
+                    key={location.id}
+                    className="p-3 border rounded-lg bg-muted/50"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        <span className="font-medium">
+                          {location.location_name || `Lokasi ${index + 1}`}
+                        </span>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {location.radius_meters}m
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground ml-6">
+                      <p>Lat: {location.latitude}</p>
+                      <p>Lng: {location.longitude}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Notes */}
       {assignment.notes && (

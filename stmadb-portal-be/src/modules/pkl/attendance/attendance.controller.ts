@@ -2,6 +2,7 @@
 
 import type { Request, Response } from 'express';
 import { attendanceService } from './attendance.service.js';
+import { getAttendancePhotoUrl } from '../../../core/config/multer.config.js';
 
 // Tap In
 export const tapIn = async (req: Request, res: Response) => {
@@ -11,7 +12,18 @@ export const tapIn = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'User tidak terautentikasi' });
     }
 
-    const result = await attendanceService.tapIn(studentUserId, req.body);
+    // Get latitude and longitude from form data
+    const data: any = {
+      latitude: parseFloat(req.body.latitude),
+      longitude: parseFloat(req.body.longitude),
+    };
+
+    // Add photo URL only if file was uploaded
+    if (req.file) {
+      data.photo = getAttendancePhotoUrl(req.file.filename);
+    }
+
+    const result = await attendanceService.tapIn(studentUserId, data);
 
     res.status(201).json(result);
   } catch (error) {

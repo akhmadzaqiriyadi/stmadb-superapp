@@ -596,6 +596,34 @@ model Industry {
   @@index([is_active])
 }
 
+
+
+enum PKLStatus {
+  Active // Sedang berlangsung
+  Completed // Selesai
+  Cancelled // Dibatalkan
+  OnHold // Ditangguhkan
+}
+
+enum PKLType {
+  Onsite    // Hanya di lokasi industri (wajib GPS di 1 lokasi)
+  Remote    // Dari rumah/remote (wajib GPS di lokasi rumah)
+  Hybrid    // Fleksibel (bisa di kantor atau rumah)
+  Flexible  // Sangat fleksibel (tidak wajib GPS, hanya tap in/out)
+}
+
+enum WorkScheduleType {
+  Regular    // Jam tetap (08:00-17:00)
+  Shift      // Shift (pagi/siang/malam)
+  Flexible   // Fleksibel (tidak ada jam tetap)
+}
+
+enum LocationType {
+  Primary    // Lokasi utama (kantor/industri)
+  Secondary  // Lokasi sekunder (rumah/cabang)
+  Temporary  // Lokasi sementara (project site, dll)
+}
+
 // 2. PKL Assignment
 model PKLAssignment {
   id Int @id @default(autoincrement())
@@ -628,9 +656,21 @@ model PKLAssignment {
   // Status
   status PKLStatus @default(Active)
 
+  // --- NEW FIELDS FOR FLEXIBLE ATTENDANCE ---
+  pkl_type PKLType @default(Onsite)
+  
+  // Work Schedule Settings
+  work_schedule_type WorkScheduleType @default(Regular)
+  work_start_time    DateTime?         @db.Time
+  work_end_time      DateTime?         @db.Time
+  
+  // GPS Validation Settings
+  require_gps_validation Boolean @default(true)
+
   // Relations
-  attendances PKLAttendance[]
-  journals    PKLJournal[]
+  attendances       PKLAttendance[]
+  journals          PKLJournal[]
+  allowed_locations PKLAllowedLocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -642,11 +682,25 @@ model PKLAssignment {
   @@index([status])
 }
 
-enum PKLStatus {
-  Active // Sedang berlangsung
-  Completed // Selesai
-  Cancelled // Dibatalkan
-  OnHold // Ditangguhkan
+model PKLAllowedLocation {
+  id                Int           @id @default(autoincrement())
+  pkl_assignment_id Int
+  pkl_assignment    PKLAssignment @relation(fields: [pkl_assignment_id], references: [id], onDelete: Cascade)
+
+  // Lokasi
+  location_name String        // "Kantor PT. XYZ", "Rumah Siswa", "Cabang Jakarta"
+  location_type LocationType  @default(Primary)
+  latitude      Decimal       @db.Decimal(10, 8)
+  longitude     Decimal       @db.Decimal(11, 8)
+  radius_meters Int           @default(100)
+
+  // Status
+  is_active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pkl_assignment_id])
 }
 
 // 3. PKL Attendance (Tap In/Out)
@@ -688,6 +742,13 @@ model PKLAttendance {
   manual_reason String? @db.Text // Alasan lupa tap
 
   notes String? @db.Text
+
+  // --- NEW FIELDS FOR FLEXIBLE ATTENDANCE ---
+  tap_in_location_id  Int?
+  tap_out_location_id Int?
+  
+  tap_in_gps_valid  Boolean @default(false)
+  tap_out_gps_valid Boolean @default(false)
 
   // Relation to journal
   journal PKLJournal?

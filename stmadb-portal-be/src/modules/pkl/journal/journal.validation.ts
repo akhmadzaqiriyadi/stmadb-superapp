@@ -5,12 +5,14 @@ import { z } from 'zod';
 // Create/Update Journal
 export const createJournalSchema = z.object({
   body: z.object({
-    attendance_id: z.number().int().positive('Attendance ID harus valid'),
+    attendance_id: z.number().int().positive('Attendance ID harus valid').optional(),
     date: z.string().datetime('Format tanggal tidak valid'),
     activities: z.string().min(10, 'Deskripsi aktivitas minimal 10 karakter').max(1000, 'Deskripsi aktivitas maksimal 1000 karakter'),
-    learnings: z.string().optional(),
-    challenges: z.string().optional(),
-    self_rating: z.number().int().min(1).max(5).optional(),
+    learning_points: z.string().min(10, 'Pembelajaran minimal 10 karakter').optional(),
+    obstacles: z.string().optional(),
+    solutions: z.string().optional(),
+    photo_url: z.string().url().optional().or(z.literal('')),
+    attachment_url: z.string().url().optional().or(z.literal('')),
   }),
 });
 

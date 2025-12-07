@@ -7,9 +7,10 @@ import type { Request } from 'express';
 const uploadsDir = path.join(process.cwd(), 'uploads');
 const journalPhotosDir = path.join(uploadsDir, 'journal-photos');
 const journalAttachmentsDir = path.join(uploadsDir, 'journal-attachments');
+const attendancePhotosDir = path.join(uploadsDir, 'attendance-photos');
 
 // Ensure folders exist
-[uploadsDir, journalPhotosDir, journalAttachmentsDir].forEach((d) => {
+[uploadsDir, journalPhotosDir, journalAttachmentsDir, attendancePhotosDir].forEach((d) => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 
@@ -33,6 +34,12 @@ const journalPhotoStorage = multer.diskStorage({
 // Storage for attachments (pdf/docx etc)
 const journalAttachmentStorage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => cb(null, journalAttachmentsDir),
+  filename: (req: Request, file: Express.Multer.File, cb) => cb(null, makeSafeFilename(file.originalname)),
+});
+
+// Storage for attendance selfie photos
+const attendancePhotoStorage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb) => cb(null, attendancePhotosDir),
   filename: (req: Request, file: Express.Multer.File, cb) => cb(null, makeSafeFilename(file.originalname)),
 });
 
@@ -68,6 +75,12 @@ export const uploadJournalAttachments = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 10 }, // 10MB, max 10 files
 });
 
+export const uploadAttendancePhoto = multer({
+  storage: attendancePhotoStorage,
+  fileFilter: imageFileFilter,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 }, // 5MB, max 1 file
+});
+
 // Helpers to build public URLs (served at /uploads/... by app.ts)
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -85,3 +98,9 @@ export const deleteJournalAttachment = (filename: string) => {
   if (fs.existsSync(p)) fs.unlinkSync(p);
 };
 
+export const getAttendancePhotoUrl = (filename: string) => `${BASE_URL}/uploads/attendance-photos/${encodeURIComponent(filename)}`;
+
+export const deleteAttendancePhoto = (filename: string) => {
+  const p = path.join(attendancePhotosDir, filename);
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+};

@@ -20,12 +20,9 @@ interface TimeValidationResult {
 export class TeachingJournalService {
   
   // Grace period dalam menit
-  // Guru bisa mengisi jurnal dalam rentang waktu tertentu sebelum dan sesudah jadwal
-  // Contoh: Jadwal 12:50-15:30
-  //   - Bisa mulai isi dari jam 11:50 (1 jam sebelum)
-  //   - Bisa isi sampai jam 18:30 (3 jam setelah selesai)
-  private readonly GRACE_BEFORE = 60;  // 1 jam (60 menit) sebelum jadwal mulai
-  private readonly GRACE_AFTER = 180;  // 3 jam (180 menit) setelah jadwal selesai
+  // Untuk jadwal panjang (misal 07:00-15:30), guru bisa isi jurnal selama jam pelajaran berlangsung
+  private readonly GRACE_BEFORE = 30; // 30 menit sebelum mulai
+  private readonly GRACE_AFTER = 120; // 2 jam setelah selesai (untuk antisipasi keterlambatan isi jurnal)
   
   // Testing mode: disable time validation (set DISABLE_TIME_VALIDATION=true di .env)
   private readonly DISABLE_TIME_VALIDATION = process.env.DISABLE_TIME_VALIDATION === 'true';
@@ -72,17 +69,8 @@ export class TeachingJournalService {
       return {
         isValid: false,
         message: 'Jadwal tidak ditemukan atau Anda tidak memiliki akses'
-      }
+      };
     }
-    
-    // Helper: Extract WIB time from database UTC timestamp
-    // Database stores: "1970-01-01T07:00:00.000Z" to represent 07:00 WIB
-    const extractWIBTime = (dbTime: Date): string => {
-      const d = new Date(dbTime);
-      const hours = d.getUTCHours();
-      const minutes = d.getUTCMinutes();
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    };
     
     // TESTING MODE: Skip time validation
     if (this.DISABLE_TIME_VALIDATION) {
@@ -90,8 +78,8 @@ export class TeachingJournalService {
         isValid: true,
         message: '✅ [TESTING MODE] Validasi waktu dinonaktifkan - bisa isi kapan saja',
         schedule: {
-          start_time: extractWIBTime(schedule.start_time),
-          end_time: extractWIBTime(schedule.end_time),
+          start_time: format(schedule.start_time, 'HH:mm'),
+          end_time: format(schedule.end_time, 'HH:mm'),
           day_of_week: schedule.day_of_week
         }
       };
@@ -137,12 +125,9 @@ export class TeachingJournalService {
       };
     }
     
-    // 4. Parse schedule times using helper function
-    // IMPORTANT: Database stores times as UTC but they represent WIB times
-    // Example: "1970-01-01T07:00:00.000Z" means 07:00 WIB, NOT 07:00 UTC
-    const scheduleStartStr = extractWIBTime(schedule.start_time);
-    const scheduleEndStr = extractWIBTime(schedule.end_time);
-    
+    // 4. Parse schedule times
+    const scheduleStartStr = format(schedule.start_time, 'HH:mm');
+    const scheduleEndStr = format(schedule.end_time, 'HH:mm');
     const scheduleStart = parseISO(`1970-01-01T${scheduleStartStr}`);
     const scheduleEnd = parseISO(`1970-01-01T${scheduleEndStr}`);
     const currentTimeDate = parseISO(`1970-01-01T${currentTime}`);
@@ -151,19 +136,11 @@ export class TeachingJournalService {
     const allowedStart = addMinutes(scheduleStart, -this.GRACE_BEFORE);
     const allowedEnd = addMinutes(scheduleEnd, this.GRACE_AFTER);
     
-    console.log('⏰ Time Validation Details:');
-    console.log('  - Current time (WIB):', currentTime);
-    console.log(`  - Schedule (WIB): ${scheduleStartStr} - ${scheduleEndStr}`);
-    console.log(`  - Grace period: ${this.GRACE_BEFORE} min before, ${this.GRACE_AFTER} min after`);
-    console.log(`  - Allowed range (WIB): ${format(allowedStart, 'HH:mm')} - ${format(allowedEnd, 'HH:mm')}`);
-    
     // 6. Check if current time is within allowed interval
     const isWithinTime = isWithinInterval(currentTimeDate, {
       start: allowedStart,
       end: allowedEnd
     });
-    
-    console.log('  - Is within time?', isWithinTime);
     
     if (!isWithinTime) {
       const allowedStartStr = format(allowedStart, 'HH:mm');
@@ -171,27 +148,22 @@ export class TeachingJournalService {
       
       return {
         isValid: false,
-        message: `Waktu pengisian jurnal tidak valid.\n\n` +
-                 `📅 Jadwal mengajar: ${scheduleStartStr} - ${scheduleEndStr}\n` +
-                 `⏰ Boleh mengisi jurnal: ${allowedStartStr} - ${allowedEndStr}\n` +
-                 `🕐 Waktu sekarang: ${currentTime}\n\n` +
-                 `Catatan: Anda dapat mengisi jurnal mulai 1 jam sebelum jadwal hingga 3 jam setelah jadwal selesai.`,
+        message: `Jurnal hanya dapat diisi pada jam ${allowedStartStr} - ${allowedEndStr}. Sekarang: ${currentTime}`,
         schedule: {
-          start_time: scheduleStartStr,
-          end_time: scheduleEndStr,
+          start_time: format(schedule.start_time, 'HH:mm'),
+          end_time: format(schedule.end_time, 'HH:mm'),
           day_of_week: schedule.day_of_week
         }
       };
     }
     
     // 7. All validation passed
-    console.log('  ✅ Validation passed - time is valid');
     return {
       isValid: true,
       message: 'Waktu valid untuk mengisi jurnal',
       schedule: {
-        start_time: scheduleStartStr,  // Use the WIB string we extracted
-        end_time: scheduleEndStr,      // Use the WIB string we extracted
+        start_time: format(schedule.start_time, 'HH:mm'),
+        end_time: format(schedule.end_time, 'HH:mm'),
         day_of_week: schedule.day_of_week
       }
     };
@@ -219,21 +191,16 @@ export class TeachingJournalService {
     const now = new Date();
     const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
     const today = format(jakartaTime, 'yyyy-MM-dd');
-    
-    // Parse journal_date as Jakarta timezone (not UTC)
-    // The incoming date string is already in Jakarta timezone from frontend
-    const journalDateParsed = new Date(journal_date);
-    const journalDateStr = format(journalDateParsed, 'yyyy-MM-dd');
+    const journalDateStr = format(new Date(journal_date), 'yyyy-MM-dd');
     
     console.log('📅 Date Validation Debug:');
     console.log('  - Server time (UTC):', now.toISOString());
     console.log('  - Jakarta time:', jakartaTime.toISOString());
     console.log('  - Today (Jakarta):', today);
-    console.log('  - Journal date input:', journal_date);
-    console.log('  - Journal date parsed:', journalDateStr);
+    console.log('  - Journal date:', journalDateStr);
     
     if (journalDateStr !== today) {
-      throw new Error(`Jurnal hanya dapat diisi untuk hari ini (${today}). Tanggal yang Anda pilih: ${journalDateStr}`);
+      throw new Error('Jurnal hanya dapat diisi untuk hari ini');
     }
     
     // 3. Check duplicate
@@ -390,7 +357,6 @@ export class TeachingJournalService {
   
   /**
    * Get my journals (teacher)
-   * Filters journals based on active week settings per grade level
    */
   async getMyJournals(teacherId: number, query: GetMyJournalsQuery) {
     const { page = 1, limit = 10, search, date_from, date_to, class_id, teacher_status } = query;
@@ -478,52 +444,14 @@ export class TeachingJournalService {
       prisma.teachingJournal.count({ where })
     ]);
     
-    // Get active week settings for filtering
-    const activeWeeks = await prisma.activeScheduleWeek.findMany({
-      where: {
-        academic_year: {
-          is_active: true
-        }
-      }
-    });
-    
-    // Create map of grade_level -> active_week_type
-    const activeWeekMap = new Map<number, string>();
-    activeWeeks.forEach(aw => {
-      activeWeekMap.set(aw.grade_level, aw.active_week_type);
-    });
-    
-    // Filter journals based on active week
-    const filteredJournals = journals.filter((journal: any) => {
-      const gradeLevel = journal.schedule.assignment.class.grade_level;
-      const scheduleType = journal.schedule.schedule_type;
-      const activeWeekType = activeWeekMap.get(gradeLevel);
-      
-      // Always include "Umum" schedules
-      if (scheduleType === 'Umum') return true;
-      
-      // If no active week setting, include all
-      if (!activeWeekType) return true;
-      
-      // If active week is "Umum", include all
-      if (activeWeekType === 'Umum') return true;
-      
-      // Otherwise, schedule must match active week
-      return scheduleType === activeWeekType;
-    });
-    
     // Calculate attendance stats for each journal from daily_session
-    const journalsWithStats = filteredJournals.map((journal: any) => {
+    const journalsWithStats = journals.map((journal: any) => {
       const attendances = journal.daily_session?.student_attendances ?? [];
       const total = attendances.length;
       const hadir = attendances.filter((a: any) => a.status === 'Hadir').length;
       const sakit = attendances.filter((a: any) => a.status === 'Sakit').length;
       const izin = attendances.filter((a: any) => a.status === 'Izin').length;
       const alfa = attendances.filter((a: any) => a.status === 'Alfa').length;
-      
-      // Attendance rate = (H + I + S) / Total × 100%
-      // Alfa (absent without permission) is NOT counted as attendance
-      const attendanceCount = hadir + izin + sakit;
       
       return {
         ...journal,
@@ -533,7 +461,7 @@ export class TeachingJournalService {
           sakit,
           izin,
           alfa,
-          rate: total > 0 ? ((attendanceCount / total) * 100).toFixed(1) : '0'
+          rate: total > 0 ? ((hadir / total) * 100).toFixed(1) : '0'
         }
       };
     });
@@ -543,8 +471,8 @@ export class TeachingJournalService {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: filteredJournals.length,
-        totalPages: Math.ceil(filteredJournals.length / limitNum)
+        total,
+        totalPages: Math.ceil(total / limitNum)
       }
     };
   }
@@ -604,22 +532,14 @@ export class TeachingJournalService {
     
     // Calculate stats from daily_session
     const attendances = journal.daily_session?.student_attendances ?? [];
-    const hadir = attendances.filter((a: any) => a.status === 'Hadir').length;
-    const sakit = attendances.filter((a: any) => a.status === 'Sakit').length;
-    const izin = attendances.filter((a: any) => a.status === 'Izin').length;
-    const alfa = attendances.filter((a: any) => a.status === 'Alfa').length;
-    
-    // Attendance rate = (H + I + S) / Total × 100%
-    const attendanceCount = hadir + izin + sakit;
-    
     const stats = {
       total: attendances.length,
-      hadir,
-      sakit,
-      izin,
-      alfa,
+      hadir: attendances.filter((a: any) => a.status === 'Hadir').length,
+      sakit: attendances.filter((a: any) => a.status === 'Sakit').length,
+      izin: attendances.filter((a: any) => a.status === 'Izin').length,
+      alfa: attendances.filter((a: any) => a.status === 'Alfa').length,
       rate: attendances.length > 0 
-        ? ((attendanceCount / attendances.length) * 100).toFixed(1) 
+        ? ((attendances.filter((a: any) => a.status === 'Hadir').length / attendances.length) * 100).toFixed(1) 
         : '0'
     };
     
@@ -1206,63 +1126,31 @@ export class TeachingJournalService {
         { class_name: 'asc' }
       ]
     });
-
-    // Get active week settings for filtering
-    const activeWeeks = await prisma.activeScheduleWeek.findMany({
-      where: {
-        academic_year: {
-          is_active: true
-        }
-      }
-    });
-
-    // Create map of grade_level -> active_week_type
-    const activeWeekMap = new Map<number, string>();
-    activeWeeks.forEach(aw => {
-      activeWeekMap.set(aw.grade_level, aw.active_week_type);
-    });
-
+    
     // For each class, find ALL current active schedules and journals
     const dashboardData: any[] = [];
-
+    
     for (const cls of classes) {
       const activeSchedules = [];
-
-      // Find ALL active schedules for this class based on current time AND active week
+      
+      // Find ALL active schedules for this class based on current time
       for (const assignment of cls.teacher_assignments) {
         for (const schedule of assignment.schedules) {
-          // Check if schedule matches active week
-          const gradeLevel = cls.grade_level;
-          const scheduleType = schedule.schedule_type;
-          const activeWeekType = activeWeekMap.get(gradeLevel);
-
-          // Filter by active week
-          let matchesActiveWeek = false;
-          if (scheduleType === 'Umum') {
-            matchesActiveWeek = true;
-          } else if (!activeWeekType || activeWeekType === 'Umum') {
-            matchesActiveWeek = true;
-          } else {
-            matchesActiveWeek = scheduleType === activeWeekType;
-          }
-
-          if (!matchesActiveWeek) continue;
-
           const scheduleStart = format(schedule.start_time, 'HH:mm');
           const scheduleEnd = format(schedule.end_time, 'HH:mm');
           const scheduleStartTime = parseISO(`1970-01-01T${scheduleStart}`);
           const scheduleEndTime = parseISO(`1970-01-01T${scheduleEnd}`);
           const currentTimeDate = parseISO(`1970-01-01T${currentTime}`);
-
+          
           // Check if current time is within schedule (with grace period)
           const allowedStart = addMinutes(scheduleStartTime, -15);
           const allowedEnd = addMinutes(scheduleEndTime, 30);
-
+          
           const isActiveNow = isWithinInterval(currentTimeDate, {
             start: allowedStart,
             end: allowedEnd
           });
-
+          
           if (isActiveNow) {
             // Get journal for this schedule today
             const activeJournal = await prisma.teachingJournal.findFirst({

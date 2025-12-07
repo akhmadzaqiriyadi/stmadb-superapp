@@ -1,6 +1,6 @@
 // src/modules/pkl/assignment/assignment.service.ts
 
-import { PrismaClient, PKLStatus } from '@prisma/client';
+import { PrismaClient, PKLStatus, PKLType, WorkScheduleType, LocationType } from '@prisma/client';
 import { parseISO } from 'date-fns';
 
 const prisma = new PrismaClient();
@@ -16,6 +16,12 @@ interface CreateAssignmentDto {
   company_mentor_email?: string;
   learning_objectives?: string;
   notes?: string;
+  // New fields
+  pkl_type?: PKLType;
+  work_schedule_type?: WorkScheduleType;
+  work_start_time?: string;
+  work_end_time?: string;
+  require_gps_validation?: boolean;
 }
 
 interface UpdateAssignmentDto {
@@ -29,6 +35,12 @@ interface UpdateAssignmentDto {
   learning_objectives?: string;
   notes?: string;
   status?: PKLStatus;
+  // New fields
+  pkl_type?: PKLType;
+  work_schedule_type?: WorkScheduleType;
+  work_start_time?: string;
+  work_end_time?: string;
+  require_gps_validation?: boolean;
 }
 
 interface GetAllAssignmentsQuery {
@@ -115,6 +127,11 @@ class AssignmentService {
         company_mentor_email: data.company_mentor_email ?? null,
         learning_objectives: data.learning_objectives ?? null,
         notes: data.notes ?? null,
+        pkl_type: data.pkl_type ?? 'Onsite',
+        work_schedule_type: data.work_schedule_type ?? 'Regular',
+        work_start_time: data.work_start_time ? new Date(`1970-01-01T${data.work_start_time}`) : null,
+        work_end_time: data.work_end_time ? new Date(`1970-01-01T${data.work_end_time}`) : null,
+        require_gps_validation: data.require_gps_validation ?? true,
       },
       include: {
         student: {
@@ -366,6 +383,11 @@ class AssignmentService {
       updateData.learning_objectives = data.learning_objectives ?? null;
     if (data.notes !== undefined) updateData.notes = data.notes ?? null;
     if (data.status) updateData.status = data.status;
+    if (data.pkl_type) updateData.pkl_type = data.pkl_type;
+    if (data.work_schedule_type) updateData.work_schedule_type = data.work_schedule_type;
+    if (data.work_start_time) updateData.work_start_time = new Date(`1970-01-01T${data.work_start_time}`);
+    if (data.work_end_time) updateData.work_end_time = new Date(`1970-01-01T${data.work_end_time}`);
+    if (data.require_gps_validation !== undefined) updateData.require_gps_validation = data.require_gps_validation;
 
     // Validate date range if both dates provided
     if (updateData.start_date && updateData.end_date) {
@@ -471,6 +493,64 @@ class AssignmentService {
     });
 
     return assignments;
+  }
+
+
+  // Add Allowed Location
+  async addAllowedLocation(assignmentId: number, data: {
+    location_name: string;
+    location_type: LocationType;
+    latitude: number;
+    longitude: number;
+    radius_meters?: number;
+  }) {
+    const assignment = await prisma.pKLAssignment.findUnique({
+      where: { id: assignmentId },
+    });
+
+    if (!assignment) {
+      throw new Error('Assignment PKL tidak ditemukan');
+    }
+
+    const location = await prisma.pKLAllowedLocation.create({
+      data: {
+        pkl_assignment_id: assignmentId,
+        location_name: data.location_name,
+        location_type: data.location_type,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        radius_meters: data.radius_meters || 100,
+      },
+    });
+
+    return location;
+  }
+
+  // Remove Allowed Location
+  async removeAllowedLocation(locationId: number) {
+    const location = await prisma.pKLAllowedLocation.findUnique({
+      where: { id: locationId },
+    });
+
+    if (!location) {
+      throw new Error('Lokasi tidak ditemukan');
+    }
+
+    await prisma.pKLAllowedLocation.delete({
+      where: { id: locationId },
+    });
+
+    return { message: 'Lokasi berhasil dihapus' };
+  }
+
+  // Get Allowed Locations
+  async getAllowedLocations(assignmentId: number) {
+    const locations = await prisma.pKLAllowedLocation.findMany({
+      where: { pkl_assignment_id: assignmentId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return locations;
   }
 }
 
