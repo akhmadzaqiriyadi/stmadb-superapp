@@ -115,6 +115,7 @@ router.post(
   '/',
   protect,
   authorize(['Student']),
+  uploadJournalPhotos.array('photos', 5), // Support photo upload on create
   validate(createJournalSchema),
   journalController.createJournal
 );

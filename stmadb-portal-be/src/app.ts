@@ -39,9 +39,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
-app.use(express.json());
+// Middlewares
+app.use(express.json({ limit: '50mb' })); // Increased limit for photo uploads
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static files (uploads)
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

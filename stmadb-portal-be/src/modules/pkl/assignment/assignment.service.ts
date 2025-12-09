@@ -53,6 +53,7 @@ interface GetAllAssignmentsQuery {
   status?: PKLStatus;
   class_id?: number;
   major_id?: number;
+  industry_type?: string;
 }
 
 class AssignmentService {
@@ -194,6 +195,14 @@ class AssignmentService {
 
     if (query.status) {
       where.status = query.status;
+    }
+
+    // Filter by industry type
+    if (query.industry_type) {
+      where.industry = {
+        ...where.industry,
+        industry_type: { contains: query.industry_type, mode: 'insensitive' },
+      };
     }
 
     // Filter by class or major through class_memberships

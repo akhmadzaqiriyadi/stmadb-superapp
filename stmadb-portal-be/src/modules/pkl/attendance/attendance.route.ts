@@ -114,7 +114,7 @@ router.get('/stats', authorize(['Student']), attendanceController.getAttendanceS
  */
 router.get(
   '/pending-approvals',
-  authorize(['Teacher', 'WaliKelas']),
+  authorize(['Teacher', 'WaliKelas', 'Admin']),
   validate(getPendingApprovalsSchema),
   attendanceController.getPendingApprovals
 );
@@ -128,7 +128,7 @@ router.get(
  */
 router.patch(
   '/:attendanceId/approve',
-  authorize(['Teacher', 'WaliKelas']),
+  authorize(['Teacher', 'WaliKelas', 'Admin']),
   validate(approveRejectSchema),
   attendanceController.approveManualRequest
 );
@@ -142,7 +142,7 @@ router.patch(
  */
 router.patch(
   '/:attendanceId/reject',
-  authorize(['Teacher', 'WaliKelas']),
+  authorize(['Teacher', 'WaliKelas', 'Admin']),
   validate(approveRejectSchema),
   attendanceController.rejectManualRequest
 );

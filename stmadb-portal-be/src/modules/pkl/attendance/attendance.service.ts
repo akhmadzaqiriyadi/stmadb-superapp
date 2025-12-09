@@ -401,8 +401,8 @@ class AttendanceService {
       return { data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 0 } };
     }
 
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 10;
+    const page = parseInt(query.page as any) || 1;
+    const limit = parseInt(query.limit as any) || 10;
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -516,19 +516,28 @@ class AttendanceService {
     };
   }
 
-  // Get Pending Approvals (Supervisor)
-  async getPendingApprovals(supervisorUserId: number, query: any) {
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 10;
+  // Get Pending Approvals (Supervisor/Admin)
+  async getPendingApprovals(userId: number, query: any, userRoles?: string[]) {
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 10;
     const skip = (page - 1) * limit;
 
     const where: any = {
-      pkl_assignment: {
-        school_supervisor_id: supervisorUserId,
-      },
       is_manual_entry: true,
-      approval_status: 'Pending',
     };
+
+    // Filter by status if provided, otherwise show all
+    if (query.status && query.status !== 'all') {
+      where.approval_status = query.status;
+    }
+
+    // If not Admin, filter by supervisor
+    const isAdmin = userRoles?.includes('Admin');
+    if (!isAdmin) {
+      where.pkl_assignment = {
+        school_supervisor_id: userId,
+      };
+    }
 
     const [requests, total] = await Promise.all([
       prisma.pKLAttendance.findMany({
@@ -542,6 +551,7 @@ class AttendanceService {
               student: {
                 include: {
                   profile: true,
+                  student_extension: true,
                 },
               },
               industry: true,
@@ -564,7 +574,7 @@ class AttendanceService {
   }
 
   // Approve Manual Request
-  async approveManualRequest(attendanceId: number, supervisorUserId: number, notes?: string) {
+  async approveManualRequest(attendanceId: number, userId: number, notes?: string, userRoles?: string[]) {
     const attendance = await prisma.pKLAttendance.findUnique({
       where: { id: attendanceId },
       include: {
@@ -576,7 +586,9 @@ class AttendanceService {
       throw new Error('Attendance tidak ditemukan');
     }
 
-    if (attendance.pkl_assignment.school_supervisor_id !== supervisorUserId) {
+    // Check authorization: Admin can approve any, Supervisor only their students
+    const isAdmin = userRoles?.includes('Admin');
+    if (!isAdmin && attendance.pkl_assignment.school_supervisor_id !== userId) {
       throw new Error('Kamu tidak memiliki akses untuk approve request ini');
     }
 
@@ -592,7 +604,7 @@ class AttendanceService {
       where: { id: attendanceId },
       data: {
         approval_status: 'Approved',
-        approved_by_id: supervisorUserId,
+        approved_by_id: userId,
         approved_at: new Date(),
         approval_notes: notes ?? null,
         status: 'Present',
@@ -605,7 +617,7 @@ class AttendanceService {
   }
 
   // Reject Manual Request
-  async rejectManualRequest(attendanceId: number, supervisorUserId: number, notes?: string) {
+  async rejectManualRequest(attendanceId: number, userId: number, notes?: string, userRoles?: string[]) {
     const attendance = await prisma.pKLAttendance.findUnique({
       where: { id: attendanceId },
       include: {
@@ -617,7 +629,9 @@ class AttendanceService {
       throw new Error('Attendance tidak ditemukan');
     }
 
-    if (attendance.pkl_assignment.school_supervisor_id !== supervisorUserId) {
+    // Check authorization: Admin can reject any, Supervisor only their students
+    const isAdmin = userRoles?.includes('Admin');
+    if (!isAdmin && attendance.pkl_assignment.school_supervisor_id !== userId) {
       throw new Error('Kamu tidak memiliki akses untuk reject request ini');
     }
 
@@ -633,7 +647,7 @@ class AttendanceService {
       where: { id: attendanceId },
       data: {
         approval_status: 'Rejected',
-        approved_by_id: supervisorUserId,
+        approved_by_id: userId,
         approved_at: new Date(),
         approval_notes: notes ?? null,
         status: 'Absent',

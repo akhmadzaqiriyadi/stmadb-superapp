@@ -46,7 +46,7 @@ router.get(
  */
 router.get(
   '/students',
-  authorize(['Teacher', 'WaliKelas']),
+  authorize(['Teacher', 'WaliKelas', 'Admin']), // Added Admin role
   validate(getStudentsUnderSupervisionSchema),
   supervisorController.getStudentsUnderSupervision
 );

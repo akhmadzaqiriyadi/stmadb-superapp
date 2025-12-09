@@ -125,3 +125,14 @@ export const getStudentsAtIndustry = async (req: Request, res: Response) => {
     res.status(404).json({ message: (error as Error).message });
   }
 };
+
+// Get Industry Types
+export const getIndustryTypes = async (req: Request, res: Response) => {
+  try {
+    const types = await industryService.getIndustryTypes();
+
+    res.status(200).json({ data: types });
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};

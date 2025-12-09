@@ -11,6 +11,7 @@ interface CreateJournalInput {
   learnings?: string;
   challenges?: string;
   self_rating?: number;
+  photos?: string[]; // Add photos support
 }
 
 interface UpdateJournalInput {
@@ -66,7 +67,7 @@ export const createJournal = async (userId: number, data: CreateJournalInput) =>
     throw new Error('Journal untuk attendance ini sudah ada');
   }
 
-  // 4. Create journal
+  // 4. Create journal with photos
   return prisma.pKLJournal.create({
     data: {
       pkl_assignment_id: attendance.pkl_assignment_id,
@@ -76,7 +77,7 @@ export const createJournal = async (userId: number, data: CreateJournalInput) =>
       learnings: data.learnings ?? null,
       challenges: data.challenges ?? null,
       self_rating: data.self_rating ?? null,
-      // photos: null, // Removed to avoid type error, default is null in DB
+      photos: data.photos && data.photos.length > 0 ? (data.photos as any) : null, // Save photos if provided
       status: 'Draft',
     },
     include: {

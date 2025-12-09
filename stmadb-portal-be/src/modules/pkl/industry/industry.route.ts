@@ -78,6 +78,19 @@ router.get(
 
 /**
  * @openapi
+ * /pkl/industries/types:
+ *   get:
+ *     tags: [PKL - Industry]
+ *     summary: Get unique industry types
+ */
+router.get(
+  '/types',
+  authorize(['Admin', 'Teacher', 'WaliKelas']),
+  industryController.getIndustryTypes
+);
+
+/**
+ * @openapi
  * /pkl/industries/{id}:
  *   get:
  *     tags: [PKL - Industry]

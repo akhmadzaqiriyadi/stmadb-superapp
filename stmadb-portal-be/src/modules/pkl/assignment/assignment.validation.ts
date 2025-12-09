@@ -76,6 +76,7 @@ export const getAllAssignmentsSchema = z.object({
     status: z.nativeEnum(PKLStatus).optional(),
     class_id: z.coerce.number().int().positive().optional(),
     major_id: z.coerce.number().int().positive().optional(),
+    industry_type: z.string().optional(),
   }),
 });
 

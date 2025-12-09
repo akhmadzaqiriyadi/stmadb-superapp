@@ -118,14 +118,18 @@ class SupervisorService {
   }
 
   // Get Students Under Supervision
-  async getStudentsUnderSupervision(supervisorUserId: number, query: GetStudentsQuery) {
-    const page = query.page || 1;
-    const limit = query.limit || 10;
+  async getStudentsUnderSupervision(userId: number, userRoles: string[], query: GetStudentsQuery) {
+    const page = parseInt(String(query.page || 1), 10);
+    const limit = parseInt(String(query.limit || 10), 10);
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      school_supervisor_id: supervisorUserId,
-    };
+    const where: any = {};
+    
+    // Only filter by supervisor if not Admin
+    const isAdmin = userRoles.includes('Admin');
+    if (!isAdmin) {
+      where.school_supervisor_id = userId;
+    }
 
     if (query.status) {
       where.status = query.status;

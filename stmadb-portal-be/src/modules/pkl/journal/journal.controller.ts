@@ -38,6 +38,15 @@ export const createJournal = async (req: Request, res: Response) => {
       data = { ...data, attendance_id: attendance.id };
     }
 
+    // Handle uploaded photos
+    const files = req.files as Express.Multer.File[];
+    let photoUrls: string[] = [];
+    
+    if (files && files.length > 0) {
+      const { getJournalPhotoUrl } = await import('../../../core/config/multer.config.js');
+      photoUrls = files.map(file => getJournalPhotoUrl(file.filename));
+    }
+
     // Map frontend field names to backend
     const mappedData = {
       attendance_id: data.attendance_id,
@@ -46,6 +55,7 @@ export const createJournal = async (req: Request, res: Response) => {
       learnings: data.learning_points || data.learnings,
       challenges: data.obstacles || data.challenges,
       self_rating: data.self_rating,
+      photos: photoUrls, // Add photos array
     };
 
     const journal = await journalService.createJournal(userId, mappedData);

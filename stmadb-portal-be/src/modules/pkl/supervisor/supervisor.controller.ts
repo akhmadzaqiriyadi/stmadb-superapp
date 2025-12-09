@@ -22,13 +22,16 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 // Get Students Under Supervision
 export const getStudentsUnderSupervision = async (req: Request, res: Response) => {
   try {
-    const supervisorUserId = req.user?.userId;
-    if (!supervisorUserId) {
+    const userId = req.user?.userId;
+    const userRoles = req.user?.roles || [];
+    
+    if (!userId) {
       return res.status(401).json({ message: 'User tidak terautentikasi' });
     }
 
     const result = await supervisorService.getStudentsUnderSupervision(
-      supervisorUserId,
+      userId,
+      userRoles,
       req.query
     );
 

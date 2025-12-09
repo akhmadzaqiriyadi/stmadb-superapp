@@ -331,6 +331,31 @@ class IndustryService {
 
     return students;
   }
+
+  // Get unique industry types
+  async getIndustryTypes() {
+    const industries = await prisma.industry.findMany({
+      where: {
+        industry_type: {
+          not: null,
+        },
+      },
+      select: {
+        industry_type: true,
+      },
+      distinct: ['industry_type'],
+      orderBy: {
+        industry_type: 'asc',
+      },
+    });
+
+    // Extract and filter industry types
+    const types = industries
+      .map((ind) => ind.industry_type)
+      .filter((type): type is string => type !== null && type.trim() !== '');
+
+    return types;
+  }
 }
 
 export const industryService = new IndustryService();

@@ -111,15 +111,16 @@ export const getAttendanceStats = async (req: Request, res: Response) => {
   }
 };
 
-// Get Pending Approvals (Supervisor)
+// Get Pending Approvals (Supervisor/Admin)
 export const getPendingApprovals = async (req: Request, res: Response) => {
   try {
-    const supervisorUserId = req.user?.userId;
-    if (!supervisorUserId) {
+    const userId = req.user?.userId;
+    if (!userId) {
       return res.status(401).json({ message: 'User tidak terautentikasi' });
     }
 
-    const result = await attendanceService.getPendingApprovals(supervisorUserId, req.query);
+    const userRoles = req.user?.roles || [];
+    const result = await attendanceService.getPendingApprovals(userId, req.query, userRoles);
 
     res.status(200).json(result);
   } catch (error) {
@@ -130,8 +131,8 @@ export const getPendingApprovals = async (req: Request, res: Response) => {
 // Approve Manual Request
 export const approveManualRequest = async (req: Request, res: Response) => {
   try {
-    const supervisorUserId = req.user?.userId;
-    if (!supervisorUserId) {
+    const userId = req.user?.userId;
+    if (!userId) {
       return res.status(401).json({ message: 'User tidak terautentikasi' });
     }
 
@@ -146,11 +147,13 @@ export const approveManualRequest = async (req: Request, res: Response) => {
     }
 
     const { approval_notes } = req.body;
+    const userRoles = req.user?.roles || [];
 
     const result = await attendanceService.approveManualRequest(
       attendanceId,
-      supervisorUserId,
-      approval_notes
+      userId,
+      approval_notes,
+      userRoles
     );
 
     res.status(200).json({
@@ -165,8 +168,8 @@ export const approveManualRequest = async (req: Request, res: Response) => {
 // Reject Manual Request
 export const rejectManualRequest = async (req: Request, res: Response) => {
   try {
-    const supervisorUserId = req.user?.userId;
-    if (!supervisorUserId) {
+    const userId = req.user?.userId;
+    if (!userId) {
       return res.status(401).json({ message: 'User tidak terautentikasi' });
     }
 
@@ -181,11 +184,13 @@ export const rejectManualRequest = async (req: Request, res: Response) => {
     }
 
     const { approval_notes } = req.body;
+    const userRoles = req.user?.roles || [];
 
     const result = await attendanceService.rejectManualRequest(
       attendanceId,
-      supervisorUserId,
-      approval_notes
+      userId,
+      approval_notes,
+      userRoles
     );
 
     res.status(200).json({
