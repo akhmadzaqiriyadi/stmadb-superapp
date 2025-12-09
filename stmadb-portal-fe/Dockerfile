@@ -1,50 +1,76 @@
 # Tahap 1: Instalasi Dependensi
-# Tahap ini hanya meng-install dependensi dan akan di-cache oleh Docker.
-# Build akan sangat cepat jika dependensi Anda tidak berubah.
-FROM node:20-alpine AS deps
+# Menggunakan image official dengan versi spesifik untuk keamanan
+FROM node:20.18.3-alpine3.21 AS deps
+
+# Security: Install security updates
+RUN apk upgrade --no-cache && \
+    apk add --no-cache dumb-init
+
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
-RUN npm install
+
+# Install dependencies dengan npm ci untuk reproducible builds
+RUN npm ci --only=production --ignore-scripts && \
+    npm cache clean --force
 
 # ---
 
 # Tahap 2: Build Aplikasi
-# Tahap ini akan membangun kode Next.js Anda menjadi file statis dan server-side code.
-FROM node:20-alpine AS builder
+FROM node:20.18.3-alpine3.21 AS builder
+
+# Security: Install security updates
+RUN apk upgrade --no-cache
+
 WORKDIR /app
-# Salin dependensi yang sudah ter-install dari tahap 'deps'
+
+# Copy dependencies dari tahap deps
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Terima build argument untuk API URL dan set sebagai environment variable
-# Ini akan digunakan oleh Next.js selama proses build.
+# Build arguments
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# Jalankan perintah build seperti di package.json Anda
-RUN npm run build
+# Install dev dependencies dan build
+RUN npm ci --ignore-scripts && \
+    npm run build && \
+    npm cache clean --force
 
 # ---
 
-# Tahap 3: Produksi (Image Final)
-# Ini adalah image akhir yang sangat ringan yang akan dijalankan di VPS.
-FROM node:20-alpine AS runner
+# Tahap 3: Production Runner
+FROM node:20.18.3-alpine3.21 AS runner
+
+# Security: Install security updates dan dumb-init
+RUN apk upgrade --no-cache && \
+    apk add --no-cache dumb-init && \
+    rm -rf /var/cache/apk/*
+
 WORKDIR /app
 
-# Set environment ke 'production'
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Set production environment
 ENV NODE_ENV=production
 
-# Salin hanya file yang dibutuhkan untuk menjalankan aplikasi dari tahap 'builder'
+# Copy built application
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
-
-# Salin output build Next.js
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 
-# Tentukan port yang akan diekspos (port internal container)
-# Next.js defaultnya berjalan di port 3000
+# Security: Switch to non-root user
+USER nextjs
+
+# Expose port
 EXPOSE 3000
 
-# Perintah untuk menyalakan server Next.js dalam mode produksi
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
 CMD ["npm", "start"]
