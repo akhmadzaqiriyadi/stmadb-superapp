@@ -60,6 +60,7 @@ export const assignmentsApi = {
     status?: string;
     class_id?: number;
     major_id?: number;
+    industry_type?: string;
   }) => api.get('/pkl/assignments', { params }),
 
   getMyAssignment: () => api.get('/pkl/assignments/my-assignment'),
@@ -92,10 +93,16 @@ export const assignmentsApi = {
 // ===== ATTENDANCE API =====
 export const attendanceApi = {
   // Student
-  tapIn: (formData: FormData) =>
-    api.post('/pkl/attendance/tap-in', formData, {
+  tapIn: (data: { latitude?: number; longitude?: number; photo?: Blob }) => {
+    const formData = new FormData();
+    if (data.latitude) formData.append('latitude', data.latitude.toString());
+    if (data.longitude) formData.append('longitude', data.longitude.toString());
+    if (data.photo) formData.append('photo', data.photo, 'selfie.jpg');
+    
+    return api.post('/pkl/attendance/tap-in', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+    });
+  },
 
   tapOut: (data?: { latitude?: number; longitude?: number }) =>
     api.post('/pkl/attendance/tap-out', data),
@@ -124,7 +131,7 @@ export const attendanceApi = {
   getStats: () => api.get('/pkl/attendance/stats'),
 
   // Supervisor
-  getPendingApprovals: (params?: { page?: number; limit?: number }) =>
+  getPendingApprovals: (params?: { page?: number; limit?: number; status?: string }) =>
     api.get('/pkl/attendance/pending-approvals', { params }),
 
   approve: (attendanceId: number, approval_notes?: string) =>
@@ -144,33 +151,50 @@ export const journalApi = {
     end_date?: string;
   }) => api.get('/pkl/journals/my', { params }),
 
-  getJournalById: (id: number) => api.get(`/pkl/journals/${id}`),
+  getById: (id: string) => api.get(`/pkl/journals/${id}`),
 
   createJournal: (data: {
     date: string;
     activities: string;
-    learning_points: string;
+    learning_points?: string;
     obstacles?: string;
     solutions?: string;
-    photo_url?: string;
-    attachment_url?: string;
-  }) => api.post('/pkl/journals', data),
+    photos?: File[]; // Support photo files
+  }) => {
+    const formData = new FormData();
+    formData.append('date', data.date);
+    formData.append('activities', data.activities);
+    if (data.learning_points) formData.append('learning_points', data.learning_points);
+    if (data.obstacles) formData.append('obstacles', data.obstacles);
+    if (data.solutions) formData.append('solutions', data.solutions);
+    
+    // Append photos
+    if (data.photos && data.photos.length > 0) {
+      data.photos.forEach((photo) => {
+        formData.append('photos', photo);
+      });
+    }
+    
+    return api.post('/pkl/journals', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 
   updateJournal: (id: string, data: any) => api.put(`/pkl/journals/${id}`, data),
 
-  submitJournal: (id: number) => api.post(`/pkl/journals/${id}/submit`),
-
-  uploadPhotos: (journalId: number, formData: FormData) => 
-    api.post(`/pkl/journals/${journalId}/photos`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
-
-  deletePhoto: (journalId: number, photoUrl: string) =>
-    api.delete(`/pkl/journals/${journalId}/photos`, { data: { photo_url: photoUrl } }),
+  submitJournal: (id: string) => api.post(`/pkl/journals/${id}/submit`),
 
   deleteJournal: (id: string) => api.delete(`/pkl/journals/${id}`),
 
-  // Supervisor (deprecated - no longer used)
+  uploadPhotos: (id: number, formData: FormData) => 
+    api.post(`/pkl/journals/${id}/photos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  deletePhoto: (id: number, photoUrl: string) => 
+    api.delete(`/pkl/journals/${id}/photos`, { data: { photo_url: photoUrl } }),
+
+  // Supervisor
   getPendingJournals: (params?: { page?: number; limit?: number }) =>
     api.get('/pkl/journals/pending', { params }),
 
@@ -182,19 +206,19 @@ export const journalApi = {
 
 // ===== SUPERVISOR API =====
 export const supervisorApi = {
-  getDashboard: () => api.get('/pkl/supervisor/dashboard'),
-
+  getDashboardStats: () => api.get('/pkl/supervisor/dashboard'),
+  
   getStudents: (params?: {
     page?: number;
     limit?: number;
     status?: string;
     search?: string;
   }) => api.get('/pkl/supervisor/students', { params }),
-
+  
   getStudentProgress: (assignmentId: number) =>
     api.get(`/pkl/supervisor/students/${assignmentId}/progress`),
-
-  getPendingItems: () => api.get('/pkl/supervisor/pending'),
+  
+  getAllPendingItems: () => api.get('/pkl/supervisor/pending'),
 
   getAdminStatistics: () => api.get('/pkl/supervisor/admin/statistics'),
 };

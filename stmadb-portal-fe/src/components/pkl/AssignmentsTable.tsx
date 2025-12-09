@@ -72,14 +72,18 @@ export default function AssignmentsTable() {
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState<string>('all');
   const [majorFilter, setMajorFilter] = useState<string>('all');
+  const [industryTypeFilter, setIndustryTypeFilter] = useState<string>('all');
   const [classSearchOpen, setClassSearchOpen] = useState(false);
   const [majorSearchOpen, setMajorSearchOpen] = useState(false);
+  const [industryTypeSearchOpen, setIndustryTypeSearchOpen] = useState(false);
   const [classSearch, setClassSearch] = useState('');
   const [majorSearch, setMajorSearch] = useState('');
+  const [industryTypeSearch, setIndustryTypeSearch] = useState('');
   
   const debouncedSearch = useDebounce(search, 500);
   const debouncedClassSearch = useDebounce(classSearch, 300);
   const debouncedMajorSearch = useDebounce(majorSearch, 300);
+  const debouncedIndustryTypeSearch = useDebounce(industryTypeSearch, 300);
 
   // Fetch classes - all without pagination
   const { data: classesData } = useQuery({
@@ -99,8 +103,17 @@ export default function AssignmentsTable() {
     },
   });
 
+  // Fetch unique industry types
+  const { data: industryTypesData } = useQuery({
+    queryKey: ['industry-types'],
+    queryFn: async () => {
+      const response = await api.get('/pkl/industries/types');
+      return response.data?.data || [];
+    },
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ['assignments', page, debouncedSearch, classFilter, majorFilter],
+    queryKey: ['assignments', page, debouncedSearch, classFilter, majorFilter, industryTypeFilter],
     queryFn: async () => {
       const response = await assignmentsApi.getAll({
         page,
@@ -108,6 +121,7 @@ export default function AssignmentsTable() {
         search: debouncedSearch || undefined,
         class_id: classFilter !== 'all' ? parseInt(classFilter) : undefined,
         major_id: majorFilter !== 'all' ? parseInt(majorFilter) : undefined,
+        industry_type: industryTypeFilter !== 'all' ? industryTypeFilter : undefined,
       });
       return response.data;
     },
@@ -117,6 +131,7 @@ export default function AssignmentsTable() {
   const meta = data?.meta || { page: 1, limit: 10, total: 0, totalPages: 0 };
   const classes = Array.isArray(classesData) ? classesData : (classesData?.data || []);
   const majors = Array.isArray(majorsData) ? majorsData : (majorsData?.data || []);
+  const industryTypes = industryTypesData || [];
 
   // Filter classes based on search
   const filteredClasses = useMemo(() => {
@@ -134,16 +149,26 @@ export default function AssignmentsTable() {
     );
   }, [majors, debouncedMajorSearch]);
 
-  const hasActiveFilters = classFilter !== 'all' || majorFilter !== 'all';
+  // Filter industry types based on search
+  const filteredIndustryTypes = useMemo(() => {
+    if (!debouncedIndustryTypeSearch) return industryTypes;
+    return industryTypes.filter((type: string) =>
+      type.toLowerCase().includes(debouncedIndustryTypeSearch.toLowerCase())
+    );
+  }, [industryTypes, debouncedIndustryTypeSearch]);
+
+  const hasActiveFilters = classFilter !== 'all' || majorFilter !== 'all' || industryTypeFilter !== 'all';
 
   const clearFilters = () => {
     setClassFilter('all');
     setMajorFilter('all');
+    setIndustryTypeFilter('all');
     setPage(1);
   };
 
   const selectedClass = classes.find((c: any) => String(c.id) === classFilter);
   const selectedMajor = majors.find((m: any) => String(m.id) === majorFilter);
+  const selectedIndustryType = industryTypeFilter !== 'all' ? industryTypeFilter : null;
 
   return (
     <div className="space-y-4">
@@ -295,6 +320,72 @@ export default function AssignmentsTable() {
             </PopoverContent>
           </Popover>
 
+          {/* Filter Industry Type - Searchable Combobox */}
+          <Popover open={industryTypeSearchOpen} onOpenChange={setIndustryTypeSearchOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={industryTypeSearchOpen}
+                className="w-[200px] justify-between"
+              >
+                {selectedIndustryType || 'Semua Industri'}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+              <Command>
+                <CommandInput
+                  placeholder="Cari industri..."
+                  value={industryTypeSearch}
+                  onValueChange={setIndustryTypeSearch}
+                />
+                <CommandList>
+                  <CommandEmpty>Industri tidak ditemukan.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all"
+                      onSelect={() => {
+                        setIndustryTypeFilter('all');
+                        setIndustryTypeSearchOpen(false);
+                        setIndustryTypeSearch('');
+                        setPage(1);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          industryTypeFilter === 'all' ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                      Semua Industri
+                    </CommandItem>
+                    {filteredIndustryTypes.map((type: string) => (
+                      <CommandItem
+                        key={type}
+                        value={type}
+                        onSelect={() => {
+                          setIndustryTypeFilter(type);
+                          setIndustryTypeSearchOpen(false);
+                          setIndustryTypeSearch('');
+                          setPage(1);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            industryTypeFilter === type ? 'opacity-100' : 'opacity-0'
+                          )}
+                        />
+                        {type}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
           {/* Clear Filters Button */}
           {hasActiveFilters && (
             <Button
@@ -331,6 +422,11 @@ export default function AssignmentsTable() {
             {classFilter !== 'all' && selectedClass && (
               <Badge variant="secondary" className="ml-1">
                 {selectedClass.class_name}
+              </Badge>
+            )}
+            {industryTypeFilter !== 'all' && selectedIndustryType && (
+              <Badge variant="secondary" className="ml-1">
+                {selectedIndustryType}
               </Badge>
             )}
           </span>

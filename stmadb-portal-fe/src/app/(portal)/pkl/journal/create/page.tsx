@@ -52,10 +52,7 @@ function CreateJournalPage() {
     try {
       setCheckingAttendance(true);
       const response = await attendanceApi.getTodayAttendance();
-      // Handle response.data.data structure
-      const attendance = response.data?.data || response.data;
-      
-      console.log("Today's attendance:", attendance); // Debug log
+      const attendance = response.data.data; // Fix: access nested data
       
       // Check if tapped in
       if (attendance && attendance.tap_in_time) {
@@ -64,7 +61,6 @@ function CreateJournalPage() {
         setHasAttendance(false);
       }
     } catch (error) {
-      console.error("Error checking attendance:", error);
       setHasAttendance(false);
     } finally {
       setCheckingAttendance(false);
@@ -121,8 +117,7 @@ function CreateJournalPage() {
     try {
       setLoading(true);
 
-      // Step 1: Create journal first
-      const data = {
+      const data: any = {
         date: new Date(formData.date).toISOString(),
         activities: formData.activities,
         learning_points: formData.learning_points,
@@ -130,26 +125,15 @@ function CreateJournalPage() {
         solutions: formData.solutions || undefined,
       };
 
-      const createResponse = await journalApi.createJournal(data);
-      const journalId = createResponse.data.id;
-
-      // Step 2: Upload photo if exists
+      // Add photo file if selected
       if (photoFile) {
-        try {
-          const photoFormData = new FormData();
-          photoFormData.append('photos', photoFile);
-
-          await journalApi.uploadPhotos(journalId, photoFormData);
-        } catch (photoError: any) {
-          console.error("Photo upload error:", photoError);
-          toast.error("Foto gagal diupload", {
-            description: "Jurnal sudah dibuat, tapi foto gagal diupload. Anda bisa upload nanti dari halaman edit.",
-          });
-        }
+        data.photos = [photoFile];
       }
 
+      await journalApi.createJournal(data);
+
       toast.success("Jurnal Berhasil Dibuat!", {
-        description: photoFile ? "Jurnal dan foto berhasil disimpan" : "Jurnal berhasil disimpan",
+        description: "Menunggu feedback dari pembimbing",
       });
 
       router.push("/pkl/journal");

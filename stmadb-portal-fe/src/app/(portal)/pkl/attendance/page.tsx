@@ -44,14 +44,6 @@ function PKLAttendancePage() {
 
   useEffect(() => {
     fetchData();
-
-    // Cleanup camera on unmount
-    return () => {
-      if (videoRef.current?.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach(track => track.stop());
-      }
-    };
   }, []);
 
   const fetchData = async () => {
@@ -111,75 +103,43 @@ function PKLAttendancePage() {
   };
 
   const startCamera = async () => {
-    console.log("Starting camera - setting cameraActive to true first");
-    // Set cameraActive first so video element gets rendered
-    setCameraActive(true);
-  };
-
-  // Separate effect to initialize camera stream after video element is rendered
-  useEffect(() => {
-    if (!cameraActive || !videoRef.current) return;
-
-    const initCamera = async () => {
-      try {
-        console.log("Initializing camera stream...");
+    try {
+      console.log('Starting camera...');
+      
+      // Set camera active first to render video element
+      setCameraActive(true);
+      
+      // Wait a bit for React to render the video element
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+      });
+      console.log('Camera stream obtained:', stream);
+      
+      if (videoRef.current) {
+        console.log('Video element found, assigning stream...');
+        videoRef.current.srcObject = stream;
+        console.log('Stream assigned to video element');
         
-        // Check if mediaDevices is supported
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error("Browser tidak mendukung akses kamera");
-        }
-
-        // Request camera permission and stream
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          } 
-        });
-        
-        console.log("Camera stream obtained:", stream);
-
-        if (videoRef.current) {
-          console.log("Setting video source...");
-          videoRef.current.srcObject = stream;
-          
-          // Wait for video to be ready
-          videoRef.current.onloadedmetadata = async () => {
-            console.log("Video metadata loaded");
-            try {
-              await videoRef.current?.play();
-              console.log("Video playing successfully");
-            } catch (playError) {
-              console.error("Play error:", playError);
-              toast.error("Gagal memutar video kamera");
-            }
-          };
-        }
-      } catch (error: any) {
-        console.error("Camera initialization error:", error);
-        
-        let errorMessage = "Pastikan izin kamera sudah diberikan";
-        
-        if (error.name === "NotAllowedError") {
-          errorMessage = "Izin kamera ditolak. Klik ikon kamera di address bar untuk mengizinkan.";
-        } else if (error.name === "NotFoundError") {
-          errorMessage = "Kamera tidak ditemukan di perangkat Anda";
-        } else if (error.name === "NotReadableError") {
-          errorMessage = "Kamera sedang digunakan aplikasi lain";
-        }
-        
-        toast.error("Gagal mengakses kamera", {
-          description: errorMessage
-        });
-        
-        // Reset camera active state on error
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded, playing...');
+          videoRef.current?.play().catch(err => {
+            console.error('Error playing video:', err);
+          });
+        };
+      } else {
+        console.error('Video element not found!');
+        toast.error("Video element tidak ditemukan");
         setCameraActive(false);
       }
-    };
-
-    initCamera();
-  }, [cameraActive]);
+    } catch (error) {
+      console.error('Camera error:', error);
+      toast.error("Gagal mengakses kamera");
+      setCameraActive(false);
+    }
+  };
 
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {
@@ -225,20 +185,21 @@ function PKLAttendancePage() {
         return;
       }
 
-      // Prepare FormData
-      const formData = new FormData();
-
       // Convert base64 to Blob
-      const blob = await fetch(photoData).then(r => r.blob());
-      formData.append('photo', blob, 'selfie.jpg');
+      const base64Response = await fetch(photoData);
+      const photoBlob = await base64Response.blob();
 
-      // Add GPS coordinates if available
+      // Prepare data
+      const data: any = {
+        photo: photoBlob,
+      };
+
       if (coords) {
-        formData.append('latitude', coords.latitude.toString());
-        formData.append('longitude', coords.longitude.toString());
+        data.latitude = coords.latitude;
+        data.longitude = coords.longitude;
       }
 
-      const response = await attendanceApi.tapIn(formData);
+      const response = await attendanceApi.tapIn(data);
       
       toast.success("Tap In Berhasil!", {
         description: response.data.message,
@@ -429,7 +390,6 @@ function PKLAttendancePage() {
                       ref={videoRef}
                       autoPlay
                       playsInline
-                      muted
                       className="w-full h-full object-cover"
                     />
                   </div>

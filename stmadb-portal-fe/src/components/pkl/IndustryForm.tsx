@@ -73,6 +73,7 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
       max_students: undefined,
       is_active: true,
     },
+    mode: 'onBlur', // Validate on blur for better UX
   });
 
   const isActive = watch("is_active");
@@ -172,8 +173,17 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
                 id="company_name"
                 {...register("company_name", {
                   required: "Nama perusahaan wajib diisi",
+                  minLength: {
+                    value: 3,
+                    message: "Nama perusahaan minimal 3 karakter"
+                  },
+                  maxLength: {
+                    value: 255,
+                    message: "Nama perusahaan maksimal 255 karakter"
+                  }
                 })}
                 placeholder="PT. Example Indonesia"
+                className={errors.company_name ? "border-red-500" : ""}
               />
               {errors.company_name && (
                 <p className="text-sm text-red-500 mt-1">
@@ -183,12 +193,28 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
             </div>
 
             <div className="col-span-2 sm:col-span-1">
-              <Label htmlFor="company_code" className="mb-2 block">Kode Perusahaan</Label>
+              <Label htmlFor="company_code" className="mb-2 block">
+                Kode Perusahaan
+              </Label>
               <Input
                 id="company_code"
-                {...register("company_code")}
+                {...register("company_code", {
+                  maxLength: {
+                    value: 50,
+                    message: "Kode perusahaan maksimal 50 karakter"
+                  }
+                })}
                 placeholder="EX-001"
+                className={errors.company_code ? "border-red-500" : ""}
               />
+              {errors.company_code && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.company_code.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Kode unik untuk identifikasi
+              </p>
             </div>
 
             <div className="col-span-2">
@@ -197,9 +223,20 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
               </Label>
               <Textarea
                 id="address"
-                {...register("address", { required: "Alamat wajib diisi" })}
+                {...register("address", {
+                  required: "Alamat wajib diisi",
+                  minLength: {
+                    value: 10,
+                    message: "Alamat minimal 10 karakter"
+                  },
+                  maxLength: {
+                    value: 500,
+                    message: "Alamat maksimal 500 karakter"
+                  }
+                })}
                 placeholder="Jl. Contoh No. 123, Kota, Provinsi"
                 rows={2}
+                className={errors.address ? "border-red-500" : ""}
               />
               {errors.address && (
                 <p className="text-sm text-red-500 mt-1">
@@ -209,22 +246,60 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
             </div>
 
             <div className="col-span-2 sm:col-span-1">
-              <Label htmlFor="industry_type" className="mb-2 block">Tipe Industri</Label>
+              <Label htmlFor="industry_type" className="mb-2 block">
+                Tipe Industri
+              </Label>
               <Input
                 id="industry_type"
-                {...register("industry_type")}
+                {...register("industry_type", {
+                  maxLength: {
+                    value: 100,
+                    message: "Tipe industri maksimal 100 karakter"
+                  }
+                })}
                 placeholder="Manufaktur, IT, Jasa, dll"
+                className={errors.industry_type ? "border-red-500" : ""}
               />
+              {errors.industry_type && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.industry_type.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Kategori bidang usaha
+              </p>
             </div>
 
             <div className="col-span-2 sm:col-span-1">
-              <Label htmlFor="max_students" className="mb-2 block">Maks. Siswa PKL</Label>
+              <Label htmlFor="max_students" className="mb-2 block">
+                Maks. Siswa PKL
+              </Label>
               <Input
                 id="max_students"
                 type="number"
-                {...register("max_students", { valueAsNumber: true })}
+                {...register("max_students", {
+                  valueAsNumber: true,
+                  min: {
+                    value: 1,
+                    message: "Minimal 1 siswa"
+                  },
+                  validate: (value) => {
+                    if (value === undefined || value === null) return true;
+                    if (!Number.isInteger(value)) return "Harus berupa bilangan bulat";
+                    return true;
+                  }
+                })}
                 placeholder="10"
+                className={errors.max_students ? "border-red-500" : ""}
               />
+              {errors.max_students && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.max_students.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Kapasitas maksimal siswa
+              </p>
             </div>
           </div>
         </CardContent>
@@ -258,8 +333,17 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
                 {...register("latitude", {
                   required: "Latitude wajib diisi",
                   valueAsNumber: true,
+                  min: {
+                    value: -90,
+                    message: "Latitude minimal -90"
+                  },
+                  max: {
+                    value: 90,
+                    message: "Latitude maksimal 90"
+                  }
                 })}
                 placeholder="0.507068"
+                className={errors.latitude ? "border-red-500" : ""}
               />
               {errors.latitude && (
                 <p className="text-sm text-red-500 mt-1">
@@ -279,8 +363,17 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
                 {...register("longitude", {
                   required: "Longitude wajib diisi",
                   valueAsNumber: true,
+                  min: {
+                    value: -180,
+                    message: "Longitude minimal -180"
+                  },
+                  max: {
+                    value: 180,
+                    message: "Longitude maksimal 180"
+                  }
                 })}
                 placeholder="101.447779"
+                className={errors.longitude ? "border-red-500" : ""}
               />
               {errors.longitude && (
                 <p className="text-sm text-red-500 mt-1">
@@ -299,14 +392,26 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
                 {...register("radius_meters", {
                   required: "Radius wajib diisi",
                   valueAsNumber: true,
+                  min: {
+                    value: 1,
+                    message: "Radius minimal 1 meter"
+                  },
+                  validate: (value) => {
+                    if (!Number.isInteger(value)) return "Harus berupa bilangan bulat";
+                    return true;
+                  }
                 })}
                 placeholder="100"
+                className={errors.radius_meters ? "border-red-500" : ""}
               />
               {errors.radius_meters && (
                 <p className="text-sm text-red-500 mt-1">
                   {errors.radius_meters.message}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Jarak validasi absensi dari titik pusat
+              </p>
             </div>
           </div>
         </CardContent>
@@ -323,9 +428,23 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
               <Label htmlFor="phone" className="mb-2 block">Telepon</Label>
               <Input
                 id="phone"
-                {...register("phone")}
-                placeholder="0812-3456-7890"
+                {...register("phone", {
+                  pattern: {
+                    value: /^(\+62|62|0)[0-9]{9,13}$/,
+                    message: "Format nomor telepon tidak valid (contoh: 081234567890)"
+                  }
+                })}
+                placeholder="081234567890"
+                className={errors.phone ? "border-red-500" : ""}
               />
+              {errors.phone && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.phone.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Format: 08xx atau +62xx
+              </p>
             </div>
 
             <div className="col-span-2 sm:col-span-1">
@@ -333,18 +452,54 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
               <Input
                 id="email"
                 type="email"
-                {...register("email")}
+                {...register("email", {
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Format email tidak valid"
+                  },
+                  maxLength: {
+                    value: 255,
+                    message: "Email maksimal 255 karakter"
+                  }
+                })}
                 placeholder="info@example.com"
+                className={errors.email ? "border-red-500" : ""}
               />
+              {errors.email && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Email perusahaan
+              </p>
             </div>
 
             <div className="col-span-2">
               <Label htmlFor="website" className="mb-2 block">Website</Label>
               <Input
                 id="website"
-                {...register("website")}
+                {...register("website", {
+                  pattern: {
+                    value: /^https?:\/\/.+/,
+                    message: "Format website tidak valid (harus diawali http:// atau https://)"
+                  },
+                  maxLength: {
+                    value: 255,
+                    message: "Website maksimal 255 karakter"
+                  }
+                })}
                 placeholder="https://example.com"
+                className={errors.website ? "border-red-500" : ""}
               />
+              {errors.website && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.website.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Harus diawali dengan http:// atau https://
+              </p>
             </div>
           </div>
         </CardContent>
@@ -358,31 +513,81 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Label htmlFor="contact_person_name" className="mb-2 block">Nama</Label>
+              <Label htmlFor="contact_person_name" className="mb-2 block">Nama PIC</Label>
               <Input
                 id="contact_person_name"
-                {...register("contact_person_name")}
+                {...register("contact_person_name", {
+                  minLength: {
+                    value: 3,
+                    message: "Nama PIC minimal 3 karakter"
+                  },
+                  maxLength: {
+                    value: 255,
+                    message: "Nama PIC maksimal 255 karakter"
+                  }
+                })}
                 placeholder="Budi Santoso"
+                className={errors.contact_person_name ? "border-red-500" : ""}
               />
+              {errors.contact_person_name && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.contact_person_name.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Nama Person In Charge di perusahaan
+              </p>
             </div>
 
             <div className="col-span-2 sm:col-span-1">
-              <Label htmlFor="contact_person_phone" className="mb-2 block">Telepon</Label>
+              <Label htmlFor="contact_person_phone" className="mb-2 block">Telepon PIC</Label>
               <Input
                 id="contact_person_phone"
-                {...register("contact_person_phone")}
-                placeholder="0812-9876-5432"
+                {...register("contact_person_phone", {
+                  pattern: {
+                    value: /^(\+62|62|0)[0-9]{9,13}$/,
+                    message: "Format nomor telepon PIC tidak valid (contoh: 081234567890)"
+                  }
+                })}
+                placeholder="081298765432"
+                className={errors.contact_person_phone ? "border-red-500" : ""}
               />
+              {errors.contact_person_phone && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.contact_person_phone.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Format: 08xx atau +62xx
+              </p>
             </div>
 
             <div className="col-span-2 sm:col-span-1">
-              <Label htmlFor="contact_person_email" className="mb-2 block">Email</Label>
+              <Label htmlFor="contact_person_email" className="mb-2 block">Email PIC</Label>
               <Input
                 id="contact_person_email"
                 type="email"
-                {...register("contact_person_email")}
+                {...register("contact_person_email", {
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Format email PIC tidak valid"
+                  },
+                  maxLength: {
+                    value: 255,
+                    message: "Email PIC maksimal 255 karakter"
+                  }
+                })}
                 placeholder="budi@example.com"
+                className={errors.contact_person_email ? "border-red-500" : ""}
               />
+              {errors.contact_person_email && (
+                <p className="text-sm text-red-500 mt-1">
+                  {errors.contact_person_email.message}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Opsional - Email PIC untuk koordinasi PKL
+              </p>
             </div>
           </div>
         </CardContent>
@@ -398,10 +603,24 @@ export default function IndustryForm({ industryId }: IndustryFormProps) {
             <Label htmlFor="description" className="mb-2 block">Deskripsi/Catatan</Label>
             <Textarea
               id="description"
-              {...register("description")}
+              {...register("description", {
+                maxLength: {
+                  value: 1000,
+                  message: "Deskripsi maksimal 1000 karakter"
+                }
+              })}
               placeholder="Informasi tambahan tentang industri..."
               rows={3}
+              className={errors.description ? "border-red-500" : ""}
             />
+            {errors.description && (
+              <p className="text-sm text-red-500 mt-1">
+                {errors.description.message}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Opsional - Catatan atau informasi tambahan
+            </p>
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-4">

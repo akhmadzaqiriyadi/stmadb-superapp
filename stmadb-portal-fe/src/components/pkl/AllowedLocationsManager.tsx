@@ -50,7 +50,7 @@ export default function AllowedLocationsManager({
     queryKey: ["allowed-locations", assignmentId],
     queryFn: async () => {
       const response = await assignmentsApi.getLocations(assignmentId);
-      return response.data;
+      return response.data.data;
     },
   });
 
