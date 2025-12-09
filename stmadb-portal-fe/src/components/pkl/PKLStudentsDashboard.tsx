@@ -20,6 +20,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,6 +49,8 @@ import { id } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { supervisorApi } from '@/lib/api/pkl';
 import Link from 'next/link';
+import PendingLeaveRequests from './leave/PendingLeaveRequests';
+
 
 const statusConfig = {
   Active: {
@@ -207,173 +215,196 @@ export default function PKLStudentsDashboard() {
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="mr-2 h-5 w-5" />
-            Filter & Pencarian
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama siswa, NISN, atau email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
+      {/* Tabs for Students and Leave Requests */}
+      <Tabs defaultValue="students" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="students" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Daftar Siswa
+          </TabsTrigger>
+          <TabsTrigger value="leave-requests" className="flex items-center gap-2">
+            <ClipboardList className="h-4 w-4" />
+            Pengajuan Izin/Sakit
+          </TabsTrigger>
+        </TabsList>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Semua Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Semua Status</SelectItem>
-                <SelectItem value="Active">Aktif</SelectItem>
-                <SelectItem value="Completed">Selesai</SelectItem>
-                <SelectItem value="Inactive">Tidak Aktif</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="mt-4">
-            <Button variant="outline" onClick={resetFilters} size="sm">
-              Reset Filter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Students Tab */}
+        <TabsContent value="students" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Filter className="mr-2 h-5 w-5" />
+                Filter & Pencarian
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cari nama siswa, NISN, atau email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
 
-      {/* Students Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Siswa PKL</CardTitle>
-          <CardDescription>
-            Menampilkan {students.length} siswa dari total {total}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Siswa</TableHead>
-                <TableHead>Industri/Perusahaan</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-center">Kehadiran</TableHead>
-                <TableHead className="text-center">Jurnal</TableHead>
-                <TableHead className="text-center">Terakhir Hadir</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      {searchQuery || statusFilter !== 'ALL'
-                        ? 'Tidak ada siswa yang sesuai filter'
-                        : 'Belum ada siswa PKL'}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {searchQuery || statusFilter !== 'ALL'
-                        ? 'Coba ubah filter atau kata kunci pencarian'
-                        : 'Siswa PKL akan muncul di sini'}
-                    </p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                students.map((student: any) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{student.student?.profile?.full_name || 'N/A'}</p>
-                        <p className="text-xs text-muted-foreground">
-                          NISN: {student.student?.student_extension?.nisn || '-'} • {student.student?.student_extension?.class || '-'}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">{student.industry?.company_name || 'Belum ditentukan'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge
-                        className={statusConfig[student.status as keyof typeof statusConfig]?.color}
-                        variant="default"
-                      >
-                        {statusConfig[student.status as keyof typeof statusConfig]?.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div>
-                        <p className="text-sm font-semibold">{student.stats?.attendance_rate || 0}%</p>
-                        <p className="text-xs text-muted-foreground">
-                          {student.stats?.present_days || 0}/{student.stats?.total_days || 0} hari
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <BookOpen className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm font-semibold">{student._count?.journals || 0}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="text-sm">
-                        {student.stats?.last_attendance
-                          ? format(new Date(student.stats.last_attendance), 'dd MMM yyyy', { locale: id })
-                          : '-'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <Link href={`/dashboard/pkl/students/${student.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Eye className="w-4 h-4 mr-1" />
-                            Detail
-                          </Button>
-                        </Link>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Halaman {page} dari {totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  Sebelumnya
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                >
-                  Selanjutnya
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Semua Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Semua Status</SelectItem>
+                    <SelectItem value="Active">Aktif</SelectItem>
+                    <SelectItem value="Completed">Selesai</SelectItem>
+                    <SelectItem value="Inactive">Tidak Aktif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="mt-4">
+                <Button variant="outline" onClick={resetFilters} size="sm">
+                  Reset Filter
                 </Button>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Students Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Daftar Siswa PKL</CardTitle>
+              <CardDescription>
+                Menampilkan {students.length} siswa dari total {total}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Siswa</TableHead>
+                    <TableHead>Industri/Perusahaan</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Kehadiran</TableHead>
+                    <TableHead className="text-center">Jurnal</TableHead>
+                    <TableHead className="text-center">Terakhir Hadir</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <p className="text-muted-foreground">
+                          {searchQuery || statusFilter !== 'ALL'
+                            ? 'Tidak ada siswa yang sesuai filter'
+                            : 'Belum ada siswa PKL'}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {searchQuery || statusFilter !== 'ALL'
+                            ? 'Coba ubah filter atau kata kunci pencarian'
+                            : 'Siswa PKL akan muncul di sini'}
+                        </p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    students.map((student: any) => (
+                      <TableRow key={student.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{student.student?.profile?.full_name || 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              NISN: {student.student?.student_extension?.nisn || '-'} • {student.student?.student_extension?.class || '-'}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">{student.industry?.company_name || 'Belum ditentukan'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge
+                            className={statusConfig[student.status as keyof typeof statusConfig]?.color}
+                            variant="default"
+                          >
+                            {statusConfig[student.status as keyof typeof statusConfig]?.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div>
+                            <p className="text-sm font-semibold">{student.stats?.attendance_rate || 0}%</p>
+                            <p className="text-xs text-muted-foreground">
+                              {student.stats?.present_days || 0}/{student.stats?.total_days || 0} hari
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <BookOpen className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm font-semibold">{student._count?.journals || 0}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-sm">
+                            {student.stats?.last_attendance
+                              ? format(new Date(student.stats.last_attendance), 'dd MMM yyyy', { locale: id })
+                              : '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Link href={`/dashboard/pkl/students/${student.id}`}>
+                              <Button variant="outline" size="sm">
+                                <Eye className="w-4 h-4 mr-1" />
+                                Detail
+                              </Button>
+                            </Link>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Halaman {page} dari {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Sebelumnya
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      Selanjutnya
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Leave Requests Tab */}
+        <TabsContent value="leave-requests">
+          <PendingLeaveRequests />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+

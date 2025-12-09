@@ -23,14 +23,17 @@ import {
   Search,
   Plus,
   Loader2,
+  UploadCloud,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useDebounce } from '@/hooks/use-debounce';
 import { DataTablePagination } from '@/components/ui/DataTablePagination';
+import { BulkUploadIndustryDialog } from './BulkUploadIndustryDialog';
 
 export default function IndustriesTable() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 500);
 
   const { data, isLoading } = useQuery({
@@ -64,12 +67,18 @@ export default function IndustriesTable() {
             className="pl-9"
           />
         </div>
-        <Button asChild>
-          <Link href="/dashboard/pkl/industries/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Industri
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsBulkUploadOpen(true)}>
+            <UploadCloud className="mr-2 h-4 w-4" />
+            Import Excel
+          </Button>
+          <Button asChild>
+            <Link href="/dashboard/pkl/industries/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Industri
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -192,6 +201,12 @@ export default function IndustriesTable() {
           limit={meta.limit}
         />
       )}
+
+      {/* Bulk Upload Dialog */}
+      <BulkUploadIndustryDialog
+        isOpen={isBulkUploadOpen}
+        setIsOpen={setIsBulkUploadOpen}
+      />
     </div>
   );
 }

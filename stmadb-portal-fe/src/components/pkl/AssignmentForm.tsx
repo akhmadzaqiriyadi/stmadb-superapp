@@ -135,8 +135,11 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
   });
 
   useEffect(() => {
-    if (assignmentData) {
+    if (assignmentData && industriesData && teachersData) {
+      console.log('Assignment Data:', assignmentData);
       const assignment = assignmentData.data;
+      console.log('Assignment:', assignment);
+      
       reset({
         student_user_ids: [assignment.student_user_id],
         industry_id: assignment.industry_id,
@@ -154,8 +157,16 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
         require_gps_validation: assignment.require_gps_validation ?? true,
       });
       setSelectedStudents([assignment.student_user_id]);
+      
+      console.log('Form values after reset:', {
+        industry_id: assignment.industry_id,
+        school_supervisor_id: assignment.school_supervisor_id,
+        pkl_type: assignment.pkl_type,
+        company_mentor_name: assignment.company_mentor_name,
+        company_mentor_phone: assignment.company_mentor_phone,
+      });
     }
-  }, [assignmentData, reset]);
+  }, [assignmentData, industriesData, teachersData, reset]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: AssignmentFormData) => {
@@ -287,11 +298,11 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
       </div>
 
       {/* Selected Students Display */}
-      {!isEdit && selectedStudents.length > 0 && (
+      {selectedStudents.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">
-              Siswa Terpilih ({selectedStudents.length})
+              {isEdit ? "Siswa yang Di-assign" : `Siswa Terpilih (${selectedStudents.length})`}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -299,19 +310,37 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
               {selectedStudents.map((studentId) => {
                 const student = students.find((s: any) => s.id === studentId);
                 return (
-                  <Badge key={studentId} variant="secondary" className="pl-3 pr-1">
-                    {student?.profile?.full_name || `Student #${studentId}`}
-                    <button
-                      type="button"
-                      onClick={() => removeStudent(studentId)}
-                      className="ml-2 hover:bg-destructive/20 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                  <Badge key={studentId} variant="secondary" className={isEdit ? "pl-3 pr-3" : "pl-3 pr-1"}>
+                    {student?.profile?.full_name || assignmentData?.data?.student?.profile?.full_name || `Student #${studentId}`}
+                    {!isEdit && (
+                      <button
+                        type="button"
+                        onClick={() => removeStudent(studentId)}
+                        className="ml-2 hover:bg-destructive/20 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </Badge>
                 );
               })}
             </div>
+            {isEdit && assignmentData?.data?.student && (
+              <div className="mt-3 pt-3 border-t text-sm text-muted-foreground space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">NIS:</span>
+                  <span>{assignmentData.data.student.student_extension?.nisn || "-"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Email:</span>
+                  <span>{assignmentData.data.student.email}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">No. HP:</span>
+                  <span>{assignmentData.data.student.profile?.phone_number || "-"}</span>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -321,7 +350,7 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Pilih Siswa {!isEdit && "(Multi-Select)"}
+            Pilih Siswa {isEdit ? "(Ubah Assignment)" : "(Multi-Select)"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -443,7 +472,7 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
               Pilih Industri <span className="text-red-500">*</span>
             </Label>
             <SearchableSelect
-              value={industryId.toString()}
+              value={industryId > 0 ? industryId.toString() : ""}
               onValueChange={(value) => setValue("industry_id", parseInt(value))}
             >
               <SearchableSelectTrigger>
@@ -543,7 +572,7 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
         <CardContent>
           <Label className="mb-2 block">Pilih Pembimbing (Opsional)</Label>
           <SearchableSelect
-            value={supervisorId?.toString() || "none"}
+            value={supervisorId ? supervisorId.toString() : "none"}
             onValueChange={(value) =>
               setValue(
                 "school_supervisor_id",

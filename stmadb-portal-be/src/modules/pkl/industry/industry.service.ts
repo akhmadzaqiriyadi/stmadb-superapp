@@ -1,6 +1,7 @@
 // src/modules/pkl/industry/industry.service.ts
 
 import { PrismaClient } from '@prisma/client';
+import * as xlsx from 'xlsx';
 
 const prisma = new PrismaClient();
 
@@ -330,6 +331,126 @@ class IndustryService {
     });
 
     return students;
+  }
+
+  // Bulk create industries from Excel
+  async bulkCreateIndustries(fileBuffer: Buffer) {
+    const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    
+    if (!sheetName) {
+      throw new Error('File Excel tidak valid atau tidak memiliki sheet.');
+    }
+    
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {
+      throw new Error(`Sheet dengan nama "${sheetName}" tidak ditemukan.`);
+    }
+    
+    const industriesData = xlsx.utils.sheet_to_json(sheet);
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as { row: number; error: string }[],
+    };
+
+    for (const [index, industryRow] of industriesData.entries()) {
+      const row = industryRow as any;
+      const rowIndex = index + 2; // Excel rows start at 1, row 1 is header
+
+      try {
+        // --- VALIDATION PHASE (before writing to DB) ---
+        
+        // Validate required fields
+        if (!row['Nama Perusahaan'] || !row['Alamat']) {
+          throw new Error('Kolom Nama Perusahaan dan Alamat wajib diisi.');
+        }
+
+        // Validate latitude and longitude
+        const latitude = parseFloat(row['Latitude']);
+        const longitude = parseFloat(row['Longitude']);
+        
+        if (isNaN(latitude) || isNaN(longitude)) {
+          throw new Error('Latitude dan Longitude harus berupa angka yang valid.');
+        }
+
+        if (latitude < -90 || latitude > 90) {
+          throw new Error('Latitude harus berada di antara -90 dan 90.');
+        }
+
+        if (longitude < -180 || longitude > 180) {
+          throw new Error('Longitude harus berada di antara -180 dan 180.');
+        }
+
+        // Check company name uniqueness
+        const existingName = await prisma.industry.findUnique({
+          where: { company_name: row['Nama Perusahaan'] },
+        });
+
+        if (existingName) {
+          throw new Error(`Nama perusahaan '${row['Nama Perusahaan']}' sudah terdaftar.`);
+        }
+
+        // Check company code uniqueness if provided
+        if (row['Kode Perusahaan']) {
+          const existingCode = await prisma.industry.findUnique({
+            where: { company_code: row['Kode Perusahaan'] },
+          });
+
+          if (existingCode) {
+            throw new Error(`Kode perusahaan '${row['Kode Perusahaan']}' sudah digunakan.`);
+          }
+        }
+
+        // Parse optional numeric fields
+        let radiusMeters = 100; // default
+        if (row['Radius (meter)']) {
+          const parsed = parseFloat(row['Radius (meter)']);
+          if (!isNaN(parsed) && parsed > 0) {
+            radiusMeters = parsed;
+          }
+        }
+
+        let maxStudents: number | undefined = undefined;
+        if (row['Maksimal Siswa']) {
+          const parsed = parseInt(row['Maksimal Siswa'], 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            maxStudents = parsed;
+          }
+        }
+
+        // --- EXECUTION PHASE (all data validated) ---
+        
+        const industryData: CreateIndustryDto = {
+          company_name: row['Nama Perusahaan'],
+          company_code: row['Kode Perusahaan'] || undefined,
+          address: row['Alamat'],
+          phone: row['Telepon'] || undefined,
+          email: row['Email'] || undefined,
+          website: row['Website'] || undefined,
+          latitude,
+          longitude,
+          radius_meters: radiusMeters,
+          industry_type: row['Jenis Industri'] || undefined,
+          description: row['Deskripsi'] || undefined,
+          contact_person_name: row['Nama Kontak Person'] || undefined,
+          contact_person_phone: row['Telepon Kontak Person'] || undefined,
+          contact_person_email: row['Email Kontak Person'] || undefined,
+          ...(maxStudents !== undefined && { max_students: maxStudents }),
+        };
+
+        await this.createIndustry(industryData);
+        results.success++;
+
+      } catch (error) {
+        results.failed++;
+        const errorMessage = error instanceof Error ? error.message : 'Error tidak diketahui';
+        results.errors.push({ row: rowIndex, error: errorMessage });
+      }
+    }
+
+    return results;
   }
 
   // Get unique industry types

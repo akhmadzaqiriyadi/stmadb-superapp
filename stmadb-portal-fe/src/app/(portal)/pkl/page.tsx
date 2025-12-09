@@ -16,7 +16,8 @@ import {
   ChevronRight,
   LogIn,
   LogOut,
-  AlertCircle
+  AlertCircle,
+  ClipboardList
 } from "lucide-react";
 import withAuth from "@/components/auth/withAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,6 +28,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
+import LeaveRequestForm from "@/components/pkl/leave/LeaveRequestForm";
+
 
 function PKLDashboardPage() {
   const router = useRouter();
@@ -34,6 +37,8 @@ function PKLDashboardPage() {
   const [assignment, setAssignment] = useState<any>(null);
   const [todayAttendance, setTodayAttendance] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [isLeaveFormOpen, setIsLeaveFormOpen] = useState(false);
+
 
   useEffect(() => {
     fetchData();
@@ -315,9 +320,48 @@ function PKLDashboardPage() {
             </Card>
           </Link>
         </div>
+
+        {/* Leave Request Section */}
+        <Card className="shadow-md border-2 border-amber-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-100 rounded-lg">
+                  <ClipboardList className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Izin/Sakit</h3>
+                  <p className="text-xs text-gray-600">Ajukan jika tidak bisa hadir</p>
+                </div>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={() => setIsLeaveFormOpen(true)}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90"
+            >
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Ajukan Izin/Sakit
+            </Button>
+
+            <Link href="/pkl/leave-requests">
+              <Button variant="outline" className="w-full mt-2">
+                Lihat Riwayat Pengajuan
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Leave Request Form Dialog */}
+      <LeaveRequestForm 
+        isOpen={isLeaveFormOpen} 
+        onClose={() => setIsLeaveFormOpen(false)} 
+      />
     </div>
   );
 }
 
 export default withAuth(PKLDashboardPage);
+

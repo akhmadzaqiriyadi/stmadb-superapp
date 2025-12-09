@@ -1,6 +1,7 @@
 // src/modules/pkl/journal/journal.service.ts
 
 import { PrismaClient, Prisma } from '@prisma/client';
+import { startOfDay, endOfDay, parseISO } from 'date-fns';
 
 const prisma = new PrismaClient();
 
@@ -67,12 +68,30 @@ export const createJournal = async (userId: number, data: CreateJournalInput) =>
     throw new Error('Journal untuk attendance ini sudah ada');
   }
 
-  // 4. Create journal with photos
+  // 4. Additional check: Ensure only 1 journal per day per assignment
+  const journalDate = startOfDay(parseISO(data.date));
+  const nextDay = endOfDay(parseISO(data.date));
+
+  const existingJournalForDay = await prisma.pKLJournal.findFirst({
+    where: {
+      pkl_assignment_id: attendance.pkl_assignment_id,
+      date: {
+        gte: journalDate,
+        lte: nextDay,
+      },
+    },
+  });
+
+  if (existingJournalForDay) {
+    throw new Error('Anda sudah mengisi jurnal untuk tanggal ini');
+  }
+
+  // 5. Create journal with photos
   return prisma.pKLJournal.create({
     data: {
       pkl_assignment_id: attendance.pkl_assignment_id,
       attendance_id: data.attendance_id,
-      date: new Date(data.date),
+      date: journalDate, // Use startOfDay for consistency
       activities: data.activities,
       learnings: data.learnings ?? null,
       challenges: data.challenges ?? null,

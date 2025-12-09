@@ -5,6 +5,7 @@ import * as industryController from './industry.controller.js';
 import { protect } from '../../../core/middlewares/auth.middleware.js';
 import { authorize } from '../../../core/middlewares/authorize.middleware.js';
 import { validate } from '../../../core/middlewares/validate.middleware.js';
+import { upload } from '../../../core/config/multer.js';
 import {
   createIndustrySchema,
   updateIndustrySchema,
@@ -87,6 +88,73 @@ router.get(
   '/types',
   authorize(['Admin', 'Teacher', 'WaliKelas']),
   industryController.getIndustryTypes
+);
+
+/**
+ * @openapi
+ * /pkl/industries/bulk-upload:
+ *   post:
+ *     tags: [PKL - Industry]
+ *     summary: (Admin) Bulk create industries from Excel
+ *     description: |
+ *       Upload Excel file (.xlsx or .xls) to create multiple industries at once.
+ *       Required columns: Nama Perusahaan, Alamat, Latitude, Longitude.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file containing industry data
+ *     responses:
+ *       201:
+ *         description: Bulk upload completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Proses pembuatan industri massal selesai.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: integer
+ *                       example: 8
+ *                     failed:
+ *                       type: integer
+ *                       example: 2
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           row:
+ *                             type: integer
+ *                             example: 5
+ *                           error:
+ *                             type: string
+ *                             example: "Nama perusahaan 'PT ABC' sudah terdaftar."
+ *       400:
+ *         description: Bad Request - No file uploaded
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.post(
+  '/bulk-upload',
+  authorize(['Admin']),
+  upload.single('file'),
+  industryController.bulkCreateIndustries
 );
 
 /**

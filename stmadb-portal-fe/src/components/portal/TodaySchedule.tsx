@@ -5,12 +5,30 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
-import { Loader2, Clock, User, MapPin, Calendar, ArrowRight } from "lucide-react";
+import { Loader2, Clock, User, MapPin, Calendar, ArrowRight, Building2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
 import api from "@/lib/axios";
 import { ProfileData, Schedule, DayOfWeek, ActiveScheduleWeek, ScheduleType } from "@/types";
 import { getJakartaDateString, getJakartaTime } from '@/lib/date-utils';
+import { Badge } from "@/components/ui/badge";
+
+// PKL Assignment Interface
+interface PKLAssignment {
+  id: number;
+  status: string;
+  start_date: string;
+  end_date: string;
+  industry: {
+    company_name: string;
+    address: string;
+  };
+  school_supervisor?: {
+    profile: {
+      full_name: string;
+    };
+  };
+}
 
 // Fungsi untuk format waktu dari UTC
 const formatTime = (timeString: string | Date): string => {
@@ -143,6 +161,24 @@ export function TodaySchedule() {
       queryFn: async () => (await api.get('/users/me/profile')).data,
   });
 
+  const isStudent = profile?.roles.some(role => role.role_name === 'Student');
+
+  // Fetch PKL assignment if student
+  const { data: pklData } = useQuery({
+    queryKey: ['myPKLAssignment'],
+    queryFn: async () => {
+      try {
+        const { data: pklResponse } = await api.get('/pkl/assignments/my-assignment');
+        const pklAssignment = pklResponse.data || pklResponse;
+        return pklAssignment.status === 'Active' ? pklAssignment : null;
+      } catch (error: any) {
+        if (error.response?.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: !!profile && isStudent,
+  });
+
   const { data: result, isLoading } = useQuery({
     queryKey: ['todaySchedule', profile?.id],
     queryFn: () => fetchTodayScheduleData(profile || null),
@@ -150,7 +186,6 @@ export function TodaySchedule() {
   });
 
   const isLoadingOverall = isLoading || isLoadingProfile;
-  const isStudent = profile?.roles.some(role => role.role_name === 'Student');
   const isTeacher = profile?.roles.some(role => role.role_name === 'Teacher');
 
   if (isLoadingOverall) {
@@ -245,8 +280,8 @@ export function TodaySchedule() {
             </p>
           </div>
           
-          {/* Active Schedule Badge - For both students and teachers */}
-          {(isStudent || isTeacher) && activeWeek && (
+          {/* Active Schedule Badge - For both students and teachers (not when PKL active) */}
+          {(isStudent || isTeacher) && activeWeek && !pklData && (
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-gray-400" />
               <span className={`text-xs font-medium px-2 py-1 rounded-md ${getScheduleTypeDisplay(activeWeek.active_week_type).color}`}>
@@ -259,6 +294,64 @@ export function TodaySchedule() {
 
       {/* Content */}
       <div className="p-4">
+        {/* PKL Indicator Banner */}
+        {pklData && (
+          <div className="mb-4 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-3 shadow-sm">
+            <div className="flex items-start gap-3">
+              {/* Icon */}
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 border-2 border-amber-400">
+                <Building2 className="h-5 w-5 text-amber-700" />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-xs font-bold text-gray-900">
+                    Sedang Melaksanakan PKL
+                  </h3>
+                  <Badge className="bg-amber-500 text-white text-xs px-1.5 py-0">
+                    Aktif
+                  </Badge>
+                </div>
+                
+                <p className="text-xs text-gray-700 font-medium mb-1.5">
+                  {pklData.industry.company_name}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mb-2">
+                  {/* Period */}
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3 text-amber-600" />
+                    <span className="text-xs">
+                      {format(new Date(pklData.start_date), 'd MMM', { locale: idLocale })} -{' '}
+                      {format(new Date(pklData.end_date), 'd MMM yyyy', { locale: idLocale })}
+                    </span>
+                  </div>
+
+                  {/* Supervisor */}
+                  {pklData.school_supervisor && (
+                    <>
+                      <span className="text-gray-300">•</span>
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3 text-amber-600" />
+                        <span className="text-xs">{pklData.school_supervisor.profile.full_name}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Info text */}
+                <div className="flex items-start gap-1.5 bg-amber-100/50 rounded-lg px-2 py-1.5">
+                  <AlertCircle className="h-3 w-3 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    Jadwal kelas reguler tidak berlaku selama PKL
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {isHoliday ? (
           <div className="flex flex-col items-center justify-center text-center py-8">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center mb-3 border-2 border-amber-200">

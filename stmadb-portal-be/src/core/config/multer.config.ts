@@ -8,11 +8,13 @@ const uploadsDir = path.join(process.cwd(), 'uploads');
 const journalPhotosDir = path.join(uploadsDir, 'journal-photos');
 const journalAttachmentsDir = path.join(uploadsDir, 'journal-attachments');
 const attendancePhotosDir = path.join(uploadsDir, 'attendance-photos');
+const leaveEvidenceDir = path.join(uploadsDir, 'leave-evidence');
 
 // Ensure folders exist
-[uploadsDir, journalPhotosDir, journalAttachmentsDir, attendancePhotosDir].forEach((d) => {
+[uploadsDir, journalPhotosDir, journalAttachmentsDir, attendancePhotosDir, leaveEvidenceDir].forEach((d) => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
+
 
 // Helper: create safe filename
 const makeSafeFilename = (originalName: string) => {
@@ -42,6 +44,13 @@ const attendancePhotoStorage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => cb(null, attendancePhotosDir),
   filename: (req: Request, file: Express.Multer.File, cb) => cb(null, makeSafeFilename(file.originalname)),
 });
+
+// Storage for leave evidence (surat dokter, etc)
+const leaveEvidenceStorage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb) => cb(null, leaveEvidenceDir),
+  filename: (req: Request, file: Express.Multer.File, cb) => cb(null, makeSafeFilename(file.originalname)),
+});
+
 
 // File filters
 const imageMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -81,6 +90,13 @@ export const uploadAttendancePhoto = multer({
   limits: { fileSize: 5 * 1024 * 1024, files: 1 }, // 5MB, max 1 file
 });
 
+export const uploadLeaveEvidence = multer({
+  storage: leaveEvidenceStorage,
+  fileFilter: attachmentFileFilter, // Allow images and documents
+  limits: { fileSize: 5 * 1024 * 1024, files: 5 }, // 5MB per file, max 5 files
+});
+
+
 // Helpers to build public URLs (served at /uploads/... by app.ts)
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -102,5 +118,12 @@ export const getAttendancePhotoUrl = (filename: string) => `${BASE_URL}/uploads/
 
 export const deleteAttendancePhoto = (filename: string) => {
   const p = path.join(attendancePhotosDir, filename);
+  if (fs.existsSync(p)) fs.unlinkSync(p);
+};
+
+export const getLeaveEvidenceUrl = (filename: string) => `${BASE_URL}/uploads/leave-evidence/${encodeURIComponent(filename)}`;
+
+export const deleteLeaveEvidence = (filename: string) => {
+  const p = path.join(leaveEvidenceDir, filename);
   if (fs.existsSync(p)) fs.unlinkSync(p);
 };

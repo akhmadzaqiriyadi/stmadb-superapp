@@ -136,3 +136,24 @@ export const getIndustryTypes = async (req: Request, res: Response) => {
     res.status(400).json({ message: (error as Error).message });
   }
 };
+
+// Bulk Create Industries
+export const bulkCreateIndustries = async (req: Request, res: Response) => {
+  try {
+    // Validate file upload
+    if (!req.file) {
+      return res.status(400).json({ message: 'File Excel dibutuhkan.' });
+    }
+
+    const result = await industryService.bulkCreateIndustries(req.file.buffer);
+    
+    res.status(201).json({
+      message: 'Proses pembuatan industri massal selesai.',
+      data: result,
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Terjadi kesalahan internal server';
+    res.status(500).json({ message: errorMessage });
+  }
+};
