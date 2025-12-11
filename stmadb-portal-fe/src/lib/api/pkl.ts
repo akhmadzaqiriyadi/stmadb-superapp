@@ -196,7 +196,15 @@ export const journalApi = {
 
   // Supervisor
   getPendingJournals: (params?: { page?: number; limit?: number }) =>
-    api.get('/pkl/journals/pending', { params }),
+    api.get('/pkl/journals/supervised', { params }),
+
+  getSupervisedJournals: (params?: { 
+    page?: number; 
+    limit?: number; 
+    student_id?: number;
+    status?: string;
+  }) =>
+    api.get('/pkl/journals/supervised', { params }),
 
   provideFeedback: (
     id: string,

@@ -163,6 +163,20 @@ function PKLAttendanceHistoryPage() {
                 <div className="text-xs text-gray-500">Hadir</div>
               </div>
               <div>
+                <div className="text-xl font-bold text-orange-600">
+                  {history.filter((h) => h.status === "Sick").length}
+                </div>
+                <div className="text-xs text-gray-500">Sakit</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold text-yellow-600">
+                  {history.filter((h) => h.status === "Excused").length}
+                </div>
+                <div className="text-xs text-gray-500">Izin</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-center mt-2 pt-2 border-t">
+              <div>
                 <div className="text-xl font-bold text-blue-600">
                   {history.filter((h) => h.status === "InProgress").length}
                 </div>
@@ -278,12 +292,25 @@ function PKLAttendanceHistoryPage() {
                       {item.tap_out_time && (
                         <div>
                           <p className="text-xs text-gray-500 mb-1">Tap Out</p>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {format(new Date(item.tap_out_time), "HH:mm")}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {format(new Date(item.tap_out_time), "HH:mm")}
+                            </p>
+                            {item.tap_out_method === 'Auto' && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full">
+                                <span className="text-xs">🤖</span>
+                                <span className="text-xs font-medium text-amber-700">Auto</span>
+                              </div>
+                            )}
+                          </div>
                           {item.total_hours && (
                             <p className="text-xs text-gray-600 mt-1">
                               {Number(item.total_hours).toFixed(1)} jam
+                            </p>
+                          )}
+                          {item.tap_out_method === 'Auto' && (
+                            <p className="text-xs text-amber-600 mt-1">
+                              Auto tap out - Lupa manual tap out
                             </p>
                           )}
                         </div>

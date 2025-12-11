@@ -23,7 +23,7 @@ export const getLeaveRequestsSchema = z.object({
   query: z.object({
     page: z.string().optional(),
     limit: z.string().optional(),
-    status: z.enum(['Pending', 'Approved', 'Rejected']).optional(),
+    status: z.enum(['Pending', 'Approved', 'Rejected', 'all']).optional(),
     start_date: z.string().optional(),
     end_date: z.string().optional(),
   }),

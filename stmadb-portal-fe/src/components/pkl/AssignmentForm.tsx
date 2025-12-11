@@ -33,6 +33,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import AllowedLocationsManager from "./AllowedLocationsManager";
+import InMemoryLocationsManager from "./InMemoryLocationsManager";
 
 interface AssignmentFormProps {
   assignmentId?: number;
@@ -65,6 +66,8 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
   const [kelasFilter, setKelasFilter] = useState("all");
   const [industrySearch, setIndustrySearch] = useState("");
   const [supervisorSearch, setSupervisorSearch] = useState("");
+  const [locations, setLocations] = useState<any[]>([]); // For create mode
+  const [formKey, setFormKey] = useState(0); // Force re-render on data load
 
   const {
     register,
@@ -135,12 +138,39 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
   });
 
   useEffect(() => {
-    if (assignmentData && industriesData && teachersData) {
-      console.log('Assignment Data:', assignmentData);
+    if (assignmentData?.data) {
       const assignment = assignmentData.data;
-      console.log('Assignment:', assignment);
+      console.log('Loading assignment data:', assignment);
       
-      reset({
+      // Helper function to extract time from various formats
+      const extractTime = (timeValue: any, defaultTime: string): string => {
+        if (!timeValue) return defaultTime;
+        
+        // If it's already a time string (HH:MM format)
+        if (typeof timeValue === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(timeValue)) {
+          return timeValue.substring(0, 5); // Return HH:MM only
+        }
+        
+        // If it's a DateTime string
+        if (typeof timeValue === 'string') {
+          try {
+            const date = new Date(timeValue);
+            if (!isNaN(date.getTime())) {
+              return date.toLocaleTimeString('en-GB', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              });
+            }
+          } catch (e) {
+            console.error('Error parsing time:', e);
+          }
+        }
+        
+        return defaultTime;
+      };
+      
+      const formData = {
         student_user_ids: [assignment.student_user_id],
         industry_id: assignment.industry_id,
         school_supervisor_id: assignment.school_supervisor_id || undefined,
@@ -152,21 +182,18 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
         status: assignment.status,
         pkl_type: assignment.pkl_type || "Onsite",
         work_schedule_type: assignment.work_schedule_type || "Regular",
-        work_start_time: assignment.work_start_time ? new Date(assignment.work_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "08:00",
-        work_end_time: assignment.work_end_time ? new Date(assignment.work_end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : "17:00",
+        work_start_time: extractTime(assignment.work_start_time, "08:00"),
+        work_end_time: extractTime(assignment.work_end_time, "17:00"),
         require_gps_validation: assignment.require_gps_validation ?? true,
-      });
-      setSelectedStudents([assignment.student_user_id]);
+      };
       
-      console.log('Form values after reset:', {
-        industry_id: assignment.industry_id,
-        school_supervisor_id: assignment.school_supervisor_id,
-        pkl_type: assignment.pkl_type,
-        company_mentor_name: assignment.company_mentor_name,
-        company_mentor_phone: assignment.company_mentor_phone,
-      });
+      reset(formData);
+      setSelectedStudents([assignment.student_user_id]);
+      setFormKey(prev => prev + 1); // Force form to re-render
+      
+      console.log('Form reset complete:', formData);
     }
-  }, [assignmentData, industriesData, teachersData, reset]);
+  }, [assignmentData, reset]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: AssignmentFormData) => {
@@ -186,20 +213,47 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
       }
       
       // For create, batch create for multiple students
-      const promises = data.student_user_ids.map((studentId) =>
-        assignmentsApi.create({
-          ...formattedData,
-          student_user_id: studentId,
-        } as any)
+      const createdAssignments = await Promise.all(
+        data.student_user_ids.map((studentId) =>
+          assignmentsApi.create({
+            ...formattedData,
+            student_user_id: studentId,
+          } as any)
+        )
       );
-      return Promise.all(promises);
+
+      // Add locations if any
+      if (locations.length > 0 && createdAssignments.length > 0) {
+        // Add locations to all created assignments
+        const locationPromises = createdAssignments.flatMap((assignment) =>
+          locations.map((loc) =>
+            assignmentsApi.addLocation(assignment.data.id, {
+              location_name: loc.location_name,
+              location_type: loc.location_type,
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              radius_meters: loc.radius_meters,
+            }).catch((err) => {
+              console.error(`Failed to add location to assignment ${assignment.data.id}:`, err);
+              // Don't fail entire operation if location add fails
+              return null;
+            })
+          )
+        );
+        
+        await Promise.allSettled(locationPromises);
+      }
+
+      return createdAssignments;
     },
     onSuccess: () => {
-      toast.success(
-        isEdit
-          ? "Assignment berhasil diperbarui"
-          : `${selectedStudents.length} siswa berhasil di-assign`
-      );
+      const message = isEdit
+        ? "Assignment berhasil diperbarui"
+        : locations.length > 0
+        ? `${selectedStudents.length} siswa berhasil di-assign dengan ${locations.length} lokasi alternatif`
+        : `${selectedStudents.length} siswa berhasil di-assign`;
+        
+      toast.success(message);
       router.push("/dashboard/pkl/assignments");
     },
     onError: (error: any) => {
@@ -284,7 +338,7 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form key={formKey} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="flex items-center gap-4">
         <Button
           type="button"
@@ -731,8 +785,22 @@ export default function AssignmentForm({ assignmentId }: AssignmentFormProps) {
           )}
           
           {!isEdit && (
-            <div className="p-4 bg-muted rounded-md text-sm text-muted-foreground">
-              ℹ️ Simpan assignment terlebih dahulu untuk menambahkan lokasi alternatif (misal: rumah siswa untuk WFH/Hybrid).
+            <div className="pt-4 border-t">
+              <InMemoryLocationsManager 
+                locations={locations}
+                onChange={setLocations}
+                industryLocation={
+                  industryId && industries.length > 0
+                    ? (() => {
+                        const industry = industries.find((ind: any) => ind.id === industryId);
+                        return industry ? {
+                          latitude: Number(industry.latitude),
+                          longitude: Number(industry.longitude),
+                        } : undefined;
+                      })()
+                    : undefined
+                }
+              />
             </div>
           )}
         </CardContent>

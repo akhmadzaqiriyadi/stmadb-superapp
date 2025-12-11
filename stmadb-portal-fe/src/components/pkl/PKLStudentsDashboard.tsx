@@ -50,6 +50,7 @@ import { toast } from 'sonner';
 import { supervisorApi } from '@/lib/api/pkl';
 import Link from 'next/link';
 import PendingLeaveRequests from './leave/PendingLeaveRequests';
+import { DataTablePagination } from '../ui/DataTablePagination';
 
 
 const statusConfig = {
@@ -371,28 +372,14 @@ export default function PKLStudentsDashboard() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Halaman {page} dari {totalPages}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                    >
-                      Sebelumnya
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                    >
-                      Selanjutnya
-                    </Button>
-                  </div>
+                <div className="mt-4">
+                  <DataTablePagination
+                    page={page}
+                    totalPages={totalPages}
+                    totalData={total}
+                    setPage={setPage}
+                    limit={10}
+                  />
                 </div>
               )}
             </CardContent>

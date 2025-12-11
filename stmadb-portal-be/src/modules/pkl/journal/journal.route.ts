@@ -279,6 +279,60 @@ router.delete(
   journalController.deletePhoto
 );
 
+// ===== TEACHER ROUTES =====
+
+/**
+ * @openapi
+ * /pkl/journals/supervised:
+ *   get:
+ *     tags:
+ *       - PKL - Journal
+ *     summary: Get supervised journals (Teacher)
+ *     description: Mendapatkan daftar journal siswa yang dibimbing
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Draft, Submitted]
+ *       - in: query
+ *         name: student_id
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: start_date
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: end_date
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *     responses:
+ *       200:
+ *         description: Daftar journal
+ */
+router.get(
+  '/supervised',
+  protect,
+  authorize(['Teacher']),
+  validate(getJournalsSchema),
+  journalController.getSupervisedJournals
+);
+
 /**
  * @openapi
  * /pkl/journals/{id}:
@@ -333,60 +387,6 @@ router.delete(
   authorize(['Student']),
   validate(deleteJournalSchema),
   journalController.deleteJournal
-);
-
-// ===== TEACHER ROUTES =====
-
-/**
- * @openapi
- * /pkl/journals/supervised:
- *   get:
- *     tags:
- *       - PKL - Journal
- *     summary: Get supervised journals (Teacher)
- *     description: Mendapatkan daftar journal siswa yang dibimbing
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [Draft, Submitted]
- *       - in: query
- *         name: student_id
- *         schema:
- *           type: integer
- *       - in: query
- *         name: start_date
- *         schema:
- *           type: string
- *           format: date-time
- *       - in: query
- *         name: end_date
- *         schema:
- *           type: string
- *           format: date-time
- *     responses:
- *       200:
- *         description: Daftar journal
- */
-router.get(
-  '/supervised',
-  protect,
-  authorize(['Teacher']),
-  validate(getJournalsSchema),
-  journalController.getSupervisedJournals
 );
 
 // ===== SHARED ROUTES (Student, Teacher, Admin) =====

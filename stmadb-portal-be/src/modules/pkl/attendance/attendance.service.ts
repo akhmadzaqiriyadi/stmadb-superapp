@@ -475,46 +475,63 @@ class AttendanceService {
   }
 
   // Get Attendance Stats (Student)
-  async getAttendanceStats(studentUserId: number) {
-    const assignment = await prisma.pKLAssignment.findFirst({
-      where: {
-        student_user_id: studentUserId,
-        status: 'Active',
-      },
-    });
+async getAttendanceStats(studentUserId: number) {
+  const assignment = await prisma.pKLAssignment.findFirst({
+    where: {
+      student_user_id: studentUserId,
+      status: 'Active',
+    },
+  });
 
-    if (!assignment) {
-      return null;
-    }
-
-    const [total, present, pending, totalHours] = await Promise.all([
-      prisma.pKLAttendance.count({
-        where: { pkl_assignment_id: assignment.id },
-      }),
-      prisma.pKLAttendance.count({
-        where: { pkl_assignment_id: assignment.id, status: 'Present' },
-      }),
-      prisma.pKLAttendance.count({
-        where: {
-          pkl_assignment_id: assignment.id,
-          is_manual_entry: true,
-          approval_status: 'Pending',
-        },
-      }),
-      prisma.pKLAttendance.aggregate({
-        where: { pkl_assignment_id: assignment.id },
-        _sum: { total_hours: true },
-      }),
-    ]);
-
-    return {
-      total_days: total,
-      present_days: present,
-      attendance_rate: total > 0 ? Math.round((present / total) * 100) : 0,
-      total_hours: totalHours._sum.total_hours || 0,
-      pending_approvals: pending,
-    };
+  if (!assignment) {
+    return null;
   }
+
+  const [total, present, sick, excused, pending, totalHours] = await Promise.all([
+    prisma.pKLAttendance.count({
+      where: { pkl_assignment_id: assignment.id },
+    }),
+    prisma.pKLAttendance.count({
+      where: { pkl_assignment_id: assignment.id, status: 'Present' },
+    }),
+    prisma.pKLAttendance.count({
+      where: { pkl_assignment_id: assignment.id, status: 'Sick' },
+    }),
+    prisma.pKLAttendance.count({
+      where: { pkl_assignment_id: assignment.id, status: 'Excused' },
+    }),
+    prisma.pKLAttendance.count({
+      where: {
+        pkl_assignment_id: assignment.id,
+        is_manual_entry: true,
+        approval_status: 'Pending',
+      },
+    }),
+    prisma.pKLAttendance.aggregate({
+      where: { pkl_assignment_id: assignment.id },
+      _sum: { total_hours: true },
+    }),
+  ]);
+
+  console.log('📊 Stats Debug:', {
+    assignmentId: assignment.id,
+    studentUserId,
+    total,
+    present,
+    sick,
+    excused,
+  });
+
+  return {
+    total_days: total,
+    present_days: present,
+    total_sick: sick,
+    total_excused: excused,
+    attendance_rate: total > 0 ? Math.round((present / total) * 100) : 0,
+    total_hours: totalHours._sum.total_hours || 0,
+    pending_approvals: pending,
+  };
+}
 
   // Get Pending Approvals (Supervisor/Admin)
   async getPendingApprovals(userId: number, query: any, userRoles?: string[]) {
@@ -607,7 +624,7 @@ class AttendanceService {
         approved_by_id: userId,
         approved_at: new Date(),
         approval_notes: notes ?? null,
-        status: 'Present',
+        // Status tetap sesuai dengan yang di-set saat request dibuat (Present/Sick/Excused)
       },
     });
 
@@ -657,6 +674,93 @@ class AttendanceService {
     // TODO: Send email to student
 
     return updated;
+  }
+
+  /**
+   * Auto Tap Out - Called by cron job at 23:59 daily
+   * Automatically tap out all students who are still InProgress (forgot to tap out)
+   */
+  async autoTapOutPendingAttendance() {
+    const today = startOfDay(new Date());
+    const now = new Date();
+    now.setHours(23, 59, 0, 0); // Set to 23:59:00
+
+    try {
+      // Find all InProgress attendance for today
+      const pendingAttendance = await prisma.pKLAttendance.findMany({
+        where: {
+          date: today,
+          status: 'InProgress',
+          tap_in_time: { not: null },
+          tap_out_time: null,
+          is_manual_entry: false, // Only auto attendance, not manual requests
+        },
+        include: {
+          pkl_assignment: {
+            include: {
+              student: {
+                include: {
+                  profile: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      console.log(`[Auto Tap Out] Found ${pendingAttendance.length} pending records for ${today.toISOString()}`);
+
+      if (pendingAttendance.length === 0) {
+        return {
+          success: true,
+          count: 0,
+          details: [],
+          message: 'No pending attendance to process',
+        };
+      }
+
+      const results = [];
+
+      for (const attendance of pendingAttendance) {
+        const totalHours = calculateTotalHours(attendance.tap_in_time!, now);
+
+        const updated = await prisma.pKLAttendance.update({
+          where: { id: attendance.id },
+          data: {
+            tap_out_time: now,
+            tap_out_method: 'Auto',
+            total_hours: totalHours,
+            status: 'Present',
+            notes: attendance.notes 
+              ? `${attendance.notes} | Auto tap out - Lupa manual tap out`
+              : 'Auto tap out - Lupa manual tap out',
+          },
+        });
+
+        results.push({
+          attendanceId: updated.id,
+          studentName: attendance.pkl_assignment.student.profile?.full_name || 'Unknown',
+          studentId: attendance.pkl_assignment.student_user_id,
+          tapInTime: attendance.tap_in_time,
+          tapOutTime: now,
+          totalHours,
+        });
+
+        console.log(`[Auto Tap Out] ✓ Completed for ${attendance.pkl_assignment.student.profile?.full_name} - ${totalHours}h`);
+      }
+
+      console.log(`[Auto Tap Out] Successfully completed ${results.length} records`);
+
+      return {
+        success: true,
+        count: results.length,
+        details: results,
+        message: `Successfully auto-tapped out ${results.length} students`,
+      };
+    } catch (error) {
+      console.error('[Auto Tap Out] Error:', error);
+      throw error;
+    }
   }
 }
 

@@ -4,6 +4,10 @@
 import { useEffect, useRef, useState } from "react";
 import * as maptilersdk from '@maptiler/sdk';
 import '@maptiler/sdk/dist/maptiler-sdk.css';
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { MapPin } from "lucide-react";
 
 interface MapTilerPickerProps {
   latitude: number;
@@ -23,6 +27,10 @@ export default function MapTilerPicker({
   const marker = useRef<any>(null);
   const circle = useRef<any>(null);
   const [apiKey] = useState('hKTeoszJlWlB3Q6YQuq1');
+  
+  // Manual input state
+  const [manualLat, setManualLat] = useState(latitude.toString());
+  const [manualLng, setManualLng] = useState(longitude.toString());
 
   useEffect(() => {
     if (map.current) return; // Initialize map only once
@@ -50,6 +58,8 @@ export default function MapTilerPicker({
         // Handle marker drag
         marker.current.on('dragend', () => {
           const lngLat = marker.current.getLngLat();
+          setManualLat(lngLat.lat.toFixed(6));
+          setManualLng(lngLat.lng.toFixed(6));
           onLocationSelect(lngLat.lat, lngLat.lng);
           updateCircle(lngLat.lat, lngLat.lng);
         });
@@ -59,6 +69,8 @@ export default function MapTilerPicker({
       map.current.on('click', (e: any) => {
         const { lat, lng } = e.lngLat;
         marker.current.setLngLat([lng, lat]);
+        setManualLat(lat.toFixed(6));
+        setManualLng(lng.toFixed(6));
         onLocationSelect(lat, lng);
         updateCircle(lat, lng);
       });
@@ -83,6 +95,9 @@ export default function MapTilerPicker({
       map.current.setCenter([longitude, latitude]);
       updateCircle(latitude, longitude);
     }
+    // Sync manual input fields
+    setManualLat(latitude.toFixed(6));
+    setManualLng(longitude.toFixed(6));
   }, [latitude, longitude]);
 
   const updateCircle = (lat: number, lng: number) => {
@@ -133,8 +148,29 @@ export default function MapTilerPicker({
     circle.current = true;
   };
 
+  const handleManualUpdate = () => {
+    const lat = parseFloat(manualLat);
+    const lng = parseFloat(manualLng);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      return;
+    }
+    
+    // Validate coordinate ranges
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return;
+    }
+    
+    if (marker.current && map.current) {
+      marker.current.setLngLat([lng, lat]);
+      map.current.setCenter([lng, lat]);
+      updateCircle(lat, lng);
+      onLocationSelect(lat, lng);
+    }
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <div 
         ref={mapContainer} 
         className="w-full h-[400px] rounded-lg border overflow-hidden"
@@ -142,6 +178,57 @@ export default function MapTilerPicker({
       <p className="text-xs text-muted-foreground">
         💡 Klik pada peta atau drag marker untuk memilih lokasi. Lingkaran biru menunjukkan radius validasi GPS ({radius}m).
       </p>
+      
+      {/* Manual Coordinate Input */}
+      <div className="border rounded-lg p-4 bg-muted/30">
+        <Label className="text-sm font-medium mb-3 flex items-center gap-2">
+          <MapPin className="h-4 w-4" />
+          Input Koordinat Manual (Opsional)
+        </Label>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <Label htmlFor="manual-lat" className="text-xs text-muted-foreground">
+              Latitude
+            </Label>
+            <Input
+              id="manual-lat"
+              type="number"
+              step="0.000001"
+              value={manualLat}
+              onChange={(e) => setManualLat(e.target.value)}
+              placeholder="-6.200000"
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <Label htmlFor="manual-lng" className="text-xs text-muted-foreground">
+              Longitude
+            </Label>
+            <Input
+              id="manual-lng"
+              type="number"
+              step="0.000001"
+              value={manualLng}
+              onChange={(e) => setManualLng(e.target.value)}
+              placeholder="106.816666"
+              className="text-sm"
+            />
+          </div>
+          <div className="flex items-end">
+            <Button 
+              onClick={handleManualUpdate}
+              variant="secondary"
+              size="sm"
+              className="w-full"
+            >
+              Set Lokasi
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Masukkan koordinat GPS jika Anda tahu lokasi pastinya. Format: Latitude (-90 s/d 90), Longitude (-180 s/d 180)
+        </p>
+      </div>
     </div>
   );
 }

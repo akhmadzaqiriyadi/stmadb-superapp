@@ -81,6 +81,13 @@ const teacherShortcuts: ShortcutItem[] = [
     icon: Users,
     roles: ["Teacher", "WaliKelas", "Admin"],
   },
+  {
+    title: "Bimbingan PKL",
+    href: "/pkl/supervision",
+    icon: ClipboardList,
+    roles: ["Teacher", "WaliKelas"],
+    highlight: true,
+  },
 ];
 
 export function FeatureShortcuts() {

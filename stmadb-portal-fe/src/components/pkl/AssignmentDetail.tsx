@@ -96,6 +96,34 @@ export default function AssignmentDetail({
 
   const assignment = data.data;
 
+  // Helper function to format time from various formats
+  const formatTime = (timeValue: any): string => {
+    if (!timeValue) return '-';
+    
+    // If it's already a time string (HH:MM format)
+    if (typeof timeValue === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(timeValue)) {
+      return timeValue.substring(0, 5); // Return HH:MM only
+    }
+    
+    // If it's a DateTime string
+    if (typeof timeValue === 'string') {
+      try {
+        const date = new Date(timeValue);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing time:', e);
+      }
+    }
+    
+    return '-';
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -296,7 +324,7 @@ export default function AssignmentDetail({
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
                 <span>
-                  {assignment.work_start_time || '-'} s/d {assignment.work_end_time || '-'}
+                  {formatTime(assignment.work_start_time)} s/d {formatTime(assignment.work_end_time)}
                 </span>
               </div>
             </div>
